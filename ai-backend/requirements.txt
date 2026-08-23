@@ -1,0 +1,26 @@
+fastapi
+uvicorn[standard]
+
+# PDF processing (stable for 3.10)
+pymupdf
+
+# Tokenization (chunking)
+tiktoken
+
+# HTTP requests
+requests
+
+# File uploads
+python-multipart
+
+# Data validation
+pydantic
+
+# Supabase client (Python)
+supabase
+
+# Google Gemini stable SDK
+google-generativeai
+
+# Env variables
+python-dotenv

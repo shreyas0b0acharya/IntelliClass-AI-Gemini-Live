@@ -1,0 +1,23 @@
+{
+  "name": "intelliclass-ai-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IntelliClass AI - Polyglot Monorepo: Realtime 3D Avatar Classroom, Multi-modal RAG & Lip-sync TTS",
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"FRONTEND,HEADTTS,AI-BACKEND\" -c \"cyan.bold,magenta.bold,yellow.bold\" \"pnpm --filter model-next dev\" \"pnpm --filter @met4citizen/headtts start\" \"node scripts/run-ai.mjs\"",
+    "dev:frontend": "pnpm --filter model-next dev",
+    "dev:tts": "pnpm --filter @met4citizen/headtts start",
+    "dev:ai": "node scripts/run-ai.mjs",
+    "build": "pnpm --filter model-next build",
+    "typecheck": "pnpm --filter model-next typecheck",
+    "health": "node scripts/health-check.mjs",
+    "setup:python": "node scripts/setup-python.mjs",
+    "clean": "node scripts/clean.mjs",
+    "clean:deep": "node scripts/clean-deep.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3"
+  },
+  "packageManager": "pnpm@11.10.0"
+}
