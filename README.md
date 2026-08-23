@@ -131,3 +131,11 @@ You can launch the complete ecosystem with live health checks using our dedicate
 
 - **PowerShell**: `./scripts/start-all.ps1`
 - **Command Prompt**: `./scripts/start-all.bat`
+
+---
+
+## 🎨 3D Models & Animations
+
+> [!IMPORTANT]
+> For the 3D character models (`.glb` / `.gltf`), textures, and custom skeletal animation files, please **ask the repository owner**.
+
