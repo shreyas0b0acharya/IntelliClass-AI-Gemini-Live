@@ -57,6 +57,13 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/tts|api/audio|generated|.*\\.(?:svg|png|jpg|jpeg|gif|webp|glb|bin|wav)$).*)",
+    // Exclude static assets, auth-free API routes, and time-sensitive endpoints
+    // from the Supabase auth middleware (each hit runs auth.getUser() → network round-trip).
+    // api/time  — SNTP clock sync: must be sub-10ms, cannot afford an auth RTT
+    // api/tts   — TTS synthesis: auth not required, already excluded
+    // api/audio — audio media: auth not required
+    // api/media — media assets: auth not required
+    // generated — static built assets
+    "/((?!_next/static|_next/image|favicon.ico|api/tts|api/audio|api/time|api/media|generated|.*\\.(?:svg|png|jpg|jpeg|gif|webp|glb|bin|wav)$).*)",
   ],
 };

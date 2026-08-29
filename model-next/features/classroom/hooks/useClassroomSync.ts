@@ -110,6 +110,14 @@ export function useClassroomSync({
     (event: ClassroomEvent) => {
       if (!broadcastChannelRef.current) return;
 
+      // Only send when the WebSocket is SUBSCRIBED — not before.
+      // Without this check, the Supabase SDK silently falls back to REST API
+      // (which logs a deprecation warning and adds latency).
+      if (!isChannelSubscribedRef.current) {
+        console.warn("[Realtime] broadcastEvent skipped: channel not yet subscribed (event:", event.type, ")");
+        return;
+      }
+
       // Students can only broadcast INTERRUPT and REQUEST_ADMISSION
       if (
         !isLecturerRef.current &&
@@ -121,7 +129,7 @@ export function useClassroomSync({
       }
 
       lastSequenceRef.current = Math.max(lastSequenceRef.current, event.sequence);
-      
+
       try {
         broadcastChannelRef.current.send({
           type: "broadcast",

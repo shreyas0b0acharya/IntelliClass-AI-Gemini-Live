@@ -289,7 +289,9 @@ export function useSpeechQueue({
   const handleAudioEnd = useCallback(
     (requestId?: string) => {
       if (requestId && activeRequestIdRef.current && requestId !== activeRequestIdRef.current) {
-        console.warn("[SpeechQueue] Ignoring stale audio end from requestId:", requestId);
+        // Expected: fired by a previous audio segment's onended after we've moved on.
+        // This is the stale-guard working correctly — not an error.
+        console.debug("[SpeechQueue] Stale audio end ignored (requestId:", requestId, ")");
         return;
       }
 
