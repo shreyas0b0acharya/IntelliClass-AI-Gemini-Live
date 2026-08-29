@@ -11,6 +11,11 @@ import {
   getOrDecodeAudioBuffer,
   getMasterGainNode,
 } from "../services/audioManager";
+import { getSynchronizedEpochMs } from "../services/clockSync";
+
+// ─────────────────────────────────────────────
+// Mesh helpers
+// ─────────────────────────────────────────────
 
 function resetMeshMorphs(mesh: THREE.SkinnedMesh | undefined) {
   if (!mesh || !mesh.morphTargetDictionary || !mesh.morphTargetInfluences) {
@@ -51,25 +56,19 @@ function updateMeshMorphs(
     const idx = dict[viseme];
     if (idx !== undefined) {
       const target = targetMorphs[viseme] ?? 0;
-      inf[idx] = THREE.MathUtils.damp(
-        inf[idx],
-        target,
-        smoothingSpeed,
-        delta
-      );
+      inf[idx] = THREE.MathUtils.damp(inf[idx], target, smoothingSpeed, delta);
     }
   }
 
   const jawIdx = dict["jawOpen"];
   if (jawIdx !== undefined) {
-    inf[jawIdx] = THREE.MathUtils.damp(
-      inf[jawIdx],
-      targetJaw,
-      smoothingSpeed,
-      delta
-    );
+    inf[jawIdx] = THREE.MathUtils.damp(inf[jawIdx], targetJaw, smoothingSpeed, delta);
   }
 }
+
+// ─────────────────────────────────────────────
+// Hook
+// ─────────────────────────────────────────────
 
 export function useLipSync({
   head,
@@ -78,33 +77,36 @@ export function useLipSync({
   lipSyncData,
   play,
   onEnded,
+  targetEpochMs,
+  sequence,
 }: LipSyncProps) {
   const headRef = useRef<THREE.SkinnedMesh | undefined>(head);
   const teethLowerRef = useRef<THREE.SkinnedMesh | undefined>(teethLower);
   const lipSyncRef = useRef<HeadTTSData | null>(lipSyncData ?? null);
   const onEndedRef = useRef<(() => void) | undefined>(onEnded);
 
+  // For legacy (non-epoch) timing fallback
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const startedAtRef = useRef<number>(0);
+  const startedAtRef = useRef<number>(0);         // AudioContext time when audio started
   const generationRef = useRef(0);
   const isPlayingRef = useRef(false);
 
-  // Keep mesh and prop refs fresh across renders
-  useEffect(() => {
-    headRef.current = head;
-  }, [head]);
+  // Sequence gate: morphs are only driven when authorizedSeq matches props.sequence
+  // -1 means "accept anything" (legacy / no sequence provided)
+  const authorizedSeqRef = useRef<number>(-1);
 
-  useEffect(() => {
-    teethLowerRef.current = teethLower;
-  }, [teethLower]);
+  // Keep refs fresh across renders
+  useEffect(() => { headRef.current = head; }, [head]);
+  useEffect(() => { teethLowerRef.current = teethLower; }, [teethLower]);
+  useEffect(() => { lipSyncRef.current = lipSyncData ?? null; }, [lipSyncData]);
+  useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
 
+  // When sequence prop changes, authorize the new sequence
   useEffect(() => {
-    lipSyncRef.current = lipSyncData ?? null;
-  }, [lipSyncData]);
-
-  useEffect(() => {
-    onEndedRef.current = onEnded;
-  }, [onEnded]);
+    if (sequence !== undefined) {
+      authorizedSeqRef.current = sequence;
+    }
+  }, [sequence]);
 
   const resetMouth = () => {
     resetMeshMorphs(headRef.current);
@@ -127,13 +129,18 @@ export function useLipSync({
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopAudio();
-    };
+    return () => { stopAudio(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load and play audio via persistent AudioContext
+  // ── Legacy playback path ──
+  // Used when NO targetEpochMs is provided (e.g. showcase / preview pages).
+  // When targetEpochMs IS provided, scheduling is done externally by
+  // scheduleAudioPlayback() in audioManager — we only drive morphs here.
   useEffect(() => {
+    // If caller is using the new epoch-scheduled path, skip legacy playback
+    if (targetEpochMs !== undefined) return;
+
     if (!play || !audioPath) {
       stopAudio();
       return;
@@ -148,18 +155,13 @@ export function useLipSync({
         const ctx = getAudioContext();
 
         if (ctx.state !== "running") {
-          try {
-            await ctx.resume();
-          } catch {}
+          try { await ctx.resume(); } catch {}
         }
 
         const audioBuffer = await getOrDecodeAudioBuffer(audioPath);
+        if (isCancelled || generation !== generationRef.current) return;
 
-        if (isCancelled || generation !== generationRef.current) {
-          return;
-        }
-
-        // Stop any previous playing buffer source
+        // Stop any previous source
         if (sourceRef.current) {
           try {
             sourceRef.current.onended = null;
@@ -169,7 +171,6 @@ export function useLipSync({
           sourceRef.current = null;
         }
 
-        // Create and connect new buffer source with master gain
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(getMasterGainNode());
@@ -183,15 +184,12 @@ export function useLipSync({
           onEndedRef.current?.();
         };
 
-        const startTime = ctx.currentTime;
-        startedAtRef.current = startTime;
+        startedAtRef.current = ctx.currentTime;
         isPlayingRef.current = true;
-
         source.start(0);
-        console.log("[LipSync] Web Audio playing iteration", generation, audioPath);
       } catch (error) {
         if (isCancelled) return;
-        console.error("[LipSync] Audio playback failed:", error);
+        console.error("[LipSync] Legacy audio playback failed:", error);
         isPlayingRef.current = false;
         resetMouth();
         onEndedRef.current?.();
@@ -199,50 +197,72 @@ export function useLipSync({
     };
 
     void playAudio();
+    return () => { isCancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioPath, play, targetEpochMs]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [audioPath, play]);
+  // When epoch-scheduled path is used, signal isPlaying based on play prop
+  useEffect(() => {
+    if (targetEpochMs === undefined) return;
+    if (play) {
+      isPlayingRef.current = true;
+    } else {
+      isPlayingRef.current = false;
+      resetMouth();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [play, targetEpochMs]);
 
-  // Lip-sync animation frame
+  // ── Animation frame — drive morph targets ──
   useFrame((_, delta) => {
     const data = lipSyncRef.current;
     const headMesh = headRef.current;
     const teethMesh = teethLowerRef.current;
 
+    // ── Sequence gate ──────────────────────────────────────────────────────
+    // If a sequence is specified and doesn't match the authorized one, keep
+    // mouth at rest. This prevents ghost animation from stale/dropped packets.
+    if (
+      sequence !== undefined &&
+      authorizedSeqRef.current !== -1 &&
+      sequence !== authorizedSeqRef.current
+    ) {
+      if (headMesh) updateMeshMorphs(headMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+      if (teethMesh) updateMeshMorphs(teethMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+      return;
+    }
+
     if (!data || !headMesh || !isPlayingRef.current) {
-      if (headMesh) {
-        updateMeshMorphs(
-          headMesh,
-          {},
-          0,
-          LIP_SYNC_CONFIG.smoothingSpeed,
-          delta
-        );
-      }
-      if (teethMesh) {
-        updateMeshMorphs(
-          teethMesh,
-          {},
-          0,
-          LIP_SYNC_CONFIG.smoothingSpeed,
-          delta
-        );
-      }
+      if (headMesh) updateMeshMorphs(headMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+      if (teethMesh) updateMeshMorphs(teethMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
       return;
     }
 
-    let ctx: AudioContext;
-    try {
-      ctx = getAudioContext();
-    } catch {
-      return;
+    // ── Compute playback position ──────────────────────────────────────────
+    // NEW (epoch-locked): all devices compute the same currentTime
+    //   currentTime = getSynchronizedEpochMs() - targetEpochMs
+    //   This is wall-clock elapsed ms since the scheduled start, identical
+    //   across every device regardless of local JS execution timing.
+    //
+    // LEGACY (ctx-clock): fallback for preview/showcase without epoch
+    //   currentTime = (ctx.currentTime - startedAt) * 1000
+    let currentTimeMs: number;
+
+    if (targetEpochMs !== undefined) {
+      currentTimeMs = getSynchronizedEpochMs() - targetEpochMs;
+      // Before scheduled start: don't animate (avoid showing morphs too early)
+      if (currentTimeMs < 0) {
+        if (headMesh) updateMeshMorphs(headMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+        if (teethMesh) updateMeshMorphs(teethMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+        return;
+      }
+    } else {
+      let ctx: AudioContext;
+      try { ctx = getAudioContext(); } catch { return; }
+      currentTimeMs = (ctx.currentTime - startedAtRef.current) * 1000;
     }
 
-    // Exact elapsed audio time in milliseconds based on master audio clock
-    const currentTime = (ctx.currentTime - startedAtRef.current) * 1000;
-
+    // ── Viseme lookup ──────────────────────────────────────────────────────
     const targetMorphs: Record<string, number> = {};
     let targetJaw = 0;
 
@@ -256,10 +276,9 @@ export function useLipSync({
       const start = data.vtimes[i];
       const end = start + data.vdurations[i];
 
-      if (currentTime >= start && currentTime < end) {
+      if (currentTimeMs >= start && currentTimeMs < end) {
         const rawViseme = data.visemes[i];
         const config = getMouthConfig(rawViseme);
-
         if (!config) continue;
 
         if (config.morph) {
@@ -268,25 +287,11 @@ export function useLipSync({
             LIP_SYNC_CONFIG.visemeIntensity
           );
         }
-
         targetJaw = Math.max(targetJaw, config.jawOpen);
       }
     }
 
-    updateMeshMorphs(
-      headMesh,
-      targetMorphs,
-      targetJaw,
-      LIP_SYNC_CONFIG.smoothingSpeed,
-      delta
-    );
-
-    updateMeshMorphs(
-      teethMesh,
-      targetMorphs,
-      targetJaw,
-      LIP_SYNC_CONFIG.smoothingSpeed,
-      delta
-    );
+    updateMeshMorphs(headMesh, targetMorphs, targetJaw, LIP_SYNC_CONFIG.smoothingSpeed, delta);
+    updateMeshMorphs(teethMesh, targetMorphs, targetJaw, LIP_SYNC_CONFIG.smoothingSpeed, delta);
   });
 }

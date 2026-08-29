@@ -2,8 +2,8 @@ import * as THREE from "three";
 
 export interface HeadTTSData {
   visemes: string[];
-  vtimes: number[];
-  vdurations: number[];
+  vtimes: number[];       // ms from audio start when this viseme begins
+  vdurations: number[];   // ms each viseme lasts
   phonemes?: string[];
   words?: string[];
   wtimes?: number[];
@@ -17,4 +17,23 @@ export interface LipSyncProps {
   lipSyncData?: HeadTTSData;
   play: boolean;
   onEnded?: () => void;
+
+  /**
+   * Synchronized wall-clock epoch (ms) when audio playback should start / started.
+   * When provided, the viseme animation clock is driven by:
+   *   currentTime = getSynchronizedEpochMs() - targetEpochMs
+   * This makes blendshape timing identical across ALL devices regardless of
+   * when each client's local JS thread scheduled the audio.
+   *
+   * When absent, falls back to legacy behaviour (ctx.currentTime - startedAt).
+   */
+  targetEpochMs?: number;
+
+  /**
+   * Monotonic sequence number of the current playback slot.
+   * useLipSync will only drive morphs when this matches the internally
+   * "authorized" sequence — preventing ghost animation from stale/dropped
+   * packets. If the sequence doesn't match, morphs stay at rest (mouth closed).
+   */
+  sequence?: number;
 }

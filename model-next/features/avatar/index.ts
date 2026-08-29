@@ -23,7 +23,16 @@ export {
   getOrDecodeAudioBuffer,
   unlockAudioContext,
   preloadAudioBuffer,
+  scheduleAudioPlayback,
 } from "./services/audioManager";
+export {
+  getSynchronizedEpochMs,
+  getClockPrecision,
+  isClockCalibrated,
+  startBackgroundSync,
+  stopBackgroundSync,
+  syncNow,
+} from "./services/clockSync";
 export {
   splitIntoSmallChunks,
   splitIntoSentences,

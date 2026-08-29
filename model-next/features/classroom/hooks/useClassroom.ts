@@ -9,10 +9,17 @@ import { parseLectureScript, type LectureItem, type LectureSpeechItem } from "..
 import type { ClassroomEvent, InterruptionItem, SessionStateStatus } from "../types/classroom";
 import type { HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
+import { preloadAudioBuffer } from "@/features/avatar";
+import { getSynchronizedEpochMs, startBackgroundSync } from "@/features/avatar";
 import { useSpeechQueue } from "./useSpeechQueue";
 import { useClassroomSync } from "./useClassroomSync";
 import { useClassroomStore } from "../store/classroomStore";
 import { toast } from "sonner";
+
+// How far ahead (in ms) the driver schedules audio relative to broadcast time.
+// Students receive the event ~10-80ms later and have the remainder to pre-decode.
+// 350ms is comfortably within the buffer on 4G with AudioContext decode ~200ms.
+const LEAD_TIME_MS = 350;
 
 export interface MediaItemDisplay {
   type: "image" | "video";
@@ -33,7 +40,7 @@ export function useClassroom(sessionId: string) {
   const [isThinking, setIsThinking] = useState(false);
   const [userQuestion, setUserQuestion] = useState("");
 
-  // 30-Second Empty Room Auto-Stop Timer
+  // Empty Room Auto-Stop Timer
   const [emptyRoomCountdown, setEmptyRoomCountdown] = useState<number | null>(null);
   const emptyRoomTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,12 +58,25 @@ export function useClassroom(sessionId: string) {
   const broadcastEventRef = useRef<((event: ClassroomEvent) => void) | null>(null);
   const executeLectureItemRef = useRef<((item: LectureItem) => void) | null>(null);
 
+  // ── Gap detection state ──────────────────────────────────────────────
+  // Tracks the last sequence number successfully processed.
+  // -1 means "not yet synced" — any sequence is accepted.
+  // Reset to -1 on new session start/restart to avoid spurious gap warnings.
+  const lastSeqRef = useRef<number>(-1);
+
   // Helper to safely mutate Zustand store without subscribing to render loops
   const syncStore = useClassroomStore.getState;
 
-  // 1. Advance to Next Item (Autonomous Room Driver)
+  // ── 0. SNTP Background Clock Sync ─────────────────────────────────────
+  // Starts once per classroom mount and cleans up on unmount.
+  useEffect(() => {
+    const stopSync = startBackgroundSync();
+    return () => stopSync();
+  }, []);
+
+  // ── 1. Advance to Next Item (Room Driver) ────────────────────────────
   const advanceCurrentItem = useCallback(async () => {
-    // 1. If we are currently handling an interruption / Q&A answer:
+    // If we are handling a Q&A interruption resume:
     if (activeInterruptionRef.current) {
       const resumeId = activeInterruptionRef.current.resumeFromItemId;
       activeInterruptionRef.current = null;
@@ -72,7 +92,7 @@ export function useClassroom(sessionId: string) {
       }
     }
 
-    // 2. Normal lecture sequence advancement
+    // Normal sequence advancement
     const nextIdx = currentIndexRef.current + 1;
     if (nextIdx >= itemsRef.current.length) {
       console.log("🏁 [Classroom] Lecture script completed all segments!");
@@ -102,16 +122,14 @@ export function useClassroom(sessionId: string) {
 
     currentIndexRef.current = nextIdx;
     syncStore().setCurrentIndex(nextIdx);
-    const currentItem = itemsRef.current[nextIdx];
-
-    executeLectureItemRef.current?.(currentItem);
+    executeLectureItemRef.current?.(itemsRef.current[nextIdx]);
   }, [sessionId, syncStore]);
 
-  // 2. TTS & Speech Queue Hook
+  // ── 2. TTS & Speech Queue Hook ───────────────────────────────────────
   const speech = useSpeechQueue({
     voice: session?.voice_id || "af_bella",
     onSpeechComplete: (_itemId) => {
-      // Authoritative advancement triggered by active room driver or active interruption
+      // Only the driver/lecturer advances — students follow via broadcast
       if (
         sessionStatusRef.current === "running" &&
         (isDriverRef.current || isLecturerRef.current || activeInterruptionRef.current)
@@ -124,12 +142,18 @@ export function useClassroom(sessionId: string) {
     },
   });
 
-  // 3. Execute a specific LectureItem
+  // ── 3. Execute a specific LectureItem (Driver Only) ──────────────────
+  //
+  // For SPEECH items: synthesize → compute targetEpochMs → broadcast
+  // SCHEDULED_PLAY → play locally with same targetEpochMs.
+  //
+  // For non-audio items (media, pause, engagement): broadcast SCHEDULED_PLAY
+  // with no audio fields so students can advance their index in lockstep.
   const executeLectureItem = useCallback(
     async (item: LectureItem) => {
       if (!item) return;
 
-      // Handle media item
+      // ── Media item ───────────────────────────────────────────────────
       if (item.type === "image" || item.type === "video") {
         const mediaObj: MediaItemDisplay = {
           type: item.type === "video" ? "video" : "image",
@@ -141,96 +165,141 @@ export function useClassroom(sessionId: string) {
 
         if (isDriverRef.current || isLecturerRef.current) {
           sequenceRef.current++;
+          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+
           broadcastEventRef.current?.({
-            type: "PLAY_ITEM",
-            itemId: item.id,
+            type: "SCHEDULED_PLAY",
             sequence: sequenceRef.current,
+            itemId: item.id,
+            targetEpochMs,
+            leadTimeMs: LEAD_TIME_MS,
+            audioUrl: "",         // no audio for media items
+            durationMs: 3500,
+            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+            text: item.caption || "",
           });
           setTimeout(advanceCurrentItem, 3500);
         }
         return;
       }
 
-      // Handle pause item
+      // ── Pause item ───────────────────────────────────────────────────
       if (item.type === "pause") {
         setCurrentSubtitle("...");
         syncStore().setCurrentSubtitle("...");
         if (isDriverRef.current || isLecturerRef.current) {
           sequenceRef.current++;
+          const durationMs = item.durationMs || 1200;
+          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+
           broadcastEventRef.current?.({
-            type: "PLAY_ITEM",
-            itemId: item.id,
+            type: "SCHEDULED_PLAY",
             sequence: sequenceRef.current,
+            itemId: item.id,
+            targetEpochMs,
+            leadTimeMs: LEAD_TIME_MS,
+            audioUrl: "",
+            durationMs,
+            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+            text: "...",
           });
-          setTimeout(advanceCurrentItem, item.durationMs || 1200);
+          setTimeout(advanceCurrentItem, durationMs);
         }
         return;
       }
 
-      // Handle engagement reflection item
+      // ── Engagement item ──────────────────────────────────────────────
       if (item.type === "engagement") {
         const promptText = item.prompt || "Let us pause and reflect...";
         setCurrentSubtitle(promptText);
         syncStore().setCurrentSubtitle(promptText);
         if (isDriverRef.current || isLecturerRef.current) {
           sequenceRef.current++;
+          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+
           broadcastEventRef.current?.({
-            type: "PLAY_ITEM",
-            itemId: item.id,
+            type: "SCHEDULED_PLAY",
             sequence: sequenceRef.current,
+            itemId: item.id,
+            targetEpochMs,
+            leadTimeMs: LEAD_TIME_MS,
+            audioUrl: "",
+            durationMs: 2000,
+            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+            text: promptText,
           });
           setTimeout(advanceCurrentItem, 2000);
         }
         return;
       }
 
-      // Handle speech item
+      // ── Speech item ──────────────────────────────────────────────────
       if (item.type === "speech") {
         console.log(`🗣️ [Classroom] Speaking segment #${currentIndexRef.current + 1}: "${item.text.slice(0, 80)}..."`);
         setCurrentSubtitle(item.text);
         syncStore().setCurrentSubtitle(item.text);
 
-        // Pre-fetch next 4 items concurrently
+        // Pre-fetch next 5 items concurrently while current item synthesizes
         const nextItems = itemsRef.current
           .slice(currentIndexRef.current + 1, currentIndexRef.current + 6)
           .filter((i): i is LectureSpeechItem => i.type === "speech")
           .map((i) => i.text);
-
         if (nextItems.length > 0) {
           speech.prefetch(nextItems, session?.voice_id || "af_bella");
         }
 
-        const speechResult = await speech.playSpeech(
+        // Synthesize (uses cache if already prefetched)
+        const speechResult = await speech.synthesizeItem(
           item.text,
           item.id,
           session?.voice_id || "af_bella"
         );
 
         if (!speechResult || !speechResult.audioPath) {
-          console.warn(`⚠️ [Classroom] TTS synthesis unavailable for item #${currentIndexRef.current + 1}. Auto-advancing in 3s.`);
+          console.warn(`⚠️ [Classroom] TTS unavailable for item #${currentIndexRef.current + 1}. Auto-advancing in 3s.`);
           setTimeout(advanceCurrentItem, 3000);
           return;
         }
 
-        // Room driver broadcasts ready audio path & visemes to all listeners
+        // Only the driver/lecturer broadcasts and schedules
         if (isDriverRef.current || isLecturerRef.current) {
           sequenceRef.current++;
+          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+          const seq = sequenceRef.current;
+
+          // Persist progress to DB (fire-and-forget)
           api
             .updateClassroomSession(sessionId, {
               current_item_id: item.id,
               current_sentence_index: currentIndexRef.current,
-              sequence: sequenceRef.current,
+              sequence: seq,
               status: "running",
             })
             .catch(console.error);
 
+          // Broadcast to all students
           broadcastEventRef.current?.({
-            type: "PLAY_ITEM",
+            type: "SCHEDULED_PLAY",
+            sequence: seq,
             itemId: item.id,
-            sequence: sequenceRef.current,
-            audioPath: speechResult.audioPath,
+            targetEpochMs,
+            leadTimeMs: LEAD_TIME_MS,
+            audioUrl: speechResult.audioPath,
+            durationMs: speechResult.durationMs || 0,
             lipSyncData: speechResult.lipSyncData,
             text: item.text,
+          });
+
+          // Driver plays locally with the SAME targetEpochMs — sample-accurate sync
+          speech.playScheduled({
+            audioUrl: speechResult.audioPath,
+            targetEpochMs,
+            lipSyncData: speechResult.lipSyncData,
+            sequence: seq,
+            text: item.text,
+            itemId: item.id,
+            durationMs: speechResult.durationMs || 0,
+            offsetMs: 0,
           });
         }
       }
@@ -238,74 +307,147 @@ export function useClassroom(sessionId: string) {
     [session?.voice_id, advanceCurrentItem, speech, sessionId, syncStore]
   );
 
-  // 4. Realtime Events Receiver (Student Lockstep Player)
+  // ── 4. Realtime Events Receiver ──────────────────────────────────────
   const handleRealtimeEvent = useCallback(
     (event: ClassroomEvent) => {
-      if (event.type === "PLAY_ITEM") {
+
+      // ── SCHEDULED_PLAY ─────────────────────────────────────────────
+      if (event.type === "SCHEDULED_PLAY") {
         const foundIdx = itemsRef.current.findIndex((i) => i.id === event.itemId);
         if (foundIdx !== -1) {
           currentIndexRef.current = foundIdx;
           syncStore().setCurrentIndex(foundIdx);
-          const item = itemsRef.current[foundIdx];
+        }
 
-          // If broadcast includes pre-synthesized audio, play immediately without API delay
-          if (event.audioPath && event.lipSyncData) {
-            const subText = event.text || (item.type === "speech" ? item.text : "");
-            setCurrentSubtitle(subText);
-            syncStore().setCurrentSubtitle(subText);
-            speech.playDirectSpeech(
-              {
-                audioPath: event.audioPath,
-                lipSyncData: event.lipSyncData,
-                text: subText,
-              },
-              item.id
-            );
+        // ── Gap detection ──────────────────────────────────────────────
+        // Any sequence other than lastSeq+1 indicates a dropped packet.
+        // Kill current audio and reset morphs immediately so lips don't
+        // animate for audio that isn't actually playing.
+        const expected = lastSeqRef.current + 1;
+        if (lastSeqRef.current !== -1 && event.sequence !== expected) {
+          console.warn(
+            `[Sync] Sequence gap detected: expected ${expected}, got ${event.sequence}. ` +
+            `Resetting audio and morphs.`
+          );
+          speech.stop();
+        }
+        lastSeqRef.current = event.sequence;
 
-            // Prefetch next items for student cache
-            const nextItems = itemsRef.current
-              .slice(foundIdx + 1, foundIdx + 4)
-              .filter((i): i is LectureSpeechItem => i.type === "speech")
-              .map((i) => i.text);
-            if (nextItems.length > 0) {
-              speech.prefetch(nextItems, session?.voice_id || "af_bella");
-            }
-          } else {
-            executeLectureItem(item);
+        // Non-audio scheduled items (media/pause/engagement) — just advance subtitle
+        if (!event.audioUrl) {
+          setCurrentSubtitle(event.text || "");
+          syncStore().setCurrentSubtitle(event.text || "");
+          return;
+        }
+
+        // Pre-decode audio in parallel — should finish well before targetEpochMs
+        preloadAudioBuffer(event.audioUrl);
+
+        setCurrentSubtitle(event.text || "");
+        syncStore().setCurrentSubtitle(event.text || "");
+
+        // Prefetch next items for student cache
+        if (foundIdx !== -1) {
+          const nextItems = itemsRef.current
+            .slice(foundIdx + 1, foundIdx + 4)
+            .filter((i): i is LectureSpeechItem => i.type === "speech")
+            .map((i) => i.text);
+          if (nextItems.length > 0) {
+            speech.prefetch(nextItems, session?.voice_id || "af_bella");
           }
         }
-      } else if (event.type === "PAUSE") {
+
+        // Schedule sample-accurate playback
+        speech.playScheduled({
+          audioUrl: event.audioUrl,
+          targetEpochMs: event.targetEpochMs,
+          lipSyncData: event.lipSyncData,
+          sequence: event.sequence,
+          text: event.text || "",
+          itemId: event.itemId,
+          durationMs: event.durationMs,
+          offsetMs: 0,
+        });
+      }
+
+      // ── SEEK_SYNC (late joiner catch-up) ───────────────────────────
+      else if (event.type === "SEEK_SYNC") {
+        const foundIdx = itemsRef.current.findIndex((i) => i.id === event.itemId);
+        if (foundIdx !== -1) {
+          currentIndexRef.current = foundIdx;
+          syncStore().setCurrentIndex(foundIdx);
+        }
+
+        // IMPORTANT: set lastSeq so the next SCHEDULED_PLAY doesn't false-alarm gap detection
+        lastSeqRef.current = event.sequence;
+
+        const syncedNow = getSynchronizedEpochMs();
+        const elapsedMs = Math.max(0, syncedNow - event.targetEpochMs);
+        const remainingMs = event.durationMs - elapsedMs;
+
+        setCurrentSubtitle(event.text || "");
+        syncStore().setCurrentSubtitle(event.text || "");
+
+        if (remainingMs > 200 && event.audioUrl) {
+          preloadAudioBuffer(event.audioUrl);
+          speech.playScheduled({
+            audioUrl: event.audioUrl,
+            targetEpochMs: event.targetEpochMs,  // scheduleAudioPlayback handles past epochs
+            lipSyncData: event.lipSyncData,
+            sequence: event.sequence,
+            text: event.text || "",
+            itemId: event.itemId,
+            durationMs: event.durationMs,
+            offsetMs: elapsedMs,   // seek into buffer by how much we've missed
+          });
+        }
+        // else: < 200ms remaining — not worth joining mid-sentence; wait for next SCHEDULED_PLAY
+      }
+
+      // ── PAUSE ──────────────────────────────────────────────────────
+      else if (event.type === "PAUSE") {
         setSessionStatus("paused");
         sessionStatusRef.current = "paused";
         syncStore().setStatus("paused");
         speech.stop();
         setCurrentSubtitle("Lecture paused by professor.");
         syncStore().setCurrentSubtitle("Lecture paused by professor.");
-      } else if (event.type === "RESUME") {
+      }
+
+      // ── RESUME ─────────────────────────────────────────────────────
+      else if (event.type === "RESUME") {
         setSessionStatus("running");
         sessionStatusRef.current = "running";
         syncStore().setStatus("running");
+
         const foundIdx = itemsRef.current.findIndex((i) => i.id === event.itemId);
         if (foundIdx !== -1) {
           currentIndexRef.current = foundIdx;
           syncStore().setCurrentIndex(foundIdx);
-          if (event.audioPath && event.lipSyncData) {
+
+          // If the RESUME includes a scheduled audio payload, play it
+          if (event.targetEpochMs && event.audioUrl && event.lipSyncData) {
             setCurrentSubtitle(event.text || "");
             syncStore().setCurrentSubtitle(event.text || "");
-            speech.playDirectSpeech(
-              {
-                audioPath: event.audioPath,
-                lipSyncData: event.lipSyncData,
-                text: event.text || "",
-              },
-              event.itemId
-            );
+            preloadAudioBuffer(event.audioUrl);
+            speech.playScheduled({
+              audioUrl: event.audioUrl,
+              targetEpochMs: event.targetEpochMs,
+              lipSyncData: event.lipSyncData,
+              sequence: event.sequence,
+              text: event.text || "",
+              itemId: event.itemId,
+              durationMs: 0,
+              offsetMs: 0,
+            });
           } else {
             executeLectureItem(itemsRef.current[foundIdx]);
           }
         }
-      } else if (event.type === "INTERRUPT") {
-        // Synchronized Q&A answer
+      }
+
+      // ── INTERRUPT (Q&A) ────────────────────────────────────────────
+      else if (event.type === "INTERRUPT") {
         activeInterruptionRef.current = {
           id: event.interruptionId,
           type: "question_answer",
@@ -317,19 +459,26 @@ export function useClassroom(sessionId: string) {
 
         setCurrentSubtitle(event.answer);
         syncStore().setCurrentSubtitle(event.answer);
-        if (event.audioPath && event.lipSyncData) {
-          speech.playDirectSpeech(
-            {
-              audioPath: event.audioPath,
-              lipSyncData: event.lipSyncData,
-              text: event.answer,
-            },
-            event.interruptionId
-          );
+
+        if (event.targetEpochMs && event.audioUrl && event.lipSyncData) {
+          preloadAudioBuffer(event.audioUrl);
+          speech.playScheduled({
+            audioUrl: event.audioUrl,
+            targetEpochMs: event.targetEpochMs,
+            lipSyncData: event.lipSyncData,
+            sequence: event.sequence,
+            text: event.answer,
+            itemId: event.interruptionId,
+            durationMs: 0,
+            offsetMs: 0,
+          });
         } else {
           speech.playSpeech(event.answer, event.interruptionId, session?.voice_id || "af_bella");
         }
-      } else if (event.type === "END") {
+      }
+
+      // ── END ────────────────────────────────────────────────────────
+      else if (event.type === "END") {
         setSessionStatus("ended");
         sessionStatusRef.current = "ended";
         syncStore().setStatus("ended");
@@ -338,19 +487,22 @@ export function useClassroom(sessionId: string) {
           syncStore().setStoppedReason(event.stoppedReason);
         }
         speech.stop();
-        if (event.stoppedReason === "no_students_timeout") {
-          setCurrentSubtitle("Classroom automatically stopped: No students present for 30 seconds.");
-          syncStore().setCurrentSubtitle("Classroom automatically stopped: No students present for 30 seconds.");
-        } else {
-          setCurrentSubtitle("Lecture session has ended.");
-          syncStore().setCurrentSubtitle("Lecture session has ended.");
-        }
+        setCurrentSubtitle(
+          event.stoppedReason === "no_students_timeout"
+            ? "Classroom automatically stopped: No students present for 30 seconds."
+            : "Lecture session has ended."
+        );
+        syncStore().setCurrentSubtitle(
+          event.stoppedReason === "no_students_timeout"
+            ? "Classroom automatically stopped: No students present for 30 seconds."
+            : "Lecture session has ended."
+        );
       }
     },
     [executeLectureItem, session?.voice_id, speech, syncStore]
   );
 
-  // 5. Supabase Realtime & Presence Sync
+  // ── 5. Supabase Realtime & Presence Sync ────────────────────────────
   const {
     broadcastEvent,
     activeStudentCount,
@@ -385,7 +537,7 @@ export function useClassroom(sessionId: string) {
     broadcastEventRef.current = broadcastEvent;
   }, [executeLectureItem, broadcastEvent]);
 
-  // 6. Empty Room Auto-Stop Watcher (Disabled so sessions stay active when lecturer steps away)
+  // ── 6. Empty Room Auto-Stop Watcher ─────────────────────────────────
   useEffect(() => {
     if (emptyRoomTimerRef.current) clearTimeout(emptyRoomTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -393,7 +545,7 @@ export function useClassroom(sessionId: string) {
     syncStore().setEmptyRoomCountdown(null);
   }, [sessionStatus, syncStore]);
 
-  // 7. Initial Data Load
+  // ── 7. Initial Data Load ─────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
 
@@ -421,9 +573,9 @@ export function useClassroom(sessionId: string) {
           speechItemsRef.current = speechItems;
           mediaMapRef.current = mediaMap;
           syncStore().setItems(items);
-          console.log(`📋 [Classroom] Parsed ${items.length} lecture items (${speechItems.length} speech segments, ${mediaMap.size} visual assets).`);
+          console.log(`📋 [Classroom] Parsed ${items.length} lecture items (${speechItems.length} speech, ${mediaMap.size} visual assets).`);
 
-          // If lecturer opens an ended session, auto-reset to created state so students can enter
+          // If lecturer opens an ended session, auto-reset to created
           if (isLecturerRef.current && sessionData.status === "ended") {
             sessionData.status = "created";
             sessionData.stopped_reason = "";
@@ -445,10 +597,13 @@ export function useClassroom(sessionId: string) {
             setStoppedReason(sessionData.stopped_reason);
             syncStore().setStoppedReason(sessionData.stopped_reason);
           }
+
+          // Restore sequence from DB — critical for gap detection to work after reconnect
           sequenceRef.current = sessionData.sequence || 0;
+          lastSeqRef.current = sessionData.sequence ? sessionData.sequence - 1 : -1;
           syncStore().setSequence(sessionData.sequence || 0);
 
-          // DB recovery check
+          // DB recovery: restore current item index
           if (sessionData.current_item_id) {
             const found = items.findIndex((i) => i.id === sessionData.current_item_id);
             if (found !== -1) {
@@ -457,13 +612,13 @@ export function useClassroom(sessionId: string) {
             }
           }
 
-          // Initial phrase prefetch
+          // Prefetch initial speech items
           const initialSpeechTexts = speechItems.slice(0, 6).map((i) => i.text);
           if (initialSpeechTexts.length > 0) {
             speechRef.current.prefetch(initialSpeechTexts, sessionData.voice_id || "af_bella");
           }
 
-          // If session is already running when joining, begin playback
+          // If session is already running when joining (late join), begin playback
           if (sessionData.status === "running") {
             const cur = items[currentIndexRef.current] || items[0];
             if (cur) {
@@ -480,7 +635,7 @@ export function useClassroom(sessionId: string) {
 
     loadClassroom();
 
-    // Postgres Realtime Listener for DB changes
+    // Postgres Realtime Listener for DB changes (session status updates)
     const dbSub = supabase
       .channel(`db:sessions:${sessionId}`)
       .on(
@@ -506,7 +661,6 @@ export function useClassroom(sessionId: string) {
             }
           }
 
-          // If script was updated, re-parse
           if (updated.script && updated.script !== session?.script) {
             const { items, speechItems, mediaMap } = parseLectureScript(updated.script);
             itemsRef.current = items;
@@ -524,7 +678,7 @@ export function useClassroom(sessionId: string) {
     };
   }, [sessionId, syncStore]);
 
-  // 8. Q&A Interruption Handler
+  // ── 8. Q&A Interruption Handler ──────────────────────────────────────
   const handleInterrupt = async (questionText?: string) => {
     const question = questionText || userQuestion;
     if (!question.trim() || !session) return;
@@ -535,14 +689,13 @@ export function useClassroom(sessionId: string) {
     syncStore().setUserQuestion("");
 
     try {
-      // Persist user question in background without blocking response pipeline
       api
         .sendMessage(sessionId, {
           role: "user",
           message: question,
           user_id: user?.id,
         })
-        .catch((e) => console.warn("Failed to persist user question message:", e));
+        .catch((e) => console.warn("Failed to persist user question:", e));
 
       const curItem = itemsRef.current[currentIndexRef.current];
       const modelPersona = session.voice_id?.startsWith("af_") ? "Dr. Clara" : "Prof. Arthur";
@@ -556,25 +709,24 @@ export function useClassroom(sessionId: string) {
         currentIndex: currentIndexRef.current,
       });
 
-      // Persist AI answer in background
       api
-        .sendMessage(sessionId, {
-          role: "ai",
-          message: answer,
-        })
-        .catch((e) => console.warn("Failed to persist AI answer message:", e));
+        .sendMessage(sessionId, { role: "ai", message: answer })
+        .catch((e) => console.warn("Failed to persist AI answer:", e));
 
-      let audioPath: string | undefined;
+      let audioUrl: string | undefined;
       let lipSyncData: HeadTTSData | undefined;
+      let targetEpochMs: number | undefined;
+
       try {
         const speechRes = await fetchSpeechTTS({
           text: answer,
           voice: session.voice_id || "af_bella",
         });
-        audioPath = speechRes.audioPath;
+        audioUrl = speechRes.audioPath;
         lipSyncData = speechRes.lipSyncData;
+        targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
       } catch (e) {
-        console.warn("Direct Q&A speech synthesis fallback:", e);
+        console.warn("Q&A speech synthesis fallback:", e);
       }
 
       const nextItemId =
@@ -592,10 +744,12 @@ export function useClassroom(sessionId: string) {
         answer,
         resumeFromItemId: nextItemId,
         sequence: sequenceRef.current,
-        audioPath,
+        targetEpochMs,
+        audioUrl,
         lipSyncData,
       });
 
+      // Driver plays locally too
       handleRealtimeEvent({
         type: "INTERRUPT",
         interruptionId,
@@ -604,7 +758,8 @@ export function useClassroom(sessionId: string) {
         answer,
         resumeFromItemId: nextItemId,
         sequence: sequenceRef.current,
-        audioPath,
+        targetEpochMs,
+        audioUrl,
         lipSyncData,
       });
 
@@ -619,7 +774,8 @@ export function useClassroom(sessionId: string) {
     }
   };
 
-  // 9. Session Controller Actions (Lecturer Only)
+  // ── 9. Session Controller Actions (Lecturer Only) ────────────────────
+
   const startSession = async () => {
     if (!isLecturerRef.current) return;
 
@@ -630,7 +786,11 @@ export function useClassroom(sessionId: string) {
 
     console.log(`▶️ [Classroom] Starting live broadcast for session ${sessionId} (${itemsRef.current.length} items)...`);
     admitAllParticipants();
-    sequenceRef.current++;
+
+    // Reset sequence tracking for the new broadcast
+    sequenceRef.current = 0;
+    lastSeqRef.current = -1;   // Fix #5: prevent spurious gap on session start
+
     setSessionStatus("running");
     sessionStatusRef.current = "running";
     syncStore().setStatus("running");
@@ -642,10 +802,14 @@ export function useClassroom(sessionId: string) {
       sequence: sequenceRef.current,
     });
 
+    sequenceRef.current++;
+    const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+
     broadcastEvent({
       type: "RESUME",
-      itemId: itemsRef.current[currentIndexRef.current]?.id || "speech_0",
       sequence: sequenceRef.current,
+      itemId: itemsRef.current[currentIndexRef.current]?.id || "speech_0",
+      targetEpochMs,
     });
 
     const cur = itemsRef.current[currentIndexRef.current] || itemsRef.current[0];
@@ -697,7 +861,11 @@ export function useClassroom(sessionId: string) {
     if (!isLecturerRef.current) return;
     currentIndexRef.current = 0;
     syncStore().setCurrentIndex(0);
-    sequenceRef.current++;
+
+    // Fix #5: reset both sequence counters so item seq:1 doesn't look like a gap
+    sequenceRef.current = 0;
+    lastSeqRef.current = -1;
+
     setSessionStatus("created");
     sessionStatusRef.current = "created";
     syncStore().setStatus("created");
@@ -709,7 +877,7 @@ export function useClassroom(sessionId: string) {
       status: "created",
       current_sentence_index: 0,
       current_item_id: itemsRef.current[0]?.id || "",
-      sequence: sequenceRef.current,
+      sequence: 0,
       stopped_reason: "",
     });
 
