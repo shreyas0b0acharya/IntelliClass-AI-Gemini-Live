@@ -3,13 +3,11 @@
 import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Course } from "@/lib/supabase/types";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
-import { MaterialList } from "@/features/materials/components/MaterialList";
-import { FileUploadDialog } from "@/features/materials/components/FileUploadDialog";
-import { SessionList } from "@/features/sessions/components/SessionList";
-import { CreateSessionDialog } from "@/features/sessions/components/CreateSessionDialog";
-import { AppButton } from "@/components/app/AppButton";
+import { MaterialList, FileUploadDialog } from "@/features/materials";
+import { SessionList, CreateSessionDialog } from "@/features/sessions";
+import { AppButton } from "@/components/app";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BookOpen, Presentation, FileText, Plus, Upload } from "lucide-react";

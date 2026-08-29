@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Moon, Sun, Laptop } from "lucide-react";
 import { useTheme } from "next-themes";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import {
   DropdownMenu,
   DropdownMenuContent,

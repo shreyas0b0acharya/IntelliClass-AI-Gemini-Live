@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { api } from "@/lib/api";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import {
   Dialog,
   DialogContent,

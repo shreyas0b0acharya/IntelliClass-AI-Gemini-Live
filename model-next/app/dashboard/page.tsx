@@ -2,14 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
-import { CreateCourseDialog } from "@/features/courses/components/CreateCourseDialog";
-import { SessionCodeInput } from "@/components/session-code-input";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { AppButton } from "@/components/app/AppButton";
+import { CreateCourseDialog } from "@/features/courses";
+import { SessionCodeInput, StatusBadge } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Presentation,

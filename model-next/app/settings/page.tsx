@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AccountProfileSettings } from "@/components/settings/AccountProfileSettings";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { AppButton } from "@/components/app/AppButton";
+import { AccountProfileSettings } from "@/features/settings";
+import { useAuth } from "@/features/auth";
+import { AppButton } from "@/components/app";
 import {
   Breadcrumb,
   BreadcrumbList,

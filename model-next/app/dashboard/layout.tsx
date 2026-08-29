@@ -3,11 +3,9 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { AppSidebar, ThemeToggle, NavUser } from "@/components/shared";
+import { useAuth } from "@/features/auth";
 import { Separator } from "@/components/ui/separator";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { NavUser } from "@/components/nav-user";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({

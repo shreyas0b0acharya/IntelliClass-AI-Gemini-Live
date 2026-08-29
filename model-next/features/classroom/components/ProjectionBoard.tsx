@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import {
   Maximize2,
   X,

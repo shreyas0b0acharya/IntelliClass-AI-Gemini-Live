@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import type { MediaAsset } from "@/lib/supabase/types";
 import { Image as ImageIcon, ChevronLeft, ChevronRight, Maximize2, Sparkles } from "lucide-react";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MaterialImageCarouselProps {

@@ -9,15 +9,14 @@ import {
   FEMALE_MODEL_PRESETS,
   DEFAULT_MODEL_PREFERENCES,
   getModelPreferences,
-} from "@/lib/settings";
-import { AvatarPreview } from "@/components/AvatarPreview";
-import { GenderSelector } from "@/components/settings/GenderSelector";
-import { ModelNameInput } from "@/components/settings/ModelNameInput";
-import { VoiceSpeedControls } from "@/components/settings/VoiceSpeedControls";
-import { HeadTTSTestButton } from "@/components/settings/HeadTTSTestButton";
-import { useAuth } from "@/lib/auth/AuthContext";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import { AppButton } from "@/components/app/AppButton";
+  GenderSelector,
+  ModelNameInput,
+  VoiceSpeedControls,
+  HeadTTSTestButton,
+} from "@/features/settings";
+import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
+import { useAuth } from "@/features/auth";
+import { AppButton } from "@/components/app";
 import {
   Breadcrumb,
   BreadcrumbList,

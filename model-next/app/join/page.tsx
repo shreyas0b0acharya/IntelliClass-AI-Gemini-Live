@@ -1,8 +1,7 @@
 "use client";
 
-import { Navbar } from "@/components/navbar";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { SessionCodeInput } from "@/components/session-code-input";
+import { Navbar, SessionCodeInput } from "@/components/shared";
+import { useAuth } from "@/features/auth";
 import { Presentation, KeyRound } from "lucide-react";
 import Link from "next/link";
 

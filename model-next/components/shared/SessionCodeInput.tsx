@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { ArrowRight } from "lucide-react";
-import { AppButton } from "@/components/app/AppButton";
+import { useAuth } from "@/features/auth";
+import { ArrowRight, Loader2, Sparkles, KeyRound } from "lucide-react";
+import { AppButton } from "@/components/app";
 
 interface SessionCodeInputProps {
   className?: string;

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Volume2, Volume1, VolumeX, Volume } from "lucide-react";
-import { setMasterVolume, getMasterVolume } from "@/components/LipSync/audioManager";
+import { setMasterVolume, getMasterVolume } from "@/features/avatar";
 import { Slider } from "@/components/ui/slider";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 
 export function VolumeControl() {
   const [volume, setVolumeState] = useState<number>(100);

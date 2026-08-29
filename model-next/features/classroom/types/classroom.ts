@@ -1,5 +1,5 @@
 import type { LectureItem } from "./lecture-item";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
+import type { HeadTTSData } from "@/features/avatar";
 
 export type SessionStateStatus =
   | "created"

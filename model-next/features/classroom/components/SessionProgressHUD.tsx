@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Sparkles, Radio, Pause, Loader2, CheckCircle2 } from "lucide-react";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 
 interface SessionProgressHUDProps {
   status: string;

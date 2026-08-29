@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
 import { parseLectureScript, type LectureItem, type LectureSpeechItem } from "../types/lecture-item";
 import type { ClassroomEvent, InterruptionItem, SessionStateStatus } from "../types/classroom";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
+import type { HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 import { useSpeechQueue } from "./useSpeechQueue";
 import { useClassroomSync } from "./useClassroomSync";

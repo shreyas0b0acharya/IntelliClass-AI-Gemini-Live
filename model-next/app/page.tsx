@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Navbar } from "@/components/navbar";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { SessionCodeInput } from "@/components/session-code-input";
-import { AppButton } from "@/components/app/AppButton";
+import { Navbar, SessionCodeInput } from "@/components/shared";
+import { useAuth } from "@/features/auth";
+import { AppButton } from "@/components/app";
 import {
   ArrowRight,
   ChevronRight,

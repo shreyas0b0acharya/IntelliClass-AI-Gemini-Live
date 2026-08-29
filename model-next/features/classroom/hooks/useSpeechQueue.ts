@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { SpeechItem, SpeechStatus } from "../types/speech";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
+import type { HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 
 export interface UseSpeechQueueOptions {

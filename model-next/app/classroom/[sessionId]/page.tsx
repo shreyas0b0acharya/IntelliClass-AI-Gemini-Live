@@ -2,22 +2,24 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useClassroom } from "@/features/classroom/hooks/useClassroom";
-import { useClassroomStore } from "@/features/classroom/store/classroomStore";
-import { AvatarStage } from "@/features/classroom/components/AvatarStage";
-import { SubtitleBar } from "@/features/classroom/components/SubtitleBar";
-import { QuestionInput } from "@/features/classroom/components/QuestionInput";
-import { SessionController } from "@/features/classroom/components/SessionController";
-import { ChatPanel } from "@/features/classroom/components/ChatPanel";
-import { AudioUnlockModal } from "@/features/classroom/components/AudioUnlockModal";
-import { LeaveClassroomDialog } from "@/features/classroom/components/LeaveClassroomDialog";
-import { ParticipantsModal } from "@/features/classroom/components/ParticipantsModal";
-import { LectureScriptModal } from "@/features/classroom/components/LectureScriptModal";
-import { SessionProgressHUD } from "@/features/classroom/components/SessionProgressHUD";
-import { ProjectionBoard } from "@/features/classroom/components/ProjectionBoard";
-import { VolumeControl } from "@/features/classroom/components/VolumeControl";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { AppButton } from "@/components/app/AppButton";
+import {
+  useClassroom,
+  useClassroomStore,
+  AvatarStage,
+  SubtitleBar,
+  QuestionInput,
+  SessionController,
+  ChatPanel,
+  AudioUnlockModal,
+  LeaveClassroomDialog,
+  ParticipantsModal,
+  LectureScriptModal,
+  SessionProgressHUD,
+  ProjectionBoard,
+  VolumeControl,
+} from "@/features/classroom";
+import { ThemeToggle } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import {
   ArrowLeft,
   Copy,
@@ -33,7 +35,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { MaterialViewerModal } from "@/features/materials/components/MaterialViewerModal";
+import { MaterialViewerModal } from "@/features/materials";
 import {
   Dialog,
   DialogContent,

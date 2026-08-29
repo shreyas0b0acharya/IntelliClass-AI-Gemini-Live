@@ -5,7 +5,7 @@ import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Trash2, CheckCircle2, FileUp, Eye, Loader2 } from "lucide-react";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { MaterialImageCarousel } from "./MaterialImageCarousel";
 import { MaterialViewerModal } from "./MaterialViewerModal";
 import {

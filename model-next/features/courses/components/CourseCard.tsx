@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { BookOpen, FileText, Video, ArrowRight, Calendar } from "lucide-react";
 import type { Course } from "@/lib/supabase/types";
 

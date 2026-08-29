@@ -1,6 +1,6 @@
 "use client";
 
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, MessageCircleQuestion } from "lucide-react";
 

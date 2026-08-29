@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Volume2, Sparkles } from "lucide-react";
-import { AppButton } from "@/components/app/AppButton";
-import { unlockAudioContext } from "@/components/LipSync/audioManager";
+import { AppButton } from "@/components/app";
+import { unlockAudioContext } from "@/features/avatar";
 
 interface AudioUnlockModalProps {
   onUnlock: () => void;

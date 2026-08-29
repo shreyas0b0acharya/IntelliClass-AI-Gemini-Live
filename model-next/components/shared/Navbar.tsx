@@ -4,10 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Sparkles, Presentation } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { NavUser } from "@/components/shared/NavUser";
-import { AppButton } from "@/components/app/AppButton";
+import { useAuth } from "@/features/auth";
+import { ThemeToggle } from "./ThemeToggle";
+import { NavUser } from "./NavUser";
+import { AppButton } from "@/components/app";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavbarProps {

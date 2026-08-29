@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { Play, Pause, Square, RotateCcw, Radio, Users, AlertTriangle } from "lucide-react";
 import type { SessionStateStatus } from "../types/classroom";
 
-import { unlockAudioContext } from "@/components/LipSync/audioManager";
+import { unlockAudioContext } from "@/features/avatar";
 
 interface SessionControllerProps {
   status: SessionStateStatus;

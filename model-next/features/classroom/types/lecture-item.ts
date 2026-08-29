@@ -1,4 +1,4 @@
-import { splitIntoSmallChunks } from "@/components/TTS/sentenceSplitter";
+import { splitIntoSmallChunks } from "@/features/avatar";
 
 export type BaseLectureItem = {
   id: string;

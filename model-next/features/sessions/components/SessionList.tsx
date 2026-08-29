@@ -6,8 +6,8 @@ import { supabase } from "@/lib/supabase/client";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { AppButton } from "@/components/app/AppButton";
+import { StatusBadge } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,

@@ -7,15 +7,14 @@ import {
   useModelPreferences,
   MALE_MODEL_PRESETS,
   FEMALE_MODEL_PRESETS,
-} from "@/lib/settings";
+  GenderSelector,
+  ModelNameInput,
+  VoiceSpeedControls,
+  HeadTTSTestButton,
+} from "@/features/settings";
 import type { CourseFile } from "@/lib/supabase/types";
-import { AvatarPreview } from "@/components/AvatarPreview";
-import { GenderSelector } from "@/components/settings/GenderSelector";
-import { ModelNameInput } from "@/components/settings/ModelNameInput";
-import { VoiceSpeedControls } from "@/components/settings/VoiceSpeedControls";
-import { HeadTTSTestButton } from "@/components/settings/HeadTTSTestButton";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import { AppButton } from "@/components/app/AppButton";
+import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {

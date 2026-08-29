@@ -10,13 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import {
   LogOut,
   Sparkles,
   User,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { Profile } from "@/lib/supabase/types";

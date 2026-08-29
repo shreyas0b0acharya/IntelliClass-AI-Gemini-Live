@@ -2,8 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
-import { Experience } from "@/components/Experience";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
+import { Experience, type HeadTTSData } from "@/features/avatar";
 
 interface AvatarStageProps {
   model?: string;

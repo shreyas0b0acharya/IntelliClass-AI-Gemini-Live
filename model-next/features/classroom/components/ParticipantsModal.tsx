@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app/AppButton";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import {
   Users,

@@ -14,7 +14,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
 import type { Course } from "@/lib/supabase/types";
@@ -34,8 +34,8 @@ import {
   SidebarMenuSubButton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { CreateCourseDialog } from "@/features/courses/components/CreateCourseDialog";
-import { AppButton } from "@/components/app/AppButton";
+import { CreateCourseDialog } from "@/features/courses";
+import { AppButton } from "@/components/app";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();

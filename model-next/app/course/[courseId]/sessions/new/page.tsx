@@ -4,20 +4,21 @@ import { use, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { getModelPreferences } from "@/lib/settings";
+import {
+  getModelPreferences,
+  GenderSelector,
+  VoiceSpeedControls,
+  HeadTTSTestButton,
+} from "@/features/settings";
 import type { Course, CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { AvatarPreview } from "@/components/AvatarPreview";
-import { MaterialImageCarousel } from "@/features/materials/components/MaterialImageCarousel";
-import { GenderSelector } from "@/components/settings/GenderSelector";
-import { VoiceSpeedControls } from "@/components/settings/VoiceSpeedControls";
-import { HeadTTSTestButton } from "@/components/settings/HeadTTSTestButton";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { AppButton } from "@/components/app/AppButton";
+import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
+import { MaterialImageCarousel, MaterialViewerModal } from "@/features/materials";
+import { ThemeToggle } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
 import {
   ArrowLeft,
   Sparkles,
@@ -30,8 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { parseLectureScript } from "@/features/classroom/types/lecture-item";
-import { LectureScriptModal } from "@/features/classroom/components/LectureScriptModal";
-import { MaterialViewerModal } from "@/features/materials/components/MaterialViewerModal";
+import { LectureScriptModal } from "@/features/classroom";
 
 interface SelectedFileConfig {
   selected: boolean;

@@ -6,8 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
-import { AppButton } from "@/components/app/AppButton";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppButton } from "@/components/app";
+import { ThemeToggle } from "@/components/shared";
 import {
   Radio,
   Sparkles,

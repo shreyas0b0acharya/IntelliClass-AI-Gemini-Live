@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Course } from "@/lib/supabase/types";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { CourseCard } from "./CourseCard";
 import { CreateCourseDialog } from "./CreateCourseDialog";
