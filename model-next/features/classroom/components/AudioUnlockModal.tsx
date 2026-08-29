@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Volume2, Sparkles, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Volume2, Sparkles } from "lucide-react";
+import { AppButton } from "@/components/app/AppButton";
 import { unlockAudioContext } from "@/components/LipSync/audioManager";
 
 interface AudioUnlockModalProps {
@@ -45,21 +45,18 @@ export function AudioUnlockModal({
         </p>
       </div>
 
-      <Button
+      <AppButton
         onClick={handleUnlock}
         disabled={isUnlocking}
+        isLoading={isUnlocking}
+        loadingText="Connecting Audio Engine..."
+        variant="primary"
         size="lg"
-        className="rounded-2xl px-10 h-13 text-sm font-bold shadow-xl shadow-primary/20 cursor-pointer gap-2"
+        shape="rounded"
+        className="px-10 h-13 text-sm font-bold shadow-xl shadow-primary/20"
       >
-        {isUnlocking ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Connecting Audio Engine...
-          </>
-        ) : (
-          "Enter Classroom & Enable Audio"
-        )}
-      </Button>
+        <span>Enter Classroom &amp; Enable Audio</span>
+      </AppButton>
     </div>
   );
 }

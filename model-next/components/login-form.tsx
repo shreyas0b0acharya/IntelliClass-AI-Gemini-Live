@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { AppButton } from "@/components/app/AppButton"
 import {
   Card,
   CardContent,
@@ -47,12 +47,12 @@ export function LoginForm({
                 </div>
                 <Input id="password" type="password" required />
               </div>
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-              <Button variant="outline" className="w-full">
-                Login with Google
-              </Button>
+              <AppButton type="submit" variant="primary" shape="rounded" className="w-full">
+                <span>Login</span>
+              </AppButton>
+              <AppButton variant="outline" shape="rounded" className="w-full">
+                <span>Login with Google</span>
+              </AppButton>
             </div>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}

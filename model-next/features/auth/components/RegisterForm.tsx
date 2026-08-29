@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
+import { AppButton } from "@/components/app/AppButton";
 import {
   GraduationCap,
   BookOpen,
@@ -236,19 +237,19 @@ function RegisterFormContent() {
         </div>
 
         {/* Google SSO Button */}
-        <button
+        <AppButton
           type="button"
           onClick={handleGoogleSignUp}
           disabled={isLoading || isGoogleLoading}
-          className="w-full h-12 rounded-full bg-white dark:bg-[#2c2c2e] border border-[#d2d2d7]/80 dark:border-[#3a3a3c] hover:bg-[#f5f5f7] dark:hover:bg-[#3a3a3c] text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold text-[14px] sm:text-[15px] flex items-center justify-center gap-2.5 transition-colors duration-200 shadow-xs cursor-pointer disabled:opacity-50"
+          isLoading={isGoogleLoading}
+          variant="outline"
+          size="lg"
+          shape="pill"
+          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c]"
+          leftIcon={!isGoogleLoading && <GoogleIcon />}
         >
-          {isGoogleLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#0071e3]" />
-          ) : (
-            <GoogleIcon />
-          )}
           <span>Continue with Google as {role === "lecturer" ? "Faculty" : "Student"}</span>
-        </button>
+        </AppButton>
 
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-4 2xl:my-5 flex items-center justify-center">
@@ -330,23 +331,19 @@ function RegisterFormContent() {
             </div>
           </div>
 
-          <button
+          <AppButton
             type="submit"
             disabled={isLoading || isGoogleLoading}
-            className="w-full h-12 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-[15px] sm:text-[16px] flex items-center justify-center gap-2 transition-all duration-200 shadow-sm active:scale-[0.98] cursor-pointer mt-3 disabled:opacity-50"
+            isLoading={isLoading}
+            loadingText="Creating Account..."
+            variant="primary"
+            size="lg"
+            shape="pill"
+            className="w-full mt-3"
+            rightIcon={<ArrowRight className="h-4 w-4" />}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Creating Account...</span>
-              </>
-            ) : (
-              <>
-                <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
+            <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
+          </AppButton>
         </form>
 
         {/* Footer Link */}

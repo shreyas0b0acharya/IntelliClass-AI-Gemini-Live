@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { BookOpen, FileText, Video, ArrowRight, Calendar } from "lucide-react";
 import type { Course } from "@/lib/supabase/types";
 
@@ -55,12 +55,17 @@ export function CourseCard({ course, isLecturer = false }: CourseCardProps) {
       </CardContent>
 
       <CardFooter className="pt-3 pb-5 border-t border-border/40 bg-card/30">
-        <Button asChild className="w-full rounded-xl font-semibold gap-2 shadow-xs group-hover:bg-primary">
+        <AppButton
+          asChild
+          variant="primary"
+          shape="rounded"
+          className="w-full font-semibold"
+          rightIcon={<ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />}
+        >
           <Link href={`/course/${course.id}`}>
-            {isLecturer ? "Manage & Broadcast" : "Enter Course Space"}
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            <span>{isLecturer ? "Manage & Broadcast" : "Enter Course Space"}</span>
           </Link>
-        </Button>
+        </AppButton>
       </CardFooter>
     </Card>
   );

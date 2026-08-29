@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Loader2, BookPlus } from "lucide-react";
+import { Plus, BookPlus } from "lucide-react";
 import { toast } from "sonner";
 
 interface CreateCourseDialogProps {
@@ -63,10 +63,14 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
         {trigger ? (
           trigger
         ) : (
-          <Button className="rounded-xl gap-2 font-semibold shadow-md cursor-pointer">
-            <Plus className="h-4 w-4" />
-            Create New Course
-          </Button>
+          <AppButton
+            variant="primary"
+            shape="rounded"
+            className="font-semibold shadow-md"
+            leftIcon={<Plus className="h-4 w-4" />}
+          >
+            <span>Create New Course</span>
+          </AppButton>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-md rounded-3xl p-6">
@@ -111,24 +115,26 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
           </div>
 
           <DialogFooter className="pt-2">
-            <Button
+            <AppButton
               type="button"
               variant="outline"
+              shape="rounded"
               onClick={() => setOpen(false)}
               disabled={isLoading}
-              className="rounded-xl"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading} className="rounded-xl font-semibold gap-2">
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating...
-                </>
-              ) : (
-                "Create Course"
-              )}
-            </Button>
+              <span>Cancel</span>
+            </AppButton>
+            <AppButton
+              type="submit"
+              variant="primary"
+              shape="rounded"
+              disabled={isLoading}
+              isLoading={isLoading}
+              loadingText="Creating..."
+              className="font-semibold"
+            >
+              <span>Create Course</span>
+            </AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

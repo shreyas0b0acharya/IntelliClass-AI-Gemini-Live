@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import { Volume2, Square, Loader2 } from "lucide-react";
+import { Volume2, Square } from "lucide-react";
 import { unlockAudioContext } from "@/components/LipSync/audioManager";
 import { toast } from "sonner";
 
@@ -24,7 +24,7 @@ export function HeadTTSTestButton({
   isPlaying,
   onPlayStateChange,
   onDataReceived,
-  className = "w-full rounded-full h-11 font-medium text-xs shadow-2xs cursor-pointer gap-2",
+  className = "w-full h-11 font-medium text-xs shadow-2xs",
 }: HeadTTSTestButtonProps) {
   const [isSynthesizing, setIsSynthesizing] = useState(false);
 
@@ -75,33 +75,26 @@ export function HeadTTSTestButton({
   };
 
   return (
-    <Button
+    <AppButton
       type="button"
       onClick={handleToggle}
       disabled={isSynthesizing}
-      variant="outline"
-      className={`${className} ${
-        isPlaying
-          ? "bg-amber-500 hover:bg-amber-600 text-white border-transparent"
-          : "bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] border-transparent"
-      }`}
+      isLoading={isSynthesizing}
+      loadingText="Synthesizing HeadTTS Voice..."
+      variant={isPlaying ? "destructive" : "secondary"}
+      shape="pill"
+      className={className}
+      leftIcon={
+        !isSynthesizing ? (
+          isPlaying ? (
+            <Square className="h-3 w-3 fill-current" />
+          ) : (
+            <Volume2 className="h-3.5 w-3.5 text-[#0071e3]" />
+          )
+        ) : undefined
+      }
     >
-      {isSynthesizing ? (
-        <>
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3]" />
-          <span>Synthesizing HeadTTS Voice...</span>
-        </>
-      ) : isPlaying ? (
-        <>
-          <Square className="h-3 w-3 fill-current" />
-          <span>Stop Preview</span>
-        </>
-      ) : (
-        <>
-          <Volume2 className="h-3.5 w-3.5 text-[#0071e3]" />
-          <span>Test HeadTTS Voice &amp; LipSync</span>
-        </>
-      )}
-    </Button>
+      <span>{isPlaying ? "Stop Preview" : "Test HeadTTS Voice & LipSync"}</span>
+    </AppButton>
   );
 }

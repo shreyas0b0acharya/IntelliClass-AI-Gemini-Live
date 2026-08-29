@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AccountProfileSettings } from "@/components/settings/AccountProfileSettings";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -28,17 +28,18 @@ export default function SettingsPage() {
       {/* ── Navigation Breadcrumb Bar with Apple Back Button ────────── */}
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-3">
-          <Button
+          <AppButton
             asChild
             variant="ghost"
-            size="sm"
-            className="rounded-full h-8 px-2.5 gap-1.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors"
+            size="xs"
+            shape="pill"
+            className="h-8 px-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+            leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
           >
             <Link href={isLecturer ? "/dashboard" : "/"}>
-              <ArrowLeft className="h-3.5 w-3.5" />
               <span>Back</span>
             </Link>
-          </Button>
+          </AppButton>
 
           <div className="h-3.5 w-px bg-black/10 dark:bg-white/10" />
 
@@ -63,18 +64,19 @@ export default function SettingsPage() {
 
         {/* Quick Shortcut to AI Avatar Studio (Lecturers only) */}
         {isLecturer && (
-          <Button
+          <AppButton
             asChild
-            variant="outline"
-            size="sm"
-            className="rounded-full h-8 px-3.5 text-xs gap-1.5 font-medium border-0 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer transition-all shadow-none"
+            variant="secondary"
+            size="xs"
+            shape="pill"
+            className="h-8 px-3.5 text-xs font-medium"
+            leftIcon={<Bot className="h-3.5 w-3.5 text-[#0071e3]" />}
+            rightIcon={<ChevronRight className="h-3 w-3 text-[#86868b]" />}
           >
             <Link href="/settings/avatar">
-              <Bot className="h-3.5 w-3.5 text-[#0071e3]" />
               <span>AI Avatar &amp; Voice Studio</span>
-              <ChevronRight className="h-3 w-3 text-[#86868b]" />
             </Link>
-          </Button>
+          </AppButton>
         )}
       </div>
 

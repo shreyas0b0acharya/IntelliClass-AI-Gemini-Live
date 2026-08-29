@@ -9,7 +9,7 @@ import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses/components/CreateCourseDialog";
 import { SessionCodeInput } from "@/components/session-code-input";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Presentation,
@@ -165,10 +165,15 @@ export default function DashboardPage() {
             <CreateCourseDialog
               onCreated={loadData}
               trigger={
-                <Button className="rounded-full px-4 py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs shadow-xs cursor-pointer gap-1.5 h-10">
-                  <Plus className="h-3.5 w-3.5" />
-                  New Course
-                </Button>
+                <AppButton
+                  variant="primary"
+                  shape="pill"
+                  size="sm"
+                  className="px-4 h-10 font-medium text-xs shadow-xs"
+                  leftIcon={<Plus className="h-3.5 w-3.5" />}
+                >
+                  <span>New Course</span>
+                </AppButton>
               }
             />
           )}
@@ -234,21 +239,19 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Bottom Action (Standardized h-10 rounded-full) */}
-                  <Button
+                  <AppButton
                     size="sm"
                     asChild
-                    className={`w-full rounded-full h-10 text-xs font-semibold shrink-0 cursor-pointer shadow-xs gap-2 ${
-                      isLive
-                        ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                        : "bg-[#0071e3] hover:bg-[#0077ed] text-white"
-                    }`}
+                    variant={isLive ? "success" : "primary"}
+                    shape="pill"
+                    className="w-full h-10 text-xs font-semibold shrink-0 shadow-xs"
+                    leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
+                    rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
                   >
                     <Link href={`/classroom/${session.id}`}>
-                      <Play className="h-3.5 w-3.5 fill-current" />
                       <span>{isLive ? "Enter Live Studio" : "Resume Studio"}</span>
-                      <ArrowRight className="h-3.5 w-3.5 ml-auto" />
                     </Link>
-                  </Button>
+                  </AppButton>
                 </div>
               );
             })}
@@ -291,10 +294,15 @@ export default function DashboardPage() {
               <CreateCourseDialog
                 onCreated={loadData}
                 trigger={
-                  <Button className="rounded-full px-4 py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs shadow-xs cursor-pointer gap-1.5 h-9">
-                    <Plus className="h-3.5 w-3.5" />
-                    Create First Course
-                  </Button>
+                  <AppButton
+                    variant="primary"
+                    shape="pill"
+                    size="sm"
+                    className="px-4 h-9 font-medium text-xs shadow-xs"
+                    leftIcon={<Plus className="h-3.5 w-3.5" />}
+                  >
+                    <span>Create First Course</span>
+                  </AppButton>
                 }
               />
             )}
@@ -417,17 +425,19 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Bottom Action (Standardized h-10 rounded-full) */}
-                <Button
+                <AppButton
                   size="sm"
                   asChild
-                  className="w-full rounded-full h-10 px-4 bg-black/5 dark:bg-white/10 hover:bg-[#0071e3] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-white text-xs font-semibold shrink-0 cursor-pointer shadow-xs gap-1.5 transition-colors"
+                  variant="secondary"
+                  shape="pill"
+                  className="w-full h-10 px-4 text-xs font-semibold shrink-0 shadow-xs"
+                  leftIcon={<Play className="h-3 w-3 fill-current" />}
+                  rightIcon={<ArrowRight className="h-3 w-3 opacity-70 group-hover:opacity-100" />}
                 >
                   <Link href={`/classroom/${session.id}`}>
-                    <Play className="h-3 w-3 fill-current" />
                     <span>Enter Studio</span>
-                    <ArrowRight className="h-3 w-3 ml-auto opacity-70 group-hover:opacity-100" />
                   </Link>
-                </Button>
+                </AppButton>
               </div>
             ))}
           </div>

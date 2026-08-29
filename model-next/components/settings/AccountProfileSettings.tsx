@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import {
   Dialog,
@@ -206,32 +206,21 @@ export function AccountProfileSettings() {
             </div>
 
             <div className="pt-4 mt-3 border-t border-black/5 dark:border-white/5">
-              <Button
+              <AppButton
                 type="button"
                 size="sm"
+                shape="pill"
+                variant={isLecturer ? "tinted" : "primary"}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleOpenConfirm("lecturer");
                 }}
                 disabled={isLecturer || isSwitchingRole}
-                className={`w-full rounded-full h-9 text-xs font-semibold gap-1.5 transition-all cursor-pointer ${
-                  isLecturer
-                    ? "bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] hover:bg-[#0071e3]/10 cursor-default border-0 shadow-none"
-                    : "bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs"
-                }`}
+                className="w-full h-9 text-xs font-semibold"
+                leftIcon={isLecturer ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
               >
-                {isLecturer ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Current Active Role</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Switch to Lecturer</span>
-                  </>
-                )}
-              </Button>
+                <span>{isLecturer ? "Current Active Role" : "Switch to Lecturer"}</span>
+              </AppButton>
             </div>
           </div>
 
@@ -279,32 +268,21 @@ export function AccountProfileSettings() {
             </div>
 
             <div className="pt-4 mt-3 border-t border-black/5 dark:border-white/5">
-              <Button
+              <AppButton
                 type="button"
                 size="sm"
+                shape="pill"
+                variant={!isLecturer ? "tinted" : "primary"}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleOpenConfirm("student");
                 }}
                 disabled={!isLecturer || isSwitchingRole}
-                className={`w-full rounded-full h-9 text-xs font-semibold gap-1.5 transition-all cursor-pointer ${
-                  !isLecturer
-                    ? "bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3] hover:bg-[#0071e3]/10 cursor-default border-0 shadow-none"
-                    : "bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs"
-                }`}
+                className="w-full h-9 text-xs font-semibold"
+                leftIcon={!isLecturer ? <CheckCircle2 className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
               >
-                {!isLecturer ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Current Active Role</span>
-                  </>
-                ) : (
-                  <>
-                    <BookOpen className="h-3.5 w-3.5" />
-                    <span>Switch to Student</span>
-                  </>
-                )}
-              </Button>
+                <span>{!isLecturer ? "Current Active Role" : "Switch to Student"}</span>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -371,34 +349,30 @@ export function AccountProfileSettings() {
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-black/5 dark:border-white/5">
-            <Button
+            <AppButton
               type="button"
               variant="ghost"
+              shape="pill"
               onClick={() => setPendingRole(null)}
               disabled={isSwitchingRole}
-              className="rounded-full h-10 px-5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+              className="h-10 px-5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
             >
-              Cancel
-            </Button>
+              <span>Cancel</span>
+            </AppButton>
 
-            <Button
+            <AppButton
               type="button"
               onClick={handleConfirmRoleSwitch}
               disabled={isSwitchingRole}
-              className="rounded-full h-10 px-5 text-xs font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white gap-2 cursor-pointer shadow-xs"
+              isLoading={isSwitchingRole}
+              loadingText="Updating & Signing Out..."
+              variant="primary"
+              shape="pill"
+              className="h-10 px-5 text-xs font-semibold"
+              leftIcon={!isSwitchingRole ? <LogOut className="h-4 w-4" /> : undefined}
             >
-              {isSwitchingRole ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Updating &amp; Signing Out...</span>
-                </>
-              ) : (
-                <>
-                  <LogOut className="h-4 w-4" />
-                  <span>Confirm &amp; Sign Out</span>
-                </>
-              )}
-            </Button>
+              <span>Confirm &amp; Sign Out</span>
+            </AppButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

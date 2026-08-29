@@ -17,7 +17,7 @@ import { VoiceSpeedControls } from "@/components/settings/VoiceSpeedControls";
 import { HeadTTSTestButton } from "@/components/settings/HeadTTSTestButton";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -31,7 +31,6 @@ import {
   Check,
   RotateCcw,
   Sliders,
-  Loader2,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -127,17 +126,18 @@ export default function AvatarSettingsPage() {
       {/* ── Navigation Breadcrumb Bar with Apple Back Button ────────── */}
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-3">
-          <Button
+          <AppButton
             asChild
             variant="ghost"
-            size="sm"
-            className="rounded-full h-8 px-2.5 gap-1.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors"
+            size="xs"
+            shape="pill"
+            className="h-8 px-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+            leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
           >
             <Link href="/dashboard">
-              <ArrowLeft className="h-3.5 w-3.5" />
               <span>Back</span>
             </Link>
-          </Button>
+          </AppButton>
 
           <div className="h-3.5 w-px bg-black/10 dark:bg-white/10" />
 
@@ -316,37 +316,36 @@ export default function AvatarSettingsPage() {
 
           {/* Action Controls: Save & Reset */}
           <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-3">
-            <Button
+            <AppButton
               onClick={handleSave}
               disabled={isSaving}
-              className="w-full rounded-full h-11 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-xs sm:text-sm shadow-xs cursor-pointer gap-2 transition-colors border-0 disabled:opacity-50"
+              isLoading={isSaving}
+              loadingText="Saving to Supabase..."
+              variant={isSaved ? "success" : "primary"}
+              shape="pill"
+              className="w-full h-11 font-semibold text-xs sm:text-sm shadow-xs border-0"
+              leftIcon={
+                !isSaving ? (
+                  isSaved ? (
+                    <Check className="h-4 w-4 stroke-[2.5]" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )
+                ) : undefined
+              }
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Saving to Supabase...</span>
-                </>
-              ) : isSaved ? (
-                <>
-                  <Check className="h-4 w-4 stroke-[2.5]" />
-                  <span>Preferences Saved!</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  <span>Save Model Preferences</span>
-                </>
-              )}
-            </Button>
+              <span>{isSaved ? "Preferences Saved!" : "Save Model Preferences"}</span>
+            </AppButton>
 
-            <Button
-              variant="outline"
+            <AppButton
+              variant="secondary"
+              shape="pill"
               onClick={handleReset}
-              className="w-full rounded-full h-10 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white font-medium text-xs cursor-pointer gap-2 transition-colors border-0 shadow-none"
+              className="w-full h-10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white font-medium text-xs border-0 shadow-none"
+              leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
             >
-              <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset to System Defaults</span>
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import type { ClassroomSession } from "@/lib/supabase/types";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Pencil, Loader2, Save } from "lucide-react";
+import { Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditSessionDialogProps {
@@ -146,30 +146,28 @@ export function EditSessionDialog({
           </div>
 
           <DialogFooter className="pt-2 gap-2">
-            <Button
+            <AppButton
               type="button"
               variant="outline"
+              shape="rounded"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="rounded-xl flex-1"
+              className="flex-1"
             >
-              Cancel
-            </Button>
-            <Button
+              <span>Cancel</span>
+            </AppButton>
+            <AppButton
               type="submit"
               disabled={saving || !topic.trim()}
-              className="rounded-xl flex-1 gap-2 font-semibold"
+              isLoading={saving}
+              loadingText="Saving..."
+              variant="primary"
+              shape="rounded"
+              className="flex-1 font-semibold"
+              leftIcon={!saving ? <Save className="h-4 w-4" /> : undefined}
             >
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" /> Save Changes
-                </>
-              )}
-            </Button>
+              <span>Save Changes</span>
+            </AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

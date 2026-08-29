@@ -1,5 +1,7 @@
 "use client";
 
+import { AppButton } from "@/components/app/AppButton";
+
 interface PizzaButtonProps {
     playing: boolean;
     onPlay: () => void;
@@ -10,13 +12,18 @@ export default function PizzaButton({
     onPlay,
 }: PizzaButtonProps) {
     return (
-        <button
+        <AppButton
             type="button"
             onClick={onPlay}
             disabled={playing}
-            className="rounded-lg bg-black px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+            isLoading={playing}
+            loadingText="Playing Pizza..."
+            variant="primary"
+            shape="rounded"
+            size="lg"
+            className="shadow-lg"
         >
-            {playing ? "Playing Pizza..." : "🍕 Play Pizza"}
-        </button>
+            <span>🍕 Play Pizza</span>
+        </AppButton>
     );
 }

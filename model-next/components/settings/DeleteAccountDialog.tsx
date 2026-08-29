@@ -11,10 +11,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Loader2, Trash2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Trash2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 
@@ -61,13 +61,15 @@ export function DeleteAccountDialog({ trigger }: DeleteAccountDialogProps) {
     >
       <DialogTrigger asChild>
         {trigger || (
-          <Button
+          <AppButton
             variant="destructive"
-            className="rounded-full px-5 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-xs cursor-pointer gap-2"
+            size="sm"
+            shape="pill"
+            className="px-5 py-2 text-xs font-semibold"
+            leftIcon={<Trash2 className="h-4 w-4" />}
           >
-            <Trash2 className="h-4 w-4" />
             <span>Delete Account</span>
-          </Button>
+          </AppButton>
         )}
       </DialogTrigger>
 
@@ -114,35 +116,30 @@ export function DeleteAccountDialog({ trigger }: DeleteAccountDialogProps) {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-black/5 dark:border-white/5">
-          <Button
+          <AppButton
             type="button"
             variant="ghost"
+            shape="pill"
             onClick={() => setOpen(false)}
             disabled={isDeleting}
-            className="rounded-full h-10 px-5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+            className="h-10 px-5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
           >
-            Cancel
-          </Button>
+            <span>Cancel</span>
+          </AppButton>
 
-          <Button
+          <AppButton
             type="button"
             variant="destructive"
+            shape="pill"
             onClick={handleDelete}
             disabled={!isConfirmed || isDeleting}
-            className="rounded-full h-10 px-5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white gap-2 cursor-pointer disabled:opacity-40"
+            isLoading={isDeleting}
+            loadingText="Deleting Account..."
+            className="h-10 px-5 text-xs font-semibold disabled:opacity-40"
+            leftIcon={!isDeleting ? <Trash2 className="h-4 w-4" /> : undefined}
           >
-            {isDeleting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Deleting Account...</span>
-              </>
-            ) : (
-              <>
-                <Trash2 className="h-4 w-4" />
-                <span>Permanently Delete</span>
-              </>
-            )}
-          </Button>
+            <span>Permanently Delete</span>
+          </AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

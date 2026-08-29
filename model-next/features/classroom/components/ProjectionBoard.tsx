@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app/AppButton";
 import {
   Maximize2,
   X,
@@ -56,30 +56,39 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            <button
+            <AppButton
+              variant="ghost"
+              size="xs"
+              shape="rounded"
               onClick={() => setIsMinimized(!isMinimized)}
-              className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-[10px] font-mono px-1.5 transition-colors cursor-pointer"
+              className="text-white/70 hover:text-white hover:bg-white/10 text-[10px] font-mono px-1.5 h-6"
               title={isMinimized ? "Expand Board" : "Minimize Board"}
             >
               {isMinimized ? "Expand" : "Min"}
-            </button>
+            </AppButton>
 
-            <button
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              shape="rounded"
               onClick={() => setIsZoomed(true)}
-              className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-white/70 hover:text-white hover:bg-white/10 h-6 w-6"
               title="Full Screen Zoom"
             >
               <Maximize2 className="h-3.5 w-3.5" />
-            </button>
+            </AppButton>
 
             {onClose && (
-              <button
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                shape="rounded"
                 onClick={onClose}
-                className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="text-white/70 hover:text-white hover:bg-white/10 h-6 w-6"
                 title="Dismiss Visual"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </AppButton>
             )}
           </div>
         </div>
@@ -129,17 +138,18 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
                 <span>{media.label || "Projected Visual Diagram"}</span>
               </DialogTitle>
 
-              <Button
+              <AppButton
                 asChild
                 variant="outline"
                 size="sm"
-                className="rounded-xl h-8 px-3 text-xs bg-white/10 hover:bg-white/20 border-white/10 text-white gap-1.5"
+                shape="rounded"
+                className="h-8 px-3 text-xs bg-white/10 hover:bg-white/20 border-white/15 text-white"
+                leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
               >
                 <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5" />
                   <span>Open Full Asset</span>
                 </a>
-              </Button>
+              </AppButton>
             </div>
 
             <div className="p-6 flex-1 flex items-center justify-center overflow-hidden bg-black">

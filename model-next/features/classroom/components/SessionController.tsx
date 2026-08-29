@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Play, Pause, Square, RotateCcw, Radio, Loader2, Users, AlertTriangle } from "lucide-react";
+import { AppButton } from "@/components/app/AppButton";
+import { Play, Pause, Square, RotateCcw, Radio, Users, AlertTriangle } from "lucide-react";
 import type { SessionStateStatus } from "../types/classroom";
 
 import { unlockAudioContext } from "@/components/LipSync/audioManager";
@@ -115,69 +115,66 @@ export function SessionController({
 
       {/* Start / Resume */}
       {(status === "created" || status === "paused" || status === "ended") && (
-        <Button
+        <AppButton
           onClick={() => handleAction("start", onStart)}
           disabled={actionLoading !== null}
-          className="rounded-full gap-2 h-10 px-5 text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer transition-colors"
+          isLoading={actionLoading === "start"}
+          variant="success"
+          shape="pill"
+          size="default"
+          className="h-10 px-5 text-xs font-bold uppercase tracking-wider"
+          leftIcon={actionLoading !== "start" ? <Play className="h-4 w-4" fill="currentColor" /> : undefined}
         >
-          {actionLoading === "start" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4" fill="currentColor" />
-          )}
           {status === "paused" ? "Resume Class" : "Start Broadcast"}
-        </Button>
+        </AppButton>
       )}
 
       {/* Pause */}
       {status === "running" && (
-        <Button
+        <AppButton
           onClick={() => handleAction("pause", onPause)}
           disabled={actionLoading !== null}
-          className="rounded-full gap-2 h-10 px-5 text-xs font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer transition-colors"
+          isLoading={actionLoading === "pause"}
+          variant="secondary"
+          shape="pill"
+          size="default"
+          className="h-10 px-5 text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
+          leftIcon={actionLoading !== "pause" ? <Pause className="h-4 w-4" fill="currentColor" /> : undefined}
         >
-          {actionLoading === "pause" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Pause className="h-4 w-4" fill="currentColor" />
-          )}
           Pause Class
-        </Button>
+        </AppButton>
       )}
 
       {/* End */}
       {status !== "created" && status !== "ended" && (
-        <Button
+        <AppButton
           onClick={() => handleAction("end", onEnd)}
           disabled={actionLoading !== null}
+          isLoading={actionLoading === "end"}
           variant="destructive"
-          className="rounded-full gap-2 h-10 px-4 text-xs font-bold uppercase tracking-wider cursor-pointer shadow-xs transition-colors"
+          shape="pill"
+          size="default"
+          className="h-10 px-4 text-xs font-bold uppercase tracking-wider"
+          leftIcon={actionLoading !== "end" ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : undefined}
         >
-          {actionLoading === "end" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Square className="h-3.5 w-3.5" fill="currentColor" />
-          )}
           End Class
-        </Button>
+        </AppButton>
       )}
 
       {/* Restart */}
       {(status === "ended" || status === "paused") && (
-        <Button
+        <AppButton
           onClick={() => handleAction("restart", onRestart)}
           disabled={actionLoading !== null}
+          isLoading={actionLoading === "restart"}
           variant="ghost"
           size="icon"
+          shape="pill"
           title="Restart from beginning"
-          className="rounded-full h-10 w-10 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors"
+          className="h-10 w-10 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
         >
-          {actionLoading === "restart" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RotateCcw className="h-4 w-4" />
-          )}
-        </Button>
+          <RotateCcw className="h-4 w-4" />
+        </AppButton>
       )}
     </div>
   );

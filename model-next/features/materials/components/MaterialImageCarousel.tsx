@@ -2,8 +2,8 @@
 
 import { useState, useRef } from "react";
 import type { MediaAsset } from "@/lib/supabase/types";
-import { Image as ImageIcon, ChevronLeft, ChevronRight, Maximize2, Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Image as ImageIcon, ChevronLeft, ChevronRight, Maximize2, Sparkles } from "lucide-react";
+import { AppButton } from "@/components/app/AppButton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MaterialImageCarouselProps {
@@ -60,24 +60,26 @@ export function MaterialImageCarousel({ fileName, assets }: MaterialImageCarouse
 
         {matchedAssets.length > 2 && (
           <div className="flex items-center gap-1">
-            <Button
+            <AppButton
               variant="ghost"
-              size="icon"
+              size="icon-xs"
+              shape="rounded"
               onClick={() => handleScroll("left")}
-              className="h-6 w-6 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b]"
+              className="h-6 w-6 text-[#86868b]"
               title="Scroll left"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               variant="ghost"
-              size="icon"
+              size="icon-xs"
+              shape="rounded"
               onClick={() => handleScroll("right")}
-              className="h-6 w-6 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b]"
+              className="h-6 w-6 text-[#86868b]"
               title="Scroll right"
             >
               <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
+            </AppButton>
           </div>
         )}
       </div>
