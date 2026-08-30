@@ -286,6 +286,21 @@ export const api = {
     return res;
   },
 
+  getClassroomSnapshot: async (sessionId: string) => {
+    return fetchApi<{
+      session: ClassroomSession;
+      myStatus: string;
+      myRole: "lecturer" | "student";
+      stateVersion: number;
+      driverLeaseVersion: number;
+      activeDriverTabId: string | null;
+      driverLeaseExpiresAt: string | null;
+      targetEpochMs: number;
+      durationMs: number;
+      participants: { userId: string; name: string; role: string; status: string }[];
+    }>(`/api/classroom/${sessionId}/snapshot`);
+  },
+
 
   // ─── Messages & Live Chat ─────────────────────────────────────────────────
   getMessages: async (sessionId: string) => {

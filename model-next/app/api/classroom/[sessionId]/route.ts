@@ -34,6 +34,8 @@ export async function GET(
   }
 }
 
+const knownMissingColumns = new Set<string>();
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -117,19 +119,29 @@ export async function PATCH(
 
     const updatePayload: Record<string, unknown> = {};
     for (const field of allowedFields) {
-      if (field in body) {
+      if (field in body && !knownMissingColumns.has(field)) {
         updatePayload[field] = body[field];
       }
     }
 
     if (typeof body.driverTabId === "string" && body.driverTabId) {
-      updatePayload.active_driver_tab_id = body.driverTabId;
-      updatePayload.driver_lease_expires_at = new Date(Date.now() + 12000).toISOString();
-      updatePayload.driver_lease_version =
-        (Number(existingSession.driver_lease_version) || 0) + 1;
+      if (!knownMissingColumns.has("active_driver_tab_id")) {
+        updatePayload.active_driver_tab_id = body.driverTabId;
+      }
+      if (!knownMissingColumns.has("driver_lease_expires_at")) {
+        updatePayload.driver_lease_expires_at = new Date(Date.now() + 12000).toISOString();
+      }
+      if (!knownMissingColumns.has("driver_lease_version")) {
+        updatePayload.driver_lease_version =
+          (Number(existingSession.driver_lease_version) || 0) + 1;
+      }
     } else if (body.releaseLease === true) {
-      updatePayload.active_driver_tab_id = null;
-      updatePayload.driver_lease_expires_at = null;
+      if (!knownMissingColumns.has("active_driver_tab_id")) {
+        updatePayload.active_driver_tab_id = null;
+      }
+      if (!knownMissingColumns.has("driver_lease_expires_at")) {
+        updatePayload.driver_lease_expires_at = null;
+      }
     }
 
     if (Object.keys(updatePayload).length === 0) {
@@ -162,10 +174,14 @@ export async function PATCH(
         errMsg.match(/column ["']?(\w+)["']? does not exist/i);
 
       if (match && match[1] && match[1] in updatePayload) {
-        console.warn(
-          `[Supabase] sessions table missing column '${match[1]}' on update, omitting and retrying`
-        );
-        delete updatePayload[match[1]];
+        const missingCol = match[1];
+        if (!knownMissingColumns.has(missingCol)) {
+          console.warn(
+            `[Supabase Schema Fallback] sessions table missing column '${missingCol}' - cached to omit. Run supabase-migration.sql to fix.`
+          );
+          knownMissingColumns.add(missingCol);
+        }
+        delete updatePayload[missingCol];
       } else {
         break;
       }

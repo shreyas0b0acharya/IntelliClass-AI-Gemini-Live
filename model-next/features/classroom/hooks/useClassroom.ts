@@ -432,21 +432,51 @@ export function useClassroom(sessionId: string) {
 
       // ── SCHEDULED_PLAY ─────────────────────────────────────────────
       if (event.type === "SCHEDULED_PLAY") {
+        const expected = lastSeqRef.current + 1;
+
+        if (lastSeqRef.current === -1) {
+          // Initial calibration / first packet
+          lastSeqRef.current = event.sequence;
+        } else if (event.sequence === expected) {
+          // Normal monotonic progression
+          lastSeqRef.current = event.sequence;
+        } else if (event.sequence > expected) {
+          // Forward gap (missed packets over network)
+          console.warn(
+            `[Sync] Forward sequence gap detected: expected ${expected}, got ${event.sequence}. Reconciling timeline from snapshot.`
+          );
+          lastSeqRef.current = event.sequence;
+          // Reconcile snapshot asynchronously to ensure authoritative state alignment
+          void (async () => {
+            try {
+              const snap = await api.getClassroomSnapshot(sessionId);
+              if (snap?.session && typeof snap.session.current_sentence_index === "number") {
+                currentIndexRef.current = snap.session.current_sentence_index;
+                syncStore().setCurrentIndex(snap.session.current_sentence_index);
+              }
+            } catch (err) {
+              console.warn("[Sync] Snapshot reconciliation failed:", err);
+            }
+          })();
+        } else {
+          // event.sequence <= lastSeqRef.current: Stale or duplicate packet
+          console.warn(
+            `[Sync] Stale or duplicate packet received: sequence ${event.sequence} <= current ${lastSeqRef.current}. Ignoring.`
+          );
+          return;
+        }
+
+        if (sessionStatusRef.current !== "running") {
+          setSessionStatus("running");
+          sessionStatusRef.current = "running";
+          syncStore().setStatus("running");
+        }
+
         const foundIdx = itemsRef.current.findIndex((i) => i.id === event.itemId);
         if (foundIdx !== -1) {
           currentIndexRef.current = foundIdx;
           syncStore().setCurrentIndex(foundIdx);
         }
-
-        const expected = lastSeqRef.current + 1;
-        if (lastSeqRef.current !== -1 && event.sequence !== expected) {
-          console.warn(
-            `[Sync] Sequence gap detected: expected ${expected}, got ${event.sequence}. ` +
-            `Resetting audio and morphs.`
-          );
-          speech.stop();
-        }
-        lastSeqRef.current = event.sequence;
 
         // Non-audio scheduled items (media/pause/engagement) — just advance subtitle
         if (!event.audioUrl) {
@@ -486,13 +516,12 @@ export function useClassroom(sessionId: string) {
 
       // ── SEEK_SYNC (late joiner catch-up) ───────────────────────────
       else if (event.type === "SEEK_SYNC") {
+        lastSeqRef.current = event.sequence;
         const foundIdx = itemsRef.current.findIndex((i) => i.id === event.itemId);
         if (foundIdx !== -1) {
           currentIndexRef.current = foundIdx;
           syncStore().setCurrentIndex(foundIdx);
         }
-
-        lastSeqRef.current = event.sequence;
 
         const syncedNow = getSynchronizedEpochMs();
         const elapsedMs = Math.max(0, syncedNow - event.targetEpochMs);
@@ -518,6 +547,7 @@ export function useClassroom(sessionId: string) {
 
       // ── PAUSE ──────────────────────────────────────────────────────
       else if (event.type === "PAUSE") {
+        lastSeqRef.current = event.sequence;
         setSessionStatus("paused");
         sessionStatusRef.current = "paused";
         syncStore().setStatus("paused");
@@ -529,6 +559,7 @@ export function useClassroom(sessionId: string) {
 
       // ── RESUME ─────────────────────────────────────────────────────
       else if (event.type === "RESUME") {
+        lastSeqRef.current = event.sequence;
         setSessionStatus("running");
         sessionStatusRef.current = "running";
         syncStore().setStatus("running");
@@ -592,6 +623,7 @@ export function useClassroom(sessionId: string) {
 
       // ── END ────────────────────────────────────────────────────────
       else if (event.type === "END") {
+        lastSeqRef.current = event.sequence;
         setSessionStatus("ended");
         sessionStatusRef.current = "ended";
         syncStore().setStatus("ended");
@@ -613,7 +645,7 @@ export function useClassroom(sessionId: string) {
         );
       }
     },
-    [executeLectureItem, session?.voice_id, speech, syncStore]
+    [executeLectureItem, session?.voice_id, sessionId, speech, syncStore]
   );
 
   const handleKicked = useCallback(() => {

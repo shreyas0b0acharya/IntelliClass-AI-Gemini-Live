@@ -192,6 +192,8 @@ export function useSpeechQueue({
         durationMs,
         lipSyncData,
         text,
+        targetEpochMs,
+        sequence,
       };
 
       setCurrentSpeech(speechItem);

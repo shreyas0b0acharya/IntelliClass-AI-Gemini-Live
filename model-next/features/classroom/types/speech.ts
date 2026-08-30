@@ -18,6 +18,8 @@ export interface SpeechItem {
   durationMs: number;
   lipSyncData: HeadTTSData;
   cached?: boolean;
+  targetEpochMs?: number;
+  sequence?: number;
 }
 
 export interface TTSFetchOptions {

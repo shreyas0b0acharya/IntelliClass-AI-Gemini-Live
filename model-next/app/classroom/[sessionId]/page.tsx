@@ -483,6 +483,8 @@ export default function ClassroomPage({
               isSpeaking={Boolean(classroom.currentSpeech)}
               audioPath={classroom.currentSpeech?.audioPath}
               lipSyncData={classroom.currentSpeech?.lipSyncData}
+              targetEpochMs={classroom.currentSpeech?.targetEpochMs}
+              sequence={classroom.currentSpeech?.sequence}
               onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
               subtitle={classroom.currentSubtitle}
               activeMedia={classroom.activeMedia || store.activeMedia}

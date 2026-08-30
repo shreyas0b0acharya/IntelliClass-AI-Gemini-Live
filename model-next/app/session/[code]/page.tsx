@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
 import { AppButton } from "@/components/app";
 import { ThemeToggle } from "@/components/shared";
@@ -65,7 +65,10 @@ export default function SessionPreJoinPage({
           setSession(fetchedSession);
         }
       } catch (err: unknown) {
-        console.error("Session pre-join load error:", err);
+        const is404 = err instanceof ApiError && err.status === 404;
+        if (!is404) {
+          console.warn("Session pre-join load error:", err);
+        }
         const msg =
           err instanceof Error
             ? err.message
@@ -248,15 +251,14 @@ export default function SessionPreJoinPage({
 
               {/* Status Badge */}
               <div
-                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                  isLive
+                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLive
                     ? "bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse"
                     : session.status === "paused"
-                    ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
-                    : session.status === "ended"
-                    ? "bg-muted text-muted-foreground border border-border/40"
-                    : "bg-primary/10 text-primary border border-primary/20"
-                }`}
+                      ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                      : session.status === "ended"
+                        ? "bg-muted text-muted-foreground border border-border/40"
+                        : "bg-primary/10 text-primary border border-primary/20"
+                  }`}
               >
                 {isLive ? (
                   <>
