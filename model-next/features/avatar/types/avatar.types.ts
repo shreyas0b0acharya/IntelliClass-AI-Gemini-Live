@@ -13,6 +13,8 @@ export interface AvatarProps {
   audioPath?: string;
   lipSyncData?: HeadTTSData;
   onLipSyncEnd?: () => void;
+  targetEpochMs?: number;
+  sequence?: number;
 }
 
 export type AvatarNode = THREE.SkinnedMesh | THREE.Bone;

@@ -101,11 +101,19 @@ export function useSpeechQueue({
     []
   );
 
-  // ── Prefetch upcoming sentences concurrently in background ────────────
-
+  // ── Prefetch upcoming sentences in background (device-aware depth) ──
   const prefetch = useCallback(
     async (texts: string[], selectedVoice: string = voice) => {
-      const uniqueTexts = Array.from(new Set(texts.map((t) => t?.trim()).filter(Boolean)));
+      const isMobileOrSlow =
+        typeof window !== "undefined" &&
+        (window.innerWidth <= 768 ||
+          (navigator as unknown as { connection?: { saveData?: boolean } })?.connection?.saveData);
+
+      // On mobile/constrained networks, prefetch only N+1 (1 sentence)
+      // On desktop, prefetch up to N+2 (2 sentences)
+      const maxDepth = isMobileOrSlow ? 1 : 2;
+      const uniqueTexts = Array.from(new Set(texts.map((t) => t?.trim()).filter(Boolean))).slice(0, maxDepth);
+
       if (uniqueTexts.length === 0) return;
 
       await Promise.allSettled(

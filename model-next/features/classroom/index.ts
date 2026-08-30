@@ -14,6 +14,7 @@ export { SessionController } from "./components/SessionController";
 export { SessionProgressHUD } from "./components/SessionProgressHUD";
 export { SubtitleBar } from "./components/SubtitleBar";
 export { VolumeControl } from "./components/VolumeControl";
+export { Lecturer2DFallback } from "./components/Lecturer2DFallback";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";

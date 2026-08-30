@@ -114,7 +114,8 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
                 src={resolvedUrl}
                 alt={media.label || "Projected Diagram"}
                 className="max-h-56 w-full object-contain rounded-2xl shadow-inner transition-transform group-hover:scale-105"
-                loading="eager"
+                loading="lazy"
+                decoding="async"
               />
             )}
 

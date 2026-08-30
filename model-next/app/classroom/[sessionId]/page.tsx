@@ -478,6 +478,17 @@ export default function ClassroomPage({
               audioPath={classroom.currentSpeech?.audioPath}
               lipSyncData={classroom.currentSpeech?.lipSyncData}
               onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
+              subtitle={classroom.currentSubtitle}
+              activeMedia={classroom.activeMedia || store.activeMedia}
+              userQuestion={classroom.userQuestion}
+              isThinking={classroom.isThinking}
+              sessionStatus={classroom.sessionStatus}
+              onCloseMedia={() => classroom.setActiveMedia(null)}
+              onQuestionChange={classroom.setUserQuestion}
+              onQuestionSubmit={(e) => {
+                e?.preventDefault();
+                classroom.handleInterrupt();
+              }}
             />
 
             {/* Live Visual Projection Board (Displays Extracted Diagrams & Figures) */}

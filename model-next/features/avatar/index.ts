@@ -13,8 +13,18 @@ export { useAvatarBehavior } from "./components/AvatarBehaviorContext";
 
 // Hooks
 export { useLipSync } from "./hooks/useLipSync";
+export { useDeviceTier } from "./hooks/useDeviceTier";
+export type { DeviceTier, DeviceCapabilities } from "./hooks/useDeviceTier";
 
 // Services & Utils
+export {
+  createInitialBehaviorStore,
+  updateAvatarProceduralFrame,
+} from "./services/AvatarProceduralDriver";
+export type {
+  ProceduralDriverNodes,
+  ProceduralDriverOptions,
+} from "./services/AvatarProceduralDriver";
 export {
   getAudioContext,
   getMasterGainNode,
