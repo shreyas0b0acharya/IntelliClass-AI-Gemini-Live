@@ -31,6 +31,7 @@ function ResetPasswordFormContent() {
     const errorCode = searchParams.get("error_code");
     const errorParam = searchParams.get("error");
     const errorDesc = searchParams.get("error_description");
+    const code = searchParams.get("code");
 
     if (errorCode === "otp_expired" || errorParam === "access_denied") {
       setIsExpired(true);
@@ -40,7 +41,22 @@ function ResetPasswordFormContent() {
       setIsExpired(true);
       setErrorMessage("This password reset link is invalid or has expired.");
       toast.error("Password reset link expired");
+    } else if (code) {
+      supabase.auth.exchangeCodeForSession(code).catch((err) => {
+        console.warn("Direct code exchange warning:", err);
+      });
     }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsExpired(false);
+        setErrorMessage(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [searchParams]);
 
   const handleUpdatePassword = async (e?: React.FormEvent) => {

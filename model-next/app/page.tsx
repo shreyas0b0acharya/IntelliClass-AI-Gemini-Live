@@ -86,11 +86,27 @@ export default function HomePage() {
     }
   }, [isLoading, user, isLecturer, router]);
 
-  // Handle incoming Supabase auth recovery errors landing on root
+  // Handle incoming Supabase auth recovery codes and errors landing on root
   useEffect(() => {
     if (typeof window !== "undefined") {
       const search = window.location.search;
       const hash = window.location.hash;
+
+      // 1. If recovery code landed on root, route to callback
+      const params = new URLSearchParams(search);
+      const code = params.get("code");
+      if (code) {
+        window.location.href = `/auth/callback?code=${encodeURIComponent(code)}&next=/reset-password`;
+        return;
+      }
+
+      // 2. If recovery hash token landed on root, route directly to /reset-password
+      if (hash.includes("type=recovery")) {
+        window.location.href = `/reset-password${hash}`;
+        return;
+      }
+
+      // 3. If token expired, forward to /forgot-password
       if (
         search.includes("otp_expired") ||
         hash.includes("otp_expired") ||

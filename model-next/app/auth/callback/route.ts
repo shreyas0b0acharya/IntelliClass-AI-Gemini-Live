@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
 
     if (!error) {
       let destination = next;
+
+      // Fast-track password reset recovery callback directly to /reset-password
+      if (destination === "/reset-password") {
+        return NextResponse.redirect(`${origin}/reset-password`);
+      }
+
       // Ensure user profile exists for Google OAuth sign-in
       try {
         const { data: { user } } = await supabase.auth.getUser();

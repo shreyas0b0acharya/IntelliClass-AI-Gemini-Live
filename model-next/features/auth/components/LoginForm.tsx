@@ -97,7 +97,15 @@ function LoginFormContent() {
       });
 
       if (error) {
-        throw error;
+        let userMessage = error.message;
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
+          userMessage = "Invalid email address or password. Please verify your credentials or click 'Forgot password?' below.";
+        } else if (error.message.toLowerCase().includes("email not confirmed")) {
+          userMessage = "Your email address has not been confirmed yet. Please check your inbox for the confirmation email.";
+        }
+        setErrorMessage(userMessage);
+        toast.error(userMessage);
+        return;
       }
 
       let finalRedirect = redirectTo;
@@ -119,11 +127,7 @@ function LoginFormContent() {
       // Full window navigation ensures cookies and session are re-evaluated by middleware cleanly
       window.location.href = finalRedirect;
     } catch (err: unknown) {
-      console.error("Login error:", err);
-      let msg = "Failed to sign in. Please verify your credentials.";
-      if (err instanceof Error && err.message) {
-        msg = err.message;
-      }
+      const msg = err instanceof Error ? err.message : "Failed to sign in. Please verify your credentials.";
       setErrorMessage(msg);
       toast.error(msg);
     } finally {

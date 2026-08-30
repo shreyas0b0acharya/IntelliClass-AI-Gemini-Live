@@ -95,6 +95,7 @@ export function useClassroomSync({
   const myUserNameRef = useRef<string>(userName);
   const roleRef = useRef<string>(role);
   const isLecturerRef = useRef<boolean>(isLecturer);
+  const pendingEventQueueRef = useRef<ClassroomEvent[]>([]);
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -110,11 +111,9 @@ export function useClassroomSync({
     (event: ClassroomEvent) => {
       if (!broadcastChannelRef.current) return;
 
-      // Only send when the WebSocket is SUBSCRIBED — not before.
-      // Without this check, the Supabase SDK silently falls back to REST API
-      // (which logs a deprecation warning and adds latency).
+      // If channel is not yet subscribed, queue the event and flush on SUBSCRIBED
       if (!isChannelSubscribedRef.current) {
-        console.warn("[Realtime] broadcastEvent skipped: channel not yet subscribed (event:", event.type, ")");
+        pendingEventQueueRef.current.push(event);
         return;
       }
 
@@ -519,6 +518,23 @@ export function useClassroomSync({
           joinedAt: new Date().toISOString(),
           status: initialStatus,
         });
+
+        // Flush any broadcast events that were queued before subscription was established
+        if (pendingEventQueueRef.current.length > 0) {
+          const queuedEvents = [...pendingEventQueueRef.current];
+          pendingEventQueueRef.current = [];
+          for (const ev of queuedEvents) {
+            try {
+              channel.send({
+                type: "broadcast",
+                event: "classroom-action",
+                payload: ev,
+              });
+            } catch (err) {
+              console.warn("[Realtime] Failed to flush queued event:", err);
+            }
+          }
+        }
       }
     });
 
@@ -526,6 +542,7 @@ export function useClassroomSync({
 
     return () => {
       isChannelSubscribedRef.current = false;
+      pendingEventQueueRef.current = [];
       channel.untrack().catch(() => {});
       supabase.removeChannel(channel);
       broadcastChannelRef.current = null;
