@@ -86,6 +86,24 @@ export default function HomePage() {
     }
   }, [isLoading, user, isLecturer, router]);
 
+  // Handle incoming Supabase auth recovery errors landing on root
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const search = window.location.search;
+      const hash = window.location.hash;
+      if (
+        search.includes("otp_expired") ||
+        hash.includes("otp_expired") ||
+        search.includes("error=access_denied") ||
+        hash.includes("error=access_denied")
+      ) {
+        router.replace(
+          "/forgot-password?error_code=otp_expired&error_description=Your+password+reset+link+has+expired+or+is+invalid.+Please+request+a+new+recovery+email."
+        );
+      }
+    }
+  }, [router]);
+
   // ── A. LOGGED-IN STUDENT VIEW: CLEAN MINIMAL JOIN SCREEN ────────────────
   if (!isLoading && user && !isLecturer) {
     return (

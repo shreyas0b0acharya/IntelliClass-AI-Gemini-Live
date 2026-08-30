@@ -3,9 +3,28 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
+  const error = searchParams.get("error");
+  const errorCode = searchParams.get("error_code");
+  const errorDescription = searchParams.get("error_description");
   const code = searchParams.get("code");
   // Supports both "next" and "redirectTo" query parameters
   let next = searchParams.get("next") || searchParams.get("redirectTo") || "/dashboard";
+
+  // Handle incoming error redirects from Supabase (e.g. expired recovery tokens)
+  if (error || errorCode) {
+    if (errorCode === "otp_expired" || error === "access_denied") {
+      return NextResponse.redirect(
+        `${origin}/forgot-password?error_code=otp_expired&error_description=${encodeURIComponent(
+          errorDescription || "Your password reset link has expired. Please request a new link."
+        )}`
+      );
+    }
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(error || "auth_error")}&error_description=${encodeURIComponent(
+        errorDescription || "Authentication request failed."
+      )}`
+    );
+  }
 
   if (!next.startsWith("/")) {
     next = "/dashboard";

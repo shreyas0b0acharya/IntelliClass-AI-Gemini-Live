@@ -25,7 +25,12 @@ import {
   ShieldAlert,
   LogOut,
   ChevronRight,
+  Lock,
+  KeyRound,
+  AlertCircle,
+  Send,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -36,6 +41,84 @@ export function AccountProfileSettings() {
   // Role Switch Confirmation State
   const [pendingRole, setPendingRole] = useState<"lecturer" | "student" | null>(null);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
+
+  // Password & Security State
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
+  const [emailResetSent, setEmailResetSent] = useState(false);
+
+  const handleUpdatePasswordDirect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!newPassword || !confirmPassword) {
+      setPasswordError("Please enter both the new password and confirmation.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match. Please re-enter.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setPasswordSuccess("Password updated successfully!");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Account password updated successfully!");
+    } catch (err: unknown) {
+      console.error("Direct password update error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to update password.";
+      setPasswordError(msg);
+      toast.error(msg);
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!user?.email) {
+      toast.error("No email associated with this account.");
+      return;
+    }
+
+    setIsSendingResetEmail(true);
+    try {
+      const callbackUrl = `${window.location.origin}/auth/callback?next=/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: callbackUrl,
+      });
+
+      if (error) throw error;
+
+      setEmailResetSent(true);
+      toast.success(`Password reset link sent to ${user.email}`);
+    } catch (err: unknown) {
+      console.error("Send password reset email error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to send reset link.";
+      toast.error(msg);
+    } finally {
+      setIsSendingResetEmail(false);
+    }
+  };
 
   const handleOpenConfirm = (role: "lecturer" | "student") => {
     if (profile?.role === role || isSwitchingRole) return;
@@ -237,7 +320,125 @@ export function AccountProfileSettings() {
         </div>
       </div>
 
-      {/* 3. Danger Zone Card */}
+      {/* 3. Password & Security Management Card */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-[#0071e3]" />
+              <span>Password &amp; Security</span>
+            </h4>
+            <p className="text-xs text-[#86868b] leading-relaxed max-w-xl">
+              Change your password directly or send a secure reset link to your registered email address ({user?.email || "N/A"}).
+            </p>
+          </div>
+
+          {/* Quick Email Reset Button */}
+          <AppButton
+            type="button"
+            variant="outline"
+            size="sm"
+            shape="pill"
+            disabled={isSendingResetEmail || !user?.email}
+            isLoading={isSendingResetEmail}
+            loadingText="Sending Link..."
+            onClick={handleSendResetEmail}
+            className="text-xs font-semibold shrink-0"
+            leftIcon={<Send className="h-3.5 w-3.5" />}
+          >
+            <span>{emailResetSent ? "Resend Recovery Email" : "Email Reset Link"}</span>
+          </AppButton>
+        </div>
+
+        {emailResetSent && (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2.5 animate-in fade-in duration-200">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>Password reset instructions have been sent to <strong>{user?.email}</strong>. Check your inbox to proceed.</span>
+          </div>
+        )}
+
+        {/* Direct Password Update Form */}
+        <form onSubmit={handleUpdatePasswordDirect} action="#" className="space-y-4 pt-2 border-t border-black/5 dark:border-white/5">
+          <div className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+            Update Password Directly
+          </div>
+
+          {passwordError && (
+            <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs font-medium animate-in fade-in duration-200 text-left">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          {passwordSuccess && (
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium animate-in fade-in duration-200 text-left">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>{passwordSuccess}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="space-y-1.5 text-left">
+              <label
+                htmlFor="settings-new-password"
+                className="block text-[12px] font-semibold text-[#86868b]"
+              >
+                New Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-[#86868b] pointer-events-none" />
+                <input
+                  id="settings-new-password"
+                  type="password"
+                  placeholder="Min. 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isUpdatingPassword}
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-xs text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] outline-none transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label
+                htmlFor="settings-confirm-password"
+                className="block text-[12px] font-semibold text-[#86868b]"
+              >
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-[#86868b] pointer-events-none" />
+                <input
+                  id="settings-confirm-password"
+                  type="password"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isUpdatingPassword}
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-xs text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] outline-none transition-all duration-200"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <AppButton
+              type="submit"
+              variant="primary"
+              size="sm"
+              shape="pill"
+              disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+              isLoading={isUpdatingPassword}
+              loadingText="Updating..."
+              className="text-xs font-semibold px-4"
+            >
+              <span>Save New Password</span>
+            </AppButton>
+          </div>
+        </form>
+      </div>
+
+      {/* 4. Danger Zone Card */}
       <div className="p-6 rounded-3xl bg-red-500/[0.03] dark:bg-red-500/[0.06] border border-red-500/15 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">

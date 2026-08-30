@@ -15,6 +15,7 @@ import {
   Radio,
   CheckCircle2,
   ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,10 +49,12 @@ function LoginFormContent() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    setErrorMessage(null);
     setIsGoogleLoading(true);
     try {
       const callbackUrl = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`;
@@ -66,22 +69,30 @@ function LoginFormContent() {
     } catch (err: unknown) {
       console.error("Google OAuth error:", err);
       const msg = err instanceof Error ? err.message : "Failed to initiate Google Sign In";
+      setErrorMessage(msg);
       toast.error(msg);
       setIsGoogleLoading(false);
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter both email and password.");
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    setErrorMessage(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      const msg = "Please enter both your email address and password.";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
@@ -99,15 +110,21 @@ function LoginFormContent() {
               finalRedirect = prof.role === "lecturer" ? "/dashboard" : "/";
             }
           }
-        } catch {}
+        } catch (profileErr) {
+          console.warn("Profile fetch warning after login:", profileErr);
+        }
       }
 
       toast.success("Welcome back to IntelliClass!");
-      router.push(finalRedirect);
-      router.refresh();
+      // Full window navigation ensures cookies and session are re-evaluated by middleware cleanly
+      window.location.href = finalRedirect;
     } catch (err: unknown) {
       console.error("Login error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to sign in. Please verify your credentials.";
+      let msg = "Failed to sign in. Please verify your credentials.";
+      if (err instanceof Error && err.message) {
+        msg = err.message;
+      }
+      setErrorMessage(msg);
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -203,8 +220,16 @@ function LoginFormContent() {
           </div>
         </div>
 
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs sm:text-[13px] font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+            <div className="flex-1 leading-snug">{errorMessage}</div>
+          </div>
+        )}
+
         {/* Email/Password Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} action="#" className="space-y-4">
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="email"
@@ -235,6 +260,12 @@ function LoginFormContent() {
               >
                 Password
               </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[#0071e3] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-4 top-3.5 h-4 w-4 text-[#86868b] pointer-events-none" />
