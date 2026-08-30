@@ -1,0 +1,116 @@
+{
+  "version": "2.0.0",
+  "updatedAt": "2026-08-30T19:45:00Z",
+  "assets": [
+    {
+      "assetKey": "avatar-men",
+      "name": "Professor Sharma (AI Faculty)",
+      "category": "avatar",
+      "modelGender": "men",
+      "priority": "P0",
+      "variants": {
+        "high": {
+          "url": "/models/men-avatarsdk.glb",
+          "size": 15833496,
+          "sha256": "men_meshopt_high_v2"
+        },
+        "medium": {
+          "url": "/models/men-avatarsdk.glb",
+          "size": 15833496,
+          "sha256": "men_meshopt_med_v2"
+        },
+        "low": {
+          "url": "/models/men-avatarsdk.glb",
+          "size": 15833496,
+          "sha256": "men_meshopt_low_v2"
+        }
+      }
+    },
+    {
+      "assetKey": "avatar-women",
+      "name": "Professor Elena (AI Faculty)",
+      "category": "avatar",
+      "modelGender": "women",
+      "priority": "P0",
+      "variants": {
+        "high": {
+          "url": "/models/women-avatarsdk.glb",
+          "size": 20793248,
+          "sha256": "women_meshopt_high_v2"
+        },
+        "medium": {
+          "url": "/models/women-avatarsdk.glb",
+          "size": 20793248,
+          "sha256": "women_meshopt_med_v2"
+        },
+        "low": {
+          "url": "/models/women-avatarsdk.glb",
+          "size": 20793248,
+          "sha256": "women_meshopt_low_v2"
+        }
+      }
+    },
+    {
+      "assetKey": "stage-backdrop",
+      "name": "Blackboard Stage Wall",
+      "category": "textures",
+      "priority": "P0",
+      "variants": {
+        "all": {
+          "url": "/textures/Blackboard-Stage-Wall.png",
+          "size": 2233472,
+          "sha256": "stage_wall_v2"
+        }
+      }
+    },
+    {
+      "assetKey": "anim-idle",
+      "name": "Idle Animation",
+      "category": "animations",
+      "priority": "P0",
+      "variants": {
+        "men": {
+          "url": "/animations/men-avatarsdk/weight shift.fbx",
+          "size": 819200,
+          "sha256": "anim_men_ws_v2"
+        },
+        "women": {
+          "url": "/animations/women-avatarsdk/weight shift.fbx",
+          "size": 819200,
+          "sha256": "anim_women_ws_v2"
+        }
+      }
+    },
+    {
+      "assetKey": "classroom-3d",
+      "name": "IntelliClass 3D Auditorium",
+      "category": "classroom",
+      "priority": "P1",
+      "variants": {
+        "high": {
+          "url": "/models/CLASSROOM.glb",
+          "size": 42467328,
+          "sha256": "classroom_meshopt_high_v2"
+        },
+        "medium": {
+          "url": "/models/CLASSROOM.glb",
+          "size": 42467328,
+          "sha256": "classroom_meshopt_med_v2"
+        }
+      }
+    },
+    {
+      "assetKey": "environment-hdr",
+      "name": "Studio HDR Lighting",
+      "category": "textures",
+      "priority": "P2",
+      "variants": {
+        "high": {
+          "url": "/environment/empty_warehouse_01_1k.hdr",
+          "size": 1751040,
+          "sha256": "env_hdr_v2"
+        }
+      }
+    }
+  ]
+}

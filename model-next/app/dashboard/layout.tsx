@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar, ThemeToggle, NavUser } from "@/components/shared";
+import { AppSidebar, ThemeToggle, NavUser, AssetSyncModal } from "@/components/shared";
 import { useAuth } from "@/features/auth";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
@@ -66,6 +66,9 @@ export default function DashboardLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* Post-Login Persistent Asset Sync Modal */}
+      <AssetSyncModal />
     </div>
   );
 }

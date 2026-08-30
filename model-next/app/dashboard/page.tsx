@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { profile, isLecturer, isLoading: isAuthLoading } = useAuth();
+  const { user, profile, isLecturer, isLoading: isAuthLoading } = useAuth();
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [activeSessions, setActiveSessions] = useState<
@@ -35,6 +35,10 @@ export default function DashboardPage() {
   const [loadingData, setLoadingData] = useState(true);
 
   const loadData = useCallback(async () => {
+    if (isAuthLoading || !user) {
+      setLoadingData(false);
+      return;
+    }
     try {
       const { courses: fetchedCourses } = await api.getCourses();
       if (!fetchedCourses) return;
@@ -76,15 +80,19 @@ export default function DashboardPage() {
 
       setActiveSessions(liveOrPaused);
       setRecentSessions(others.slice(0, 12));
-    } catch (err) {
-      console.error("Dashboard data load error:", err);
+    } catch (err: unknown) {
+      if ((err as { status?: number })?.status !== 401) {
+        console.error("Dashboard data load error:", err);
+      }
     } finally {
       setLoadingData(false);
     }
-  }, []);
+  }, [user, isAuthLoading]);
 
   useEffect(() => {
-    loadData();
+    if (!isAuthLoading && user) {
+      loadData();
+    }
 
     // Listen to local window event triggered on course creation/deletion
     const handleCoursesChanged = () => {

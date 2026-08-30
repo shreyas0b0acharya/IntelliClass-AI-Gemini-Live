@@ -18,7 +18,8 @@ import {
   ProjectionBoard,
   VolumeControl,
 } from "@/features/classroom";
-import { ThemeToggle } from "@/components/shared";
+import { ThemeToggle, AssetSyncModal } from "@/components/shared";
+import { assetStorage } from "@/features/avatar";
 import { AppButton } from "@/components/app";
 import {
   ArrowLeft,
@@ -74,6 +75,11 @@ export default function ClassroomPage({
       return () => clearTimeout(timer);
     }
   }, [classroom.session, classroom.isLecturer, classroom.sessionStatus, router]);
+
+  // Adaptive Bandwidth Arbitration: yield background sync during live lecture audio
+  useEffect(() => {
+    assetStorage.setAudioStreaming(Boolean(classroom.currentSpeech));
+  }, [classroom.currentSpeech]);
 
   if (!classroom.session || !classroom.user) {
     return (
@@ -523,6 +529,9 @@ export default function ClassroomPage({
           <ChatPanel sessionId={sessionId} userId={classroom.user.id} />
         </div>
       </div>
+
+      {/* Background Core Asset Sync Modal */}
+      <AssetSyncModal preferredGender={avatarModel.includes("women") ? "women" : "men"} />
     </div>
   );
 }

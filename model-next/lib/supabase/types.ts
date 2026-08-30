@@ -44,6 +44,21 @@ export interface DocumentChunk {
 
 export type SessionStatus = "created" | "running" | "paused" | "ended";
 
+export type AdmissionStatus = "waiting" | "admitted" | "denied" | "left";
+export type ConnectionStatus = "online" | "reconnecting" | "offline";
+
+export interface SessionParticipantRecord {
+  id: string;
+  session_id: string;
+  user_id: string;
+  user_name: string;
+  role: "lecturer" | "student";
+  status: AdmissionStatus;
+  joined_at: string;
+  admitted_at?: string | null;
+  updated_at: string;
+}
+
 export interface ClassroomSession {
   id: string;
   course_id: string;
@@ -54,6 +69,7 @@ export interface ClassroomSession {
   current_item_id?: string;
   current_sentence_index?: number;
   sequence?: number;
+  state_version?: number;
   meeting_code?: string;
   created_by: string;
   created_at: string;

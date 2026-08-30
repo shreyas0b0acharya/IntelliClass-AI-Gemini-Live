@@ -6,3 +6,4 @@ export { ThemeProvider } from "./ThemeProvider";
 export { SessionCodeInput } from "./SessionCodeInput";
 export { StatusBadge } from "./StatusBadge";
 export { AnimationLoader } from "./AnimationLoader";
+export { AssetSyncModal } from "./AssetSyncModal";

@@ -219,52 +219,69 @@ export function ParticipantsModal({
 
             {admittedStudents.length > 0 ? (
               <div className="space-y-1.5">
-                {admittedStudents.map((student) => (
-                  <div
-                    key={student.userId}
-                    className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 border border-black/5 dark:border-white/5 transition-colors flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
-                        {(student.name || "S")[0].toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
-                            {student.name}
-                          </p>
-                          {student.userId === currentUserId && (
-                            <span className="text-[9px] font-semibold text-[#86868b]">(You)</span>
-                          )}
+                {admittedStudents.map((student) => {
+                  const isOnline = student.connectionStatus !== "offline";
+                  return (
+                    <div
+                      key={student.userId}
+                      className="p-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 border border-black/5 dark:border-white/5 transition-colors flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
+                            {(student.name || "S")[0].toUpperCase()}
+                          </div>
+                          {/* Live Presence Indicator */}
+                          <span
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#1c1c1e] ${
+                              isOnline ? "bg-emerald-500" : "bg-neutral-400"
+                            }`}
+                            title={isOnline ? "Online" : "Temporarily Offline"}
+                          />
                         </div>
-                        <p className="text-[10px] text-[#86868b]">
-                          Joined {student.joinedAt ? new Date(student.joinedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "just now"}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+                              {student.name}
+                            </p>
+                            {student.userId === currentUserId && (
+                              <span className="text-[9px] font-semibold text-[#86868b]">(You)</span>
+                            )}
+                            {student.connectionCount && student.connectionCount > 1 ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-white/10 text-white/60">
+                                {student.connectionCount} tabs
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-[10px] text-[#86868b]">
+                            {isOnline ? "Connected" : "Reconnecting"} • Joined {student.joinedAt ? new Date(student.joinedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "just now"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <GraduationCap className="h-3 w-3" />
+                          Admitted
+                        </span>
+
+                        {isLecturer && student.userId !== currentUserId && (
+                          <AppButton
+                            size="xs"
+                            variant="ghost"
+                            shape="rounded"
+                            onClick={() => onKick?.(student.userId)}
+                            className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold"
+                            leftIcon={<UserMinus className="h-3 w-3" />}
+                            title="Remove student from session"
+                          >
+                            <span className="hidden sm:inline">Remove</span>
+                          </AppButton>
+                        )}
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <GraduationCap className="h-3 w-3" />
-                        Active
-                      </span>
-
-                      {isLecturer && student.userId !== currentUserId && (
-                        <AppButton
-                          size="xs"
-                          variant="ghost"
-                          shape="rounded"
-                          onClick={() => onKick?.(student.userId)}
-                          className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold"
-                          leftIcon={<UserMinus className="h-3 w-3" />}
-                          title="Remove student from session"
-                        >
-                          <span className="hidden sm:inline">Remove</span>
-                        </AppButton>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 text-center">

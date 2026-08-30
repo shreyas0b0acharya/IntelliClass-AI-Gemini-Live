@@ -35,6 +35,7 @@ export type ClassroomEvent =
        */
       type: "SCHEDULED_PLAY";
       sequence: number;        // monotonic, gapless — THE critical sync field
+      stateVersion?: number;
       itemId: string;
       targetEpochMs: number;   // synchronized epoch when audio starts on ALL devices
       leadTimeMs: number;      // scheduling lead window used (for diagnostics/logging)
@@ -53,6 +54,7 @@ export type ClassroomEvent =
        */
       type: "SEEK_SYNC";
       sequence: number;
+      stateVersion?: number;
       itemId: string;
       targetEpochMs: number;   // original scheduled start epoch of this sentence
       durationMs: number;
@@ -63,10 +65,12 @@ export type ClassroomEvent =
   | {
       type: "PAUSE";
       sequence: number;
+      stateVersion?: number;
     }
   | {
       type: "RESUME";
       sequence: number;
+      stateVersion?: number;
       itemId: string;
       targetEpochMs?: number;
       audioUrl?: string;
@@ -82,6 +86,7 @@ export type ClassroomEvent =
       answer: string;
       resumeFromItemId: string;
       sequence: number;
+      stateVersion?: number;
       targetEpochMs?: number;
       audioUrl?: string;
       lipSyncData?: HeadTTSData;
@@ -91,36 +96,47 @@ export type ClassroomEvent =
       type: "ADMIT_PARTICIPANT";
       targetUserId: string; // specific userId or "ALL"
       sequence: number;
+      stateVersion?: number;
     }
   | {
       type: "DENY_PARTICIPANT";
       targetUserId: string;
       sequence: number;
+      stateVersion?: number;
     }
   | {
       type: "KICK_PARTICIPANT";
       targetUserId: string;
       sequence: number;
+      stateVersion?: number;
     }
   | {
       type: "REQUEST_ADMISSION";
       userId: string;
       userName: string;
       sequence: number;
+      stateVersion?: number;
       requestId?: string;
     }
   | {
       type: "END";
       sequence: number;
+      stateVersion?: number;
       stoppedReason?: string;
     };
+
+export type AdmissionStatus = "waiting" | "admitted" | "denied" | "left";
+export type ConnectionStatus = "online" | "reconnecting" | "offline";
 
 export interface ClassroomParticipant {
   userId: string;
   name: string;
   role: "lecturer" | "student";
   joinedAt: string;
-  status?: "admitted" | "waiting" | "denied";
+  admittedAt?: string | null;
+  status: AdmissionStatus;
+  connectionStatus?: ConnectionStatus;
+  connectionCount?: number;
 }
 
 export interface InterruptionItem {

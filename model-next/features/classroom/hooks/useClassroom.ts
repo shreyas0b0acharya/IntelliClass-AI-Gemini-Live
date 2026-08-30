@@ -502,6 +502,10 @@ export function useClassroom(sessionId: string) {
     [executeLectureItem, session?.voice_id, speech, syncStore]
   );
 
+  const handleKicked = useCallback(() => {
+    speech.stop();
+  }, [speech]);
+
   // ── 5. Supabase Realtime & Presence Sync ────────────────────────────
   const {
     broadcastEvent,
@@ -521,6 +525,7 @@ export function useClassroom(sessionId: string) {
     userName: profile?.name || user?.email?.split("@")[0] || "Participant",
     role: profile?.role || "student",
     onEvent: handleRealtimeEvent,
+    onKicked: handleKicked,
   });
 
   useEffect(() => {
