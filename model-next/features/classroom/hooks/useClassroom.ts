@@ -4,21 +4,29 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
-import type { ClassroomSession, Profile } from "@/lib/supabase/types";
-import { parseLectureScript, type LectureItem, type LectureSpeechItem } from "../types/lecture-item";
-import type { ClassroomEvent, InterruptionItem, SessionStateStatus } from "../types/classroom";
-import type { HeadTTSData } from "@/features/avatar";
-import { fetchSpeechTTS } from "../services/tts";
-import { preloadAudioBuffer } from "@/features/avatar";
-import { getSynchronizedEpochMs, startBackgroundSync } from "@/features/avatar";
-import { useSpeechQueue } from "./useSpeechQueue";
-import { useClassroomSync } from "./useClassroomSync";
-import { useClassroomStore } from "../store/classroomStore";
 import { toast } from "sonner";
+import {
+  parseLectureScript,
+  type LectureItem,
+  type LectureSpeechItem,
+} from "../types/lecture-item";
+import type {
+  ClassroomEvent,
+  InterruptionItem,
+  SessionStateStatus,
+} from "../types/classroom";
+import type { ClassroomSession, Profile } from "@/lib/supabase/types";
+import { useClassroomSync } from "./useClassroomSync";
+import { useSpeechQueue } from "./useSpeechQueue";
+import { useClassroomStore } from "../store/classroomStore";
+import {
+  getSynchronizedEpochMs,
+  startBackgroundSync,
+  preloadAudioBuffer,
+  type HeadTTSData,
+} from "@/features/avatar";
+import { fetchSpeechTTS } from "../services/tts";
 
-// How far ahead (in ms) the driver schedules audio relative to broadcast time.
-// Students receive the event ~10-80ms later and have the remainder to pre-decode.
-// 350ms is comfortably within the buffer on 4G with AudioContext decode ~200ms.
 const LEAD_TIME_MS = 350;
 
 export interface MediaItemDisplay {
@@ -32,19 +40,26 @@ export function useClassroom(sessionId: string) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<ClassroomSession | null>(null);
   const [sessionStatus, setSessionStatus] = useState<SessionStateStatus>("created");
-  const [stoppedReason, setStoppedReason] = useState<string | undefined>();
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-
-  const [currentSubtitle, setCurrentSubtitle] = useState<string>("Ready to begin lecture.");
+  const [stoppedReason, setStoppedReason] = useState<string | undefined>(undefined);
+  const [currentSubtitle, setCurrentSubtitle] = useState<string>("");
   const [activeMedia, setActiveMedia] = useState<MediaItemDisplay | null>(null);
-  const [isThinking, setIsThinking] = useState(false);
-  const [userQuestion, setUserQuestion] = useState("");
-
-  // Empty Room Auto-Stop Timer
   const [emptyRoomCountdown, setEmptyRoomCountdown] = useState<number | null>(null);
-  const emptyRoomTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [userQuestion, setUserQuestion] = useState<string>("");
+  const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(false);
 
+  // Stable tab identifier for database conductor lease arbitration
+  const myTabIdRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `tab_${Math.random().toString(36).substring(2, 10)}`
+  );
+  const isConductorLeaseActiveRef = useRef<boolean>(false);
+  const driverLeaseVersionRef = useRef<number>(0);
+  const executingItemIdRef = useRef<string | null>(null);
+  const processedExecutionIdsRef = useRef<Set<string>>(new Set());
+
+  // Mutable refs to prevent stale closures inside timers and event listeners
   const itemsRef = useRef<LectureItem[]>([]);
   const speechItemsRef = useRef<LectureSpeechItem[]>([]);
   const currentIndexRef = useRef<number>(0);
@@ -55,27 +70,29 @@ export function useClassroom(sessionId: string) {
   const activeInterruptionRef = useRef<InterruptionItem | null>(null);
   const mediaMapRef = useRef<Map<string, { type: "image" | "video"; ref: string }>>(new Map());
 
+  const emptyRoomTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const broadcastEventRef = useRef<((event: ClassroomEvent) => void) | null>(null);
   const executeLectureItemRef = useRef<((item: LectureItem) => void) | null>(null);
 
-  // ── Gap detection state ──────────────────────────────────────────────
-  // Tracks the last sequence number successfully processed.
-  // -1 means "not yet synced" — any sequence is accepted.
-  // Reset to -1 on new session start/restart to avoid spurious gap warnings.
+  // Gap detection state
   const lastSeqRef = useRef<number>(-1);
 
   // Helper to safely mutate Zustand store without subscribing to render loops
   const syncStore = useClassroomStore.getState;
 
   // ── 0. SNTP Background Clock Sync ─────────────────────────────────────
-  // Starts once per classroom mount and cleans up on unmount.
   useEffect(() => {
     const stopSync = startBackgroundSync();
     return () => stopSync();
   }, []);
 
-  // ── 1. Advance to Next Item (Room Driver) ────────────────────────────
+  // ── 1. Advance to Next Item (Room Conductor) ────────────────────────────
   const advanceCurrentItem = useCallback(async () => {
+    if (!isLecturerRef.current || !isConductorLeaseActiveRef.current) return;
+    executingItemIdRef.current = null;
+
     // If we are handling a Q&A interruption resume:
     if (activeInterruptionRef.current) {
       const resumeId = activeInterruptionRef.current.resumeFromItemId;
@@ -103,20 +120,20 @@ export function useClassroom(sessionId: string) {
       setCurrentSubtitle("Lecture completed. Thank you class!");
       syncStore().setCurrentSubtitle("Lecture completed. Thank you class!");
 
-      if (isDriverRef.current) {
-        sequenceRef.current++;
-        broadcastEventRef.current?.({
-          type: "END",
-          sequence: sequenceRef.current,
-          stoppedReason: "script_completed",
-        });
-        api
-          .updateClassroomSession(sessionId, {
-            status: "ended",
-            stopped_reason: "script_completed",
-          })
-          .catch(console.error);
-      }
+      sequenceRef.current++;
+      broadcastEventRef.current?.({
+        type: "END",
+        sequence: sequenceRef.current,
+        driverLeaseVersion: driverLeaseVersionRef.current,
+        stoppedReason: "script_completed",
+      });
+      api
+        .updateClassroomSession(sessionId, {
+          status: "ended",
+          stopped_reason: "script_completed",
+          releaseLease: true,
+        })
+        .catch(console.error);
       return;
     }
 
@@ -129,29 +146,34 @@ export function useClassroom(sessionId: string) {
   const speech = useSpeechQueue({
     voice: session?.voice_id || "af_bella",
     onSpeechComplete: (_itemId) => {
-      // Only the driver/lecturer advances — students follow via broadcast
+      executingItemIdRef.current = null;
+      // Only the active conductor advances — students follow strictly via broadcast
       if (
         sessionStatusRef.current === "running" &&
-        (isDriverRef.current || isLecturerRef.current || activeInterruptionRef.current)
+        isLecturerRef.current &&
+        isConductorLeaseActiveRef.current
       ) {
         setTimeout(advanceCurrentItem, 80);
       }
     },
     onError: (err) => {
+      executingItemIdRef.current = null;
       toast.error(`Speech synthesis error: ${err.message}`);
     },
   });
 
-  // ── 3. Execute a specific LectureItem (Driver Only) ──────────────────
-  //
-  // For SPEECH items: synthesize → compute targetEpochMs → broadcast
-  // SCHEDULED_PLAY → play locally with same targetEpochMs.
-  //
-  // For non-audio items (media, pause, engagement): broadcast SCHEDULED_PLAY
-  // with no audio fields so students can advance their index in lockstep.
+  // ── 3. Execute a specific LectureItem (Active Conductor Only) ───────────
   const executeLectureItem = useCallback(
     async (item: LectureItem) => {
       if (!item) return;
+      if (!isLecturerRef.current || !isConductorLeaseActiveRef.current) return;
+
+      // In-flight execution lock to prevent Strict Mode / retried duplicates
+      if (executingItemIdRef.current === item.id) {
+        console.warn(`[Classroom] Item ${item.id} is already in-flight. Skipping duplicate call.`);
+        return;
+      }
+      executingItemIdRef.current = item.id;
 
       // ── Media item ───────────────────────────────────────────────────
       if (item.type === "image" || item.type === "video") {
@@ -163,23 +185,24 @@ export function useClassroom(sessionId: string) {
         setActiveMedia(mediaObj);
         syncStore().setActiveMedia(mediaObj);
 
-        if (isDriverRef.current || isLecturerRef.current) {
-          sequenceRef.current++;
-          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        sequenceRef.current++;
+        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const durationMs = 3500;
 
-          broadcastEventRef.current?.({
-            type: "SCHEDULED_PLAY",
-            sequence: sequenceRef.current,
-            itemId: item.id,
-            targetEpochMs,
-            leadTimeMs: LEAD_TIME_MS,
-            audioUrl: "",         // no audio for media items
-            durationMs: 3500,
-            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
-            text: item.caption || "",
-          });
-          setTimeout(advanceCurrentItem, 3500);
-        }
+        broadcastEventRef.current?.({
+          type: "SCHEDULED_PLAY",
+          sequence: sequenceRef.current,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+          executionId: `${sessionId}_${item.id}_seq${sequenceRef.current}_${targetEpochMs}`,
+          itemId: item.id,
+          targetEpochMs,
+          leadTimeMs: LEAD_TIME_MS,
+          audioUrl: "", // no audio for media items
+          durationMs,
+          lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+          text: item.caption || "",
+        });
+        setTimeout(advanceCurrentItem, durationMs);
         return;
       }
 
@@ -187,24 +210,24 @@ export function useClassroom(sessionId: string) {
       if (item.type === "pause") {
         setCurrentSubtitle("...");
         syncStore().setCurrentSubtitle("...");
-        if (isDriverRef.current || isLecturerRef.current) {
-          sequenceRef.current++;
-          const durationMs = item.durationMs || 1200;
-          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        sequenceRef.current++;
+        const durationMs = item.durationMs || 1200;
+        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
 
-          broadcastEventRef.current?.({
-            type: "SCHEDULED_PLAY",
-            sequence: sequenceRef.current,
-            itemId: item.id,
-            targetEpochMs,
-            leadTimeMs: LEAD_TIME_MS,
-            audioUrl: "",
-            durationMs,
-            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
-            text: "...",
-          });
-          setTimeout(advanceCurrentItem, durationMs);
-        }
+        broadcastEventRef.current?.({
+          type: "SCHEDULED_PLAY",
+          sequence: sequenceRef.current,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+          executionId: `${sessionId}_${item.id}_seq${sequenceRef.current}_${targetEpochMs}`,
+          itemId: item.id,
+          targetEpochMs,
+          leadTimeMs: LEAD_TIME_MS,
+          audioUrl: "",
+          durationMs,
+          lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+          text: "...",
+        });
+        setTimeout(advanceCurrentItem, durationMs);
         return;
       }
 
@@ -213,23 +236,24 @@ export function useClassroom(sessionId: string) {
         const promptText = item.prompt || "Let us pause and reflect...";
         setCurrentSubtitle(promptText);
         syncStore().setCurrentSubtitle(promptText);
-        if (isDriverRef.current || isLecturerRef.current) {
-          sequenceRef.current++;
-          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        sequenceRef.current++;
+        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const durationMs = 2000;
 
-          broadcastEventRef.current?.({
-            type: "SCHEDULED_PLAY",
-            sequence: sequenceRef.current,
-            itemId: item.id,
-            targetEpochMs,
-            leadTimeMs: LEAD_TIME_MS,
-            audioUrl: "",
-            durationMs: 2000,
-            lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
-            text: promptText,
-          });
-          setTimeout(advanceCurrentItem, 2000);
-        }
+        broadcastEventRef.current?.({
+          type: "SCHEDULED_PLAY",
+          sequence: sequenceRef.current,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+          executionId: `${sessionId}_${item.id}_seq${sequenceRef.current}_${targetEpochMs}`,
+          itemId: item.id,
+          targetEpochMs,
+          leadTimeMs: LEAD_TIME_MS,
+          audioUrl: "",
+          durationMs,
+          lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
+          text: promptText,
+        });
+        setTimeout(advanceCurrentItem, durationMs);
         return;
       }
 
@@ -257,59 +281,154 @@ export function useClassroom(sessionId: string) {
 
         if (!speechResult || !speechResult.audioPath) {
           console.warn(`⚠️ [Classroom] TTS unavailable for item #${currentIndexRef.current + 1}. Auto-advancing in 3s.`);
+          executingItemIdRef.current = null;
           setTimeout(advanceCurrentItem, 3000);
           return;
         }
 
-        // Only the driver/lecturer broadcasts and schedules
-        if (isDriverRef.current || isLecturerRef.current) {
-          sequenceRef.current++;
-          const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
-          const seq = sequenceRef.current;
-
-          // Persist progress to DB (fire-and-forget)
-          api
-            .updateClassroomSession(sessionId, {
-              current_item_id: item.id,
-              current_sentence_index: currentIndexRef.current,
-              sequence: seq,
-              status: "running",
-            })
-            .catch(console.error);
-
-          // Broadcast to all students
-          broadcastEventRef.current?.({
-            type: "SCHEDULED_PLAY",
-            sequence: seq,
-            itemId: item.id,
-            targetEpochMs,
-            leadTimeMs: LEAD_TIME_MS,
-            audioUrl: speechResult.audioPath,
-            durationMs: speechResult.durationMs || 0,
-            lipSyncData: speechResult.lipSyncData,
-            text: item.text,
-          });
-
-          // Driver plays locally with the SAME targetEpochMs — sample-accurate sync
-          speech.playScheduled({
-            audioUrl: speechResult.audioPath,
-            targetEpochMs,
-            lipSyncData: speechResult.lipSyncData,
-            sequence: seq,
-            text: item.text,
-            itemId: item.id,
-            durationMs: speechResult.durationMs || 0,
-            offsetMs: 0,
-          });
+        // Check lease before scheduling and broadcasting
+        if (!isConductorLeaseActiveRef.current) {
+          console.warn("[Classroom] Lost conductor lease during synthesis. Aborting playback.");
+          executingItemIdRef.current = null;
+          return;
         }
+
+        sequenceRef.current++;
+        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const seq = sequenceRef.current;
+        const durationMs = speechResult.durationMs || 0;
+        const executionId = `${sessionId}_${item.id}_seq${seq}_${targetEpochMs}`;
+
+        // Persist progress & timeline metadata to DB (fire-and-forget)
+        api
+          .updateClassroomSession(sessionId, {
+            current_item_id: item.id,
+            current_sentence_index: currentIndexRef.current,
+            sequence: seq,
+            status: "running",
+            driverTabId: myTabIdRef.current,
+            target_epoch_ms: targetEpochMs,
+            duration_ms: durationMs,
+          })
+          .catch(console.error);
+
+        // Broadcast to all students with executionId & driverLeaseVersion
+        broadcastEventRef.current?.({
+          type: "SCHEDULED_PLAY",
+          sequence: seq,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+          executionId,
+          itemId: item.id,
+          targetEpochMs,
+          leadTimeMs: LEAD_TIME_MS,
+          audioUrl: speechResult.audioPath,
+          durationMs,
+          lipSyncData: speechResult.lipSyncData,
+          text: item.text,
+        });
+
+        // Driver plays locally with the SAME targetEpochMs — sample-accurate sync
+        speech.playScheduled({
+          audioUrl: speechResult.audioPath,
+          targetEpochMs,
+          lipSyncData: speechResult.lipSyncData,
+          sequence: seq,
+          text: item.text,
+          itemId: item.id,
+          durationMs,
+          offsetMs: 0,
+        });
       }
     },
     [session?.voice_id, advanceCurrentItem, speech, sessionId, syncStore]
   );
 
-  // ── 4. Realtime Events Receiver ──────────────────────────────────────
+  // ── 4. Unified 5s Atomic CAS Conductor Lease Engine ────────────────────
+  useEffect(() => {
+    if (!isLecturerRef.current || !sessionId) return;
+
+    let active = true;
+
+    const pollOrRenewLease = async () => {
+      try {
+        const res = await fetch(`/api/classroom/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ driverTabId: myTabIdRef.current }),
+        });
+
+        if (!res.ok) {
+          isConductorLeaseActiveRef.current = false;
+          return;
+        }
+
+        const data = await res.json();
+        const isClaimWon = data?.activeDriverTabId === myTabIdRef.current;
+        const wasConductor = isConductorLeaseActiveRef.current;
+        isConductorLeaseActiveRef.current = isClaimWon;
+
+        if (typeof data?.driverLeaseVersion === "number") {
+          driverLeaseVersionRef.current = data.driverLeaseVersion;
+        }
+
+        // Standby Promotion Timeline Reconciliation:
+        // If we just got promoted from standby to active conductor during a running session:
+        if (!wasConductor && isClaimWon && sessionStatusRef.current === "running") {
+          console.log("👑 [Classroom] Conductor lease granted to this tab. Running timeline reconciliation...");
+          const snapRes = await fetch(`/api/classroom/${sessionId}/snapshot`);
+          if (snapRes.ok) {
+            const snapData = await snapRes.json();
+            const now = getSynchronizedEpochMs();
+            const itemEndEpoch = (snapData?.targetEpochMs || 0) + (snapData?.durationMs || 0);
+
+            if (now < itemEndEpoch) {
+              const remainingMs = itemEndEpoch - now;
+              console.log(`⏳ [Classroom] Waiting ${remainingMs}ms for current sentence to finish in student buffers.`);
+              setTimeout(() => {
+                if (active && isConductorLeaseActiveRef.current && sessionStatusRef.current === "running") {
+                  advanceCurrentItem();
+                }
+              }, remainingMs);
+            } else {
+              advanceCurrentItem();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Classroom] Conductor lease poll error:", err);
+      }
+    };
+
+    pollOrRenewLease();
+    const interval = setInterval(pollOrRenewLease, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [sessionId, advanceCurrentItem]);
+
+  // ── 5. Realtime Events Receiver ──────────────────────────────────────
   const handleRealtimeEvent = useCallback(
     (event: ClassroomEvent) => {
+      // Stale lease packet drop
+      if (
+        "driverLeaseVersion" in event &&
+        typeof event.driverLeaseVersion === "number" &&
+        driverLeaseVersionRef.current > 0 &&
+        event.driverLeaseVersion < driverLeaseVersionRef.current
+      ) {
+        console.warn("[Realtime] Dropping stale broadcast packet from older lease version.");
+        return;
+      }
+
+      // Duplicate executionId drop
+      if ("executionId" in event && event.executionId && processedExecutionIdsRef.current.has(event.executionId)) {
+        return;
+      }
+      if ("executionId" in event && event.executionId) {
+        processedExecutionIdsRef.current.add(event.executionId);
+      }
 
       // ── SCHEDULED_PLAY ─────────────────────────────────────────────
       if (event.type === "SCHEDULED_PLAY") {
@@ -319,10 +438,6 @@ export function useClassroom(sessionId: string) {
           syncStore().setCurrentIndex(foundIdx);
         }
 
-        // ── Gap detection ──────────────────────────────────────────────
-        // Any sequence other than lastSeq+1 indicates a dropped packet.
-        // Kill current audio and reset morphs immediately so lips don't
-        // animate for audio that isn't actually playing.
         const expected = lastSeqRef.current + 1;
         if (lastSeqRef.current !== -1 && event.sequence !== expected) {
           console.warn(
@@ -340,7 +455,6 @@ export function useClassroom(sessionId: string) {
           return;
         }
 
-        // Pre-decode audio in parallel — should finish well before targetEpochMs
         preloadAudioBuffer(event.audioUrl);
 
         setCurrentSubtitle(event.text || "");
@@ -378,7 +492,6 @@ export function useClassroom(sessionId: string) {
           syncStore().setCurrentIndex(foundIdx);
         }
 
-        // IMPORTANT: set lastSeq so the next SCHEDULED_PLAY doesn't false-alarm gap detection
         lastSeqRef.current = event.sequence;
 
         const syncedNow = getSynchronizedEpochMs();
@@ -392,16 +505,15 @@ export function useClassroom(sessionId: string) {
           preloadAudioBuffer(event.audioUrl);
           speech.playScheduled({
             audioUrl: event.audioUrl,
-            targetEpochMs: event.targetEpochMs,  // scheduleAudioPlayback handles past epochs
+            targetEpochMs: event.targetEpochMs,
             lipSyncData: event.lipSyncData,
             sequence: event.sequence,
             text: event.text || "",
             itemId: event.itemId,
             durationMs: event.durationMs,
-            offsetMs: elapsedMs,   // seek into buffer by how much we've missed
+            offsetMs: elapsedMs,
           });
         }
-        // else: < 200ms remaining — not worth joining mid-sentence; wait for next SCHEDULED_PLAY
       }
 
       // ── PAUSE ──────────────────────────────────────────────────────
@@ -409,6 +521,7 @@ export function useClassroom(sessionId: string) {
         setSessionStatus("paused");
         sessionStatusRef.current = "paused";
         syncStore().setStatus("paused");
+        executingItemIdRef.current = null;
         speech.stop();
         setCurrentSubtitle("Lecture paused by professor.");
         syncStore().setCurrentSubtitle("Lecture paused by professor.");
@@ -425,7 +538,6 @@ export function useClassroom(sessionId: string) {
           currentIndexRef.current = foundIdx;
           syncStore().setCurrentIndex(foundIdx);
 
-          // If the RESUME includes a scheduled audio payload, play it
           if (event.targetEpochMs && event.audioUrl && event.lipSyncData) {
             setCurrentSubtitle(event.text || "");
             syncStore().setCurrentSubtitle(event.text || "");
@@ -440,7 +552,8 @@ export function useClassroom(sessionId: string) {
               durationMs: 0,
               offsetMs: 0,
             });
-          } else {
+          } else if (isLecturerRef.current && isConductorLeaseActiveRef.current) {
+            // ONLY the active lecturer conductor executes item; students wait for SCHEDULED_PLAY
             executeLectureItem(itemsRef.current[foundIdx]);
           }
         }
@@ -482,6 +595,7 @@ export function useClassroom(sessionId: string) {
         setSessionStatus("ended");
         sessionStatusRef.current = "ended";
         syncStore().setStatus("ended");
+        executingItemIdRef.current = null;
         if (event.stoppedReason) {
           setStoppedReason(event.stoppedReason);
           syncStore().setStoppedReason(event.stoppedReason);
@@ -506,7 +620,7 @@ export function useClassroom(sessionId: string) {
     speech.stop();
   }, [speech]);
 
-  // ── 5. Supabase Realtime & Presence Sync ────────────────────────────
+  // ── 6. Supabase Realtime & Presence Sync ────────────────────────────
   const {
     broadcastEvent,
     activeStudentCount,
@@ -542,7 +656,7 @@ export function useClassroom(sessionId: string) {
     broadcastEventRef.current = broadcastEvent;
   }, [executeLectureItem, broadcastEvent]);
 
-  // ── 6. Empty Room Auto-Stop Watcher ─────────────────────────────────
+  // ── 7. Empty Room Auto-Stop Watcher ─────────────────────────────────
   useEffect(() => {
     if (emptyRoomTimerRef.current) clearTimeout(emptyRoomTimerRef.current);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -550,7 +664,7 @@ export function useClassroom(sessionId: string) {
     syncStore().setEmptyRoomCountdown(null);
   }, [sessionStatus, syncStore]);
 
-  // ── 7. Initial Data Load ─────────────────────────────────────────────
+  // ── 8. Initial Data Load ─────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
 
@@ -589,6 +703,7 @@ export function useClassroom(sessionId: string) {
               current_sentence_index: 0,
               current_item_id: items[0]?.id || "",
               stopped_reason: "",
+              releaseLease: true,
             }).catch(console.warn);
           }
 
@@ -603,7 +718,7 @@ export function useClassroom(sessionId: string) {
             syncStore().setStoppedReason(sessionData.stopped_reason);
           }
 
-          // Restore sequence from DB — critical for gap detection to work after reconnect
+          // Restore sequence from DB
           sequenceRef.current = sessionData.sequence || 0;
           lastSeqRef.current = sessionData.sequence ? sessionData.sequence - 1 : -1;
           syncStore().setSequence(sessionData.sequence || 0);
@@ -623,8 +738,9 @@ export function useClassroom(sessionId: string) {
             speechRef.current.prefetch(initialSpeechTexts, sessionData.voice_id || "af_bella");
           }
 
-          // If session is already running when joining (late join), begin playback
-          if (sessionData.status === "running") {
+          // If session is already running when joining (late join):
+          // ONLY the active lecturer conductor resumes script execution! Students wait for SCHEDULED_PLAY
+          if (isLecturerRef.current && isConductorLeaseActiveRef.current && sessionData.status === "running") {
             const cur = items[currentIndexRef.current] || items[0];
             if (cur) {
               setTimeout(() => {
@@ -653,25 +769,14 @@ export function useClassroom(sessionId: string) {
         },
         (payload) => {
           const updated = payload.new as ClassroomSession;
-          if (!updated) return;
-
-          setSession((prev) => (prev ? { ...prev, ...updated } : updated));
-          if (updated.status && updated.status !== sessionStatusRef.current) {
+          if (updated && updated.status) {
             setSessionStatus(updated.status as SessionStateStatus);
             sessionStatusRef.current = updated.status as SessionStateStatus;
             syncStore().setStatus(updated.status as SessionStateStatus);
-            if (updated.stopped_reason) {
-              setStoppedReason(updated.stopped_reason);
-              syncStore().setStoppedReason(updated.stopped_reason);
-            }
-          }
 
-          if (updated.script && updated.script !== session?.script) {
-            const { items, speechItems, mediaMap } = parseLectureScript(updated.script);
-            itemsRef.current = items;
-            speechItemsRef.current = speechItems;
-            mediaMapRef.current = mediaMap;
-            syncStore().setItems(items);
+            if (updated.status === "ended") {
+              speechRef.current.stop();
+            }
           }
         }
       )
@@ -683,7 +788,7 @@ export function useClassroom(sessionId: string) {
     };
   }, [sessionId, syncStore]);
 
-  // ── 8. Q&A Interruption Handler ──────────────────────────────────────
+  // ── 9. Q&A Interruption Handler ──────────────────────────────────────
   const handleInterrupt = async (questionText?: string) => {
     const question = questionText || userQuestion;
     if (!question.trim() || !session) return;
@@ -749,12 +854,12 @@ export function useClassroom(sessionId: string) {
         answer,
         resumeFromItemId: nextItemId,
         sequence: sequenceRef.current,
+        driverLeaseVersion: driverLeaseVersionRef.current,
         targetEpochMs,
         audioUrl,
         lipSyncData,
       });
 
-      // Driver plays locally too
       handleRealtimeEvent({
         type: "INTERRUPT",
         interruptionId,
@@ -763,6 +868,7 @@ export function useClassroom(sessionId: string) {
         answer,
         resumeFromItemId: nextItemId,
         sequence: sequenceRef.current,
+        driverLeaseVersion: driverLeaseVersionRef.current,
         targetEpochMs,
         audioUrl,
         lipSyncData,
@@ -779,7 +885,7 @@ export function useClassroom(sessionId: string) {
     }
   };
 
-  // ── 9. Session Controller Actions (Lecturer Only) ────────────────────
+  // ── 10. Session Controller Actions (Lecturer Only) ────────────────────
 
   const startSession = async () => {
     if (!isLecturerRef.current) return;
@@ -794,7 +900,7 @@ export function useClassroom(sessionId: string) {
 
     // Reset sequence tracking for the new broadcast
     sequenceRef.current = 0;
-    lastSeqRef.current = -1;   // Fix #5: prevent spurious gap on session start
+    lastSeqRef.current = -1;
 
     setSessionStatus("running");
     sessionStatusRef.current = "running";
@@ -802,10 +908,23 @@ export function useClassroom(sessionId: string) {
     setStoppedReason(undefined);
     syncStore().setStoppedReason(undefined);
 
-    await api.updateClassroomSession(sessionId, {
+    // Atomically claim conductor lease in PostgreSQL
+    const claimRes = await api.updateClassroomSession(sessionId, {
       status: "running",
       sequence: sequenceRef.current,
+      driverTabId: myTabIdRef.current,
     });
+
+    if (claimRes?.session?.active_driver_tab_id && claimRes.session.active_driver_tab_id !== myTabIdRef.current) {
+      console.warn("[Classroom] CAS conductor claim lost to another lecturer tab.");
+      isConductorLeaseActiveRef.current = false;
+      return;
+    }
+
+    isConductorLeaseActiveRef.current = true;
+    if (typeof claimRes?.session?.driver_lease_version === "number") {
+      driverLeaseVersionRef.current = claimRes.session.driver_lease_version;
+    }
 
     sequenceRef.current++;
     const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
@@ -813,6 +932,7 @@ export function useClassroom(sessionId: string) {
     broadcastEvent({
       type: "RESUME",
       sequence: sequenceRef.current,
+      driverLeaseVersion: driverLeaseVersionRef.current,
       itemId: itemsRef.current[currentIndexRef.current]?.id || "speech_0",
       targetEpochMs,
     });
@@ -829,14 +949,20 @@ export function useClassroom(sessionId: string) {
     setSessionStatus("paused");
     sessionStatusRef.current = "paused";
     syncStore().setStatus("paused");
+    executingItemIdRef.current = null;
     speech.stop();
 
     await api.updateClassroomSession(sessionId, {
       status: "paused",
       sequence: sequenceRef.current,
+      releaseLease: true,
     });
 
-    broadcastEvent({ type: "PAUSE", sequence: sequenceRef.current });
+    broadcastEvent({
+      type: "PAUSE",
+      sequence: sequenceRef.current,
+      driverLeaseVersion: driverLeaseVersionRef.current,
+    });
   };
 
   const endSession = async () => {
@@ -847,17 +973,20 @@ export function useClassroom(sessionId: string) {
     syncStore().setStatus("ended");
     setStoppedReason("manual_lecturer_end");
     syncStore().setStoppedReason("manual_lecturer_end");
+    executingItemIdRef.current = null;
     speech.stop();
 
     await api.updateClassroomSession(sessionId, {
       status: "ended",
       sequence: sequenceRef.current,
       stopped_reason: "manual_lecturer_end",
+      releaseLease: true,
     });
 
     broadcastEvent({
       type: "END",
       sequence: sequenceRef.current,
+      driverLeaseVersion: driverLeaseVersionRef.current,
       stoppedReason: "manual_lecturer_end",
     });
   };
@@ -867,7 +996,6 @@ export function useClassroom(sessionId: string) {
     currentIndexRef.current = 0;
     syncStore().setCurrentIndex(0);
 
-    // Fix #5: reset both sequence counters so item seq:1 doesn't look like a gap
     sequenceRef.current = 0;
     lastSeqRef.current = -1;
 
@@ -876,6 +1004,7 @@ export function useClassroom(sessionId: string) {
     syncStore().setStatus("created");
     setStoppedReason(undefined);
     syncStore().setStoppedReason(undefined);
+    executingItemIdRef.current = null;
     speech.stop();
 
     await api.updateClassroomSession(sessionId, {
@@ -884,11 +1013,13 @@ export function useClassroom(sessionId: string) {
       current_item_id: itemsRef.current[0]?.id || "",
       sequence: 0,
       stopped_reason: "",
+      releaseLease: true,
     });
 
     broadcastEvent({
       type: "PAUSE",
       sequence: sequenceRef.current,
+      driverLeaseVersion: driverLeaseVersionRef.current,
     });
 
     setCurrentSubtitle("Lecture restarted. Ready to broadcast.");
@@ -918,11 +1049,6 @@ export function useClassroom(sessionId: string) {
     activeLecturerCount,
     participants,
     myAdmissionStatus,
-    admitParticipant,
-    denyParticipant,
-    kickParticipant,
-    admitAllParticipants,
-    requestRejoin,
     emptyRoomCountdown,
     audioUnlocked,
     setAudioUnlocked,
@@ -940,5 +1066,10 @@ export function useClassroom(sessionId: string) {
     endSession,
     restartSession,
     updateScript,
+    admitParticipant,
+    denyParticipant,
+    kickParticipant,
+    admitAllParticipants,
+    requestRejoin,
   };
 }

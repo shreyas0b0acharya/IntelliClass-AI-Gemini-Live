@@ -70,6 +70,11 @@ export interface ClassroomSession {
   current_sentence_index?: number;
   sequence?: number;
   state_version?: number;
+  active_driver_tab_id?: string | null;
+  driver_lease_expires_at?: string | null;
+  driver_lease_version?: number;
+  target_epoch_ms?: number;
+  duration_ms?: number;
   meeting_code?: string;
   created_by: string;
   created_at: string;

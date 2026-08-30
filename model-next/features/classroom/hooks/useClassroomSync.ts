@@ -737,17 +737,11 @@ export function useClassroomSync({
       setActiveLecturerCount(lecturerCount);
       onStudentCountChangeRef.current?.(admittedStudents.length);
 
-      // Autonomous Driver Election
+      // Driver Role: Students are never drivers
       if (isLecturerRef.current) {
         setIsDriver(true);
       } else {
-        const sortedStudents = admittedStudents.sort((a, b) =>
-          (a.joinedAt || "").localeCompare(b.joinedAt || "")
-        );
-
-        const electedDriverId = sortedStudents[0]?.userId;
-        const amIElected = Boolean(userId && electedDriverId === userId);
-        setIsDriver(amIElected);
+        setIsDriver(false);
       }
     };
 

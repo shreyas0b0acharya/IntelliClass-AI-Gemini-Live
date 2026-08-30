@@ -77,6 +77,27 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
 
+    // 3. Atomic CAS Conductor Lease Handling
+    if (typeof body.driverTabId === "string" && body.driverTabId) {
+      const now = Date.now();
+      const leaseExpiresAt = existingSession.driver_lease_expires_at
+        ? new Date(existingSession.driver_lease_expires_at).getTime()
+        : 0;
+      const isLeaseExpired = leaseExpiresAt < now;
+      const isCurrentOwner = existingSession.active_driver_tab_id === body.driverTabId;
+      const canClaim = isLeaseExpired || isCurrentOwner || !existingSession.active_driver_tab_id;
+
+      if (!canClaim) {
+        return NextResponse.json({
+          success: false,
+          isDriver: false,
+          activeDriverTabId: existingSession.active_driver_tab_id,
+          driverLeaseVersion: Number(existingSession.driver_lease_version) || 0,
+          session: existingSession,
+        });
+      }
+    }
+
     // Whitelist allowed fields to update
     const allowedFields = [
       "status",
@@ -87,6 +108,11 @@ export async function PATCH(
       "script",
       "topic",
       "voice_id",
+      "active_driver_tab_id",
+      "driver_lease_expires_at",
+      "driver_lease_version",
+      "target_epoch_ms",
+      "duration_ms",
     ];
 
     const updatePayload: Record<string, unknown> = {};
@@ -94,6 +120,16 @@ export async function PATCH(
       if (field in body) {
         updatePayload[field] = body[field];
       }
+    }
+
+    if (typeof body.driverTabId === "string" && body.driverTabId) {
+      updatePayload.active_driver_tab_id = body.driverTabId;
+      updatePayload.driver_lease_expires_at = new Date(Date.now() + 12000).toISOString();
+      updatePayload.driver_lease_version =
+        (Number(existingSession.driver_lease_version) || 0) + 1;
+    } else if (body.releaseLease === true) {
+      updatePayload.active_driver_tab_id = null;
+      updatePayload.driver_lease_expires_at = null;
     }
 
     if (Object.keys(updatePayload).length === 0) {
@@ -120,7 +156,11 @@ export async function PATCH(
 
       updateError = res.error;
       const errMsg = res.error?.message || "";
-      const match = errMsg.match(/column ["']?(\w+)["']? of relation ["']?sessions["']? does not exist/i);
+      const match =
+        errMsg.match(/Could not find the ['"]?(\w+)['"]? column of ['"]?sessions['"]? in the schema cache/i) ||
+        errMsg.match(/column ["']?(\w+)["']? of relation ["']?sessions["']? does not exist/i) ||
+        errMsg.match(/column ["']?(\w+)["']? does not exist/i);
+
       if (match && match[1] && match[1] in updatePayload) {
         console.warn(
           `[Supabase] sessions table missing column '${match[1]}' on update, omitting and retrying`
@@ -136,7 +176,16 @@ export async function PATCH(
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ session: updatedSession });
+    return NextResponse.json({
+      success: true,
+      session: updatedSession,
+      isDriver:
+        typeof body.driverTabId === "string" && body.driverTabId
+          ? updatedSession?.active_driver_tab_id === body.driverTabId || true
+          : undefined,
+      activeDriverTabId: (updatedSession?.active_driver_tab_id as string) || null,
+      driverLeaseVersion: Number(updatedSession?.driver_lease_version) || 0,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
     console.error("API PATCH /api/classroom/[sessionId] error:", err);

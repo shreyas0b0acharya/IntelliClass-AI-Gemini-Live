@@ -248,9 +248,19 @@ export const api = {
       script?: string;
       topic?: string;
       voice_id?: string;
+      driverTabId?: string;
+      releaseLease?: boolean;
+      target_epoch_ms?: number;
+      duration_ms?: number;
     }
   ) => {
-    return fetchApi<{ session: ClassroomSession }>(`/api/classroom/${sessionId}`, {
+    return fetchApi<{
+      session: ClassroomSession;
+      success?: boolean;
+      isDriver?: boolean;
+      activeDriverTabId?: string | null;
+      driverLeaseVersion?: number;
+    }>(`/api/classroom/${sessionId}`, {
       method: "PATCH",
       body: JSON.stringify(updates),
     });

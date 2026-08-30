@@ -20,22 +20,11 @@ export type SessionStateStatus =
 export type ClassroomEvent =
   // ─── Lecture flow ──────────────────────────────────────────────────────
   | {
-      /**
-       * Primary lecture playback event. Replaces the old PLAY_ITEM.
-       *
-       * targetEpochMs is a synchronized wall-clock timestamp (ms) computed by
-       * the driver as: getSynchronizedEpochMs() + LEAD_TIME_MS (≈350ms).
-       * Every device decodes audio and calls:
-       *   source.start(ctx.currentTime + (targetEpochMs - getSynchronizedEpochMs()) / 1000)
-       * making audio start on the EXACT same hardware millisecond everywhere.
-       *
-       * sequence is monotonically increasing. Clients detect gaps:
-       *   received 41, then 43 → 42 is missing
-       *   → audio.stop(), resetMorphs(), accept 43 cleanly
-       */
       type: "SCHEDULED_PLAY";
       sequence: number;        // monotonic, gapless — THE critical sync field
       stateVersion?: number;
+      driverLeaseVersion?: number;
+      executionId?: string;
       itemId: string;
       targetEpochMs: number;   // synchronized epoch when audio starts on ALL devices
       leadTimeMs: number;      // scheduling lead window used (for diagnostics/logging)
@@ -45,16 +34,11 @@ export type ClassroomEvent =
       text: string;            // subtitle text for this segment
     }
   | {
-      /**
-       * Sent when a student joins an already-running session mid-sentence.
-       * Includes a seekOffsetMs so the new client starts the audio at the
-       * correct position instead of from the beginning.
-       *
-       * Handler must also set lastSeqRef.current = event.sequence.
-       */
       type: "SEEK_SYNC";
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
+      executionId?: string;
       itemId: string;
       targetEpochMs: number;   // original scheduled start epoch of this sentence
       durationMs: number;
@@ -66,11 +50,14 @@ export type ClassroomEvent =
       type: "PAUSE";
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
     }
   | {
       type: "RESUME";
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
+      executionId?: string;
       itemId: string;
       targetEpochMs?: number;
       audioUrl?: string;
@@ -87,6 +74,8 @@ export type ClassroomEvent =
       resumeFromItemId: string;
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
+      executionId?: string;
       targetEpochMs?: number;
       audioUrl?: string;
       lipSyncData?: HeadTTSData;
@@ -97,18 +86,21 @@ export type ClassroomEvent =
       targetUserId: string; // specific userId or "ALL"
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
     }
   | {
       type: "DENY_PARTICIPANT";
       targetUserId: string;
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
     }
   | {
       type: "KICK_PARTICIPANT";
       targetUserId: string;
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
     }
   | {
       type: "REQUEST_ADMISSION";
@@ -122,6 +114,7 @@ export type ClassroomEvent =
       type: "END";
       sequence: number;
       stateVersion?: number;
+      driverLeaseVersion?: number;
       stoppedReason?: string;
     };
 

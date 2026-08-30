@@ -65,6 +65,7 @@ export async function GET(
     }
 
     const stateVersion = Number(session.state_version) || 0;
+    const driverLeaseVersion = Number(session.driver_lease_version) || 0;
 
     return NextResponse.json({
       session: {
@@ -72,10 +73,16 @@ export async function GET(
         voice_id: session.voice_id || "am_fenrir",
         meeting_code: session.meeting_code || session.id?.slice(0, 8),
         state_version: stateVersion,
+        driver_lease_version: driverLeaseVersion,
       },
       myStatus,
       myRole: isLecturer ? "lecturer" : "student",
       stateVersion,
+      driverLeaseVersion,
+      activeDriverTabId: session.active_driver_tab_id || null,
+      driverLeaseExpiresAt: session.driver_lease_expires_at || null,
+      targetEpochMs: session.target_epoch_ms || 0,
+      durationMs: session.duration_ms || 0,
       participants: visibleParticipants.map((p) => ({
         userId: p.user_id,
         name: p.user_name,
