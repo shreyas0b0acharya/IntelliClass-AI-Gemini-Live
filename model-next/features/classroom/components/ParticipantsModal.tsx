@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import {
   Users,
@@ -80,14 +80,16 @@ export function ParticipantsModal({
             </div>
 
             {isLecturer && waitingStudents.length > 0 && (
-              <Button
+              <AppButton
                 size="sm"
+                variant="primary"
+                shape="pill"
                 onClick={onAdmitAll}
-                className="rounded-full px-3 h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-xs gap-1.5 cursor-pointer shadow-xs"
+                className="px-3 h-8 text-xs font-semibold"
+                leftIcon={<UserCheck className="h-3.5 w-3.5" />}
               >
-                <UserCheck className="h-3.5 w-3.5" />
                 <span>Admit All ({waitingStudents.length})</span>
-              </Button>
+              </AppButton>
             )}
           </div>
 
@@ -134,25 +136,28 @@ export function ParticipantsModal({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        size="sm"
+                      <AppButton
+                        size="xs"
+                        variant="success"
+                        shape="pill"
                         onClick={() => onAdmit?.(student.userId)}
-                        className="h-8 px-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer shadow-xs gap-1 text-[11px] font-bold"
+                        className="h-8 px-2.5 text-[11px] font-bold"
+                        leftIcon={<Check className="h-3.5 w-3.5 stroke-[2.5]" />}
                         title="Accept / Admit Student"
                       >
-                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                         <span>Accept</span>
-                      </Button>
-                      <Button
-                        size="sm"
+                      </AppButton>
+                      <AppButton
+                        size="xs"
                         variant="ghost"
+                        shape="pill"
                         onClick={() => onDeny?.(student.userId)}
-                        className="h-8 px-2 rounded-full hover:bg-red-500/10 text-red-500 cursor-pointer gap-1 text-[11px] font-bold"
+                        className="h-8 px-2 hover:bg-red-500/10 text-red-500 text-[11px] font-bold"
+                        leftIcon={<X className="h-3.5 w-3.5 stroke-[2.5]" />}
                         title="Decline Student"
                       >
-                        <X className="h-3.5 w-3.5 stroke-[2.5]" />
                         <span>Decline</span>
-                      </Button>
+                      </AppButton>
                     </div>
                   </div>
                 ))}
@@ -245,16 +250,17 @@ export function ParticipantsModal({
                       </span>
 
                       {isLecturer && student.userId !== currentUserId && (
-                        <Button
-                          size="sm"
+                        <AppButton
+                          size="xs"
                           variant="ghost"
+                          shape="rounded"
                           onClick={() => onKick?.(student.userId)}
-                          className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg cursor-pointer gap-1 font-semibold"
+                          className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold"
+                          leftIcon={<UserMinus className="h-3 w-3" />}
                           title="Remove student from session"
                         >
-                          <UserMinus className="h-3 w-3" />
                           <span className="hidden sm:inline">Remove</span>
-                        </Button>
+                        </AppButton>
                       )}
                     </div>
                   </div>

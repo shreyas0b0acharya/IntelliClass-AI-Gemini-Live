@@ -95,6 +95,7 @@ export function useClassroomSync({
   const myUserNameRef = useRef<string>(userName);
   const roleRef = useRef<string>(role);
   const isLecturerRef = useRef<boolean>(isLecturer);
+  const pendingEventQueueRef = useRef<ClassroomEvent[]>([]);
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -110,6 +111,12 @@ export function useClassroomSync({
     (event: ClassroomEvent) => {
       if (!broadcastChannelRef.current) return;
 
+      // If channel is not yet subscribed, queue the event and flush on SUBSCRIBED
+      if (!isChannelSubscribedRef.current) {
+        pendingEventQueueRef.current.push(event);
+        return;
+      }
+
       // Students can only broadcast INTERRUPT and REQUEST_ADMISSION
       if (
         !isLecturerRef.current &&
@@ -121,7 +128,7 @@ export function useClassroomSync({
       }
 
       lastSequenceRef.current = Math.max(lastSequenceRef.current, event.sequence);
-      
+
       try {
         broadcastChannelRef.current.send({
           type: "broadcast",
@@ -310,6 +317,10 @@ export function useClassroomSync({
   useEffect(() => {
     if (!sessionId || !userId) return;
 
+    // Fix #5: reset lastSequenceRef so the first event on a new/rejoined
+    // session is never mistaken for a gap relative to a previous session's tail.
+    lastSequenceRef.current = -1;
+
     const channel = supabase.channel(`classroom:${sessionId}`, {
       config: {
         broadcast: { ack: false, self: false },
@@ -321,6 +332,18 @@ export function useClassroomSync({
     channel.on("broadcast", { event: "classroom-action" }, (payload) => {
       const event = payload.payload as ClassroomEvent;
       if (!event || typeof event.type !== "string") return;
+
+      // Fix #4 — Defensive self-echo guard for audio events.
+      // self:false in config should already prevent echo, but we guard explicitly
+      // so a future Supabase SDK or config change can't double-schedule audio.
+      // Lecturers call speech.playScheduled() directly — they must NOT also
+      // process their own SCHEDULED_PLAY/SEEK_SYNC via broadcast.
+      if (
+        isLecturerRef.current &&
+        (event.type === "SCHEDULED_PLAY" || event.type === "SEEK_SYNC")
+      ) {
+        return;
+      }
 
       // Handle admission broadcast events
       if (event.type === "ADMIT_PARTICIPANT") {
@@ -495,6 +518,23 @@ export function useClassroomSync({
           joinedAt: new Date().toISOString(),
           status: initialStatus,
         });
+
+        // Flush any broadcast events that were queued before subscription was established
+        if (pendingEventQueueRef.current.length > 0) {
+          const queuedEvents = [...pendingEventQueueRef.current];
+          pendingEventQueueRef.current = [];
+          for (const ev of queuedEvents) {
+            try {
+              channel.send({
+                type: "broadcast",
+                event: "classroom-action",
+                payload: ev,
+              });
+            } catch (err) {
+              console.warn("[Realtime] Failed to flush queued event:", err);
+            }
+          }
+        }
       }
     });
 
@@ -502,6 +542,7 @@ export function useClassroomSync({
 
     return () => {
       isChannelSubscribedRef.current = false;
+      pendingEventQueueRef.current = [];
       channel.untrack().catch(() => {});
       supabase.removeChannel(channel);
       broadcastChannelRef.current = null;

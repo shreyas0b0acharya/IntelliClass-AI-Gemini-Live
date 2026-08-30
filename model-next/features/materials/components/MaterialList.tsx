@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Trash2, CheckCircle2, FileUp, Loader2, Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText, Trash2, CheckCircle2, FileUp, Eye, Loader2 } from "lucide-react";
+import { AppButton } from "@/components/app";
 import { MaterialImageCarousel } from "./MaterialImageCarousel";
 import { MaterialViewerModal } from "./MaterialViewerModal";
 import {
@@ -146,25 +146,27 @@ export function MaterialList({ courseId, isLecturer = false, refreshTrigger }: M
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
+                    shape="rounded"
                     onClick={() => setSelectedViewFile(file)}
-                    className="h-8 px-2.5 rounded-xl text-xs font-semibold gap-1.5 cursor-pointer border-black/10 dark:border-white/10 hover:border-[#0071e3]/50"
+                    className="h-8 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 hover:border-[#0071e3]/50"
+                    leftIcon={<Eye className="h-3.5 w-3.5 text-[#0071e3]" />}
                   >
-                    <Eye className="h-3.5 w-3.5 text-[#0071e3]" />
                     <span className="hidden sm:inline">View PDF</span>
-                  </Button>
+                  </AppButton>
 
                   {isLecturer && (
-                    <Button
+                    <AppButton
                       variant="ghost"
-                      size="sm"
+                      size="icon-sm"
+                      shape="rounded"
                       onClick={() => setDeleteTarget(file)}
-                      className="h-8 w-8 rounded-xl text-[#86868b] hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
+                      className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </AppButton>
                   )}
                 </div>
               </div>

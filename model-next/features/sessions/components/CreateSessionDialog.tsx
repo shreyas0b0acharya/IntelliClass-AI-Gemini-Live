@@ -7,15 +7,14 @@ import {
   useModelPreferences,
   MALE_MODEL_PRESETS,
   FEMALE_MODEL_PRESETS,
-} from "@/lib/settings";
+  GenderSelector,
+  ModelNameInput,
+  VoiceSpeedControls,
+  HeadTTSTestButton,
+} from "@/features/settings";
 import type { CourseFile } from "@/lib/supabase/types";
-import { AvatarPreview } from "@/components/AvatarPreview";
-import { GenderSelector } from "@/components/settings/GenderSelector";
-import { ModelNameInput } from "@/components/settings/ModelNameInput";
-import { VoiceSpeedControls } from "@/components/settings/VoiceSpeedControls";
-import { HeadTTSTestButton } from "@/components/settings/HeadTTSTestButton";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import { Button } from "@/components/ui/button";
+import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -319,30 +318,28 @@ function CreateSessionModalContent({
         )}
 
         <DialogFooter className="pt-4 border-t border-black/5 dark:border-white/10 shrink-0">
-          <Button
+          <AppButton
             type="button"
             variant="outline"
+            shape="pill"
             onClick={onClose}
             disabled={isGenerating}
-            className="rounded-full px-5 h-10 border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e]"
+            className="px-5 h-10 border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e]"
           >
-            Cancel
-          </Button>
-          <Button
+            <span>Cancel</span>
+          </AppButton>
+          <AppButton
             type="submit"
             disabled={isGenerating}
-            className="rounded-full px-6 h-10 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs gap-2 shadow-xs cursor-pointer"
+            isLoading={isGenerating}
+            loadingText="Generating..."
+            variant="primary"
+            shape="pill"
+            className="px-6 h-10 font-medium text-xs shadow-xs"
+            leftIcon={!isGenerating ? <Presentation className="h-3.5 w-3.5" /> : undefined}
           >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...
-              </>
-            ) : (
-              <>
-                <Presentation className="h-3.5 w-3.5" /> Launch Session
-              </>
-            )}
-          </Button>
+            <span>Launch Session</span>
+          </AppButton>
         </DialogFooter>
       </form>
     </>
@@ -358,10 +355,14 @@ export function CreateSessionDialog({ courseId, courseTitle: _courseTitle, trigg
         {trigger ? (
           trigger
         ) : (
-          <Button className="rounded-full px-5 py-2.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs sm:text-sm shadow-xs cursor-pointer gap-2">
-            <Plus className="h-4 w-4" />
-            New AI Lecture
-          </Button>
+          <AppButton
+            variant="primary"
+            shape="pill"
+            className="px-5 py-2.5 font-medium text-xs sm:text-sm shadow-xs"
+            leftIcon={<Plus className="h-4 w-4" />}
+          >
+            <span>New AI Lecture</span>
+          </AppButton>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 shadow-2xl bg-white dark:bg-[#1c1c1e] max-h-[90vh] flex flex-col">

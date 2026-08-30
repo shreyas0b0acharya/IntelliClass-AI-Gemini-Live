@@ -110,11 +110,11 @@ export const api = {
 
   // ─── Settings & Model Preferences ──────────────────────────────────────────
   getSettings: async () => {
-    return fetchApi<{ preferences: import("@/lib/settings").ModelPreferences }>("/api/settings");
+    return fetchApi<{ preferences: import("@/features/settings").ModelPreferences }>("/api/settings");
   },
 
-  saveSettings: async (preferences: Partial<import("@/lib/settings").ModelPreferences>) => {
-    return fetchApi<{ preferences: import("@/lib/settings").ModelPreferences; success: boolean }>("/api/settings", {
+  saveSettings: async (preferences: Partial<import("@/features/settings").ModelPreferences>) => {
+    return fetchApi<{ preferences: import("@/features/settings").ModelPreferences; success: boolean }>("/api/settings", {
       method: "POST",
       body: JSON.stringify(preferences),
     });

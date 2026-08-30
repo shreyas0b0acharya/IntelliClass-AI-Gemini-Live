@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Sparkles, Radio, Pause, Loader2, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app";
 
 interface SessionProgressHUDProps {
   status: string;
@@ -61,15 +61,16 @@ export function SessionProgressHUD({
         </div>
 
         {/* View Script & Plan CTA */}
-        <Button
-          size="sm"
-          variant="ghost"
+        <AppButton
+          size="xs"
+          variant="glass"
+          shape="rounded"
           onClick={onOpenScript}
-          className="h-7 px-2.5 rounded-lg text-[11px] font-bold text-white/90 hover:text-white bg-white/10 hover:bg-white/20 gap-1.5 cursor-pointer shrink-0"
+          className="h-7 px-2.5 text-[11px] font-bold text-white bg-white/10 hover:bg-white/20 border-white/15 shrink-0"
+          leftIcon={<BookOpen className="h-3 w-3 text-[#0071e3]" />}
         >
-          <BookOpen className="h-3 w-3 text-[#0071e3]" />
           <span>View Curriculum Script</span>
-        </Button>
+        </AppButton>
       </div>
 
       {/* Progress Track */}

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Volume2, Volume1, VolumeX, Volume } from "lucide-react";
-import { setMasterVolume, getMasterVolume } from "@/components/LipSync/audioManager";
+import { setMasterVolume, getMasterVolume } from "@/features/avatar";
 import { Slider } from "@/components/ui/slider";
+import { AppButton } from "@/components/app";
 
 export function VolumeControl() {
   const [volume, setVolumeState] = useState<number>(100);
@@ -50,14 +51,17 @@ export function VolumeControl() {
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/60 bg-card/60 backdrop-blur-xl shadow-xs text-xs font-semibold select-none">
-      <button
+      <AppButton
         type="button"
+        variant="ghost"
+        size="icon-xs"
+        shape="rounded"
         onClick={handleToggleMute}
-        className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-foreground cursor-pointer shrink-0"
+        className="h-6 w-6 text-foreground shrink-0"
         title={isMuted ? "Unmute Audio" : "Mute Audio"}
       >
         {getVolumeIcon()}
-      </button>
+      </AppButton>
 
       <div className="w-20 sm:w-24">
         <Slider

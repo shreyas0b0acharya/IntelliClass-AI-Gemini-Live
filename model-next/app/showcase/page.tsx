@@ -3,14 +3,16 @@
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Experience } from "@/components/Experience";
-import Controller from "@/components/controls";
-import TTSPanel from "@/components/TTS/TTSPanel";
-import { CameraLogger } from "@/components/CameraLogger";
-import { splitIntoSentences } from "@/components/TTS/sentenceSplitter";
-import type { HeadTTSData } from "@/components/LipSync/lipSync.types";
-import AudioTest from "@/components/LipSync/AudioTest";
-import { Navbar } from "@/components/navbar";
+import {
+  Experience,
+  Controller,
+  TTSPanel,
+  CameraLogger,
+  splitIntoSentences,
+  type HeadTTSData,
+  AudioTest,
+} from "@/features/avatar";
+import { Navbar } from "@/components/shared";
 
 interface TTSResult {
   audioPath: string;

@@ -2,22 +2,24 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useClassroom } from "@/features/classroom/hooks/useClassroom";
-import { useClassroomStore } from "@/features/classroom/store/classroomStore";
-import { AvatarStage } from "@/features/classroom/components/AvatarStage";
-import { SubtitleBar } from "@/features/classroom/components/SubtitleBar";
-import { QuestionInput } from "@/features/classroom/components/QuestionInput";
-import { SessionController } from "@/features/classroom/components/SessionController";
-import { ChatPanel } from "@/features/classroom/components/ChatPanel";
-import { AudioUnlockModal } from "@/features/classroom/components/AudioUnlockModal";
-import { LeaveClassroomDialog } from "@/features/classroom/components/LeaveClassroomDialog";
-import { ParticipantsModal } from "@/features/classroom/components/ParticipantsModal";
-import { LectureScriptModal } from "@/features/classroom/components/LectureScriptModal";
-import { SessionProgressHUD } from "@/features/classroom/components/SessionProgressHUD";
-import { ProjectionBoard } from "@/features/classroom/components/ProjectionBoard";
-import { VolumeControl } from "@/features/classroom/components/VolumeControl";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
+import {
+  useClassroom,
+  useClassroomStore,
+  AvatarStage,
+  SubtitleBar,
+  QuestionInput,
+  SessionController,
+  ChatPanel,
+  AudioUnlockModal,
+  LeaveClassroomDialog,
+  ParticipantsModal,
+  LectureScriptModal,
+  SessionProgressHUD,
+  ProjectionBoard,
+  VolumeControl,
+} from "@/features/classroom";
+import { ThemeToggle } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import {
   ArrowLeft,
   Copy,
@@ -33,7 +35,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { MaterialViewerModal } from "@/features/materials/components/MaterialViewerModal";
+import { MaterialViewerModal } from "@/features/materials";
 import {
   Dialog,
   DialogContent,
@@ -212,16 +214,18 @@ export default function ClassroomPage({
                       </div>
                     </div>
 
-                    <Button
+                    <AppButton
                       size="sm"
+                      variant="primary"
+                      shape="rounded"
                       onClick={() => {
                         setSelectedViewFile(file);
                       }}
-                      className="rounded-xl h-8 px-3 text-xs font-bold bg-[#0071e3] hover:bg-[#0077ed] text-white gap-1.5 cursor-pointer shadow-xs shrink-0"
+                      className="h-8 px-3 text-xs font-bold shrink-0"
+                      leftIcon={<Eye className="h-3.5 w-3.5" />}
                     >
-                      <Eye className="h-3.5 w-3.5" />
                       <span>View PDF</span>
-                    </Button>
+                    </AppButton>
                   </div>
                 );
               })
@@ -244,15 +248,16 @@ export default function ClassroomPage({
       {/* Classroom Header */}
       <header className="h-16 px-6 shrink-0 flex items-center justify-between border-b border-border/40 bg-card/40 backdrop-blur-xl z-20">
         <div className="flex items-center gap-4 min-w-0">
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={() => setShowLeaveDialog(true)}
-            className="rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer"
+            className="h-9 px-3 text-xs font-semibold"
+            leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
             <span>Course Space</span>
-          </Button>
+          </AppButton>
 
           <div className="flex flex-col min-w-0">
             <h1 className="text-sm font-bold text-foreground truncate max-w-sm sm:max-w-md">
@@ -272,9 +277,10 @@ export default function ClassroomPage({
 
         <div className="flex items-center gap-2">
           {/* Course Materials / PDF Viewer Button */}
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={async () => {
               if (courseFiles.length === 0 && courseId) {
                 try {
@@ -288,68 +294,72 @@ export default function ClassroomPage({
               }
               setShowMaterialsModal(true);
             }}
-            className="rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer border-border/70 bg-card/60 hover:bg-card"
+            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
             title="View Course Textbooks & Materials"
+            leftIcon={<FileText className="h-3.5 w-3.5 text-emerald-500" />}
           >
-            <FileText className="h-3.5 w-3.5 text-emerald-500" />
             <span className="text-[11px] hidden sm:inline">Course Materials</span>
-          </Button>
+          </AppButton>
 
           {/* View Script Button */}
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={() => setShowScriptModal(true)}
-            className="rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer border-border/70 bg-card/60 hover:bg-card"
+            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
             title="Inspect Lesson Script"
+            leftIcon={<BookOpen className="h-3.5 w-3.5 text-[#0071e3]" />}
           >
-            <BookOpen className="h-3.5 w-3.5 text-[#0071e3]" />
             <span className="text-[11px] hidden sm:inline">Curriculum Script</span>
             <span className="font-mono text-[10px] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">
               {store.items.length || 0}
             </span>
-          </Button>
+          </AppButton>
 
           {/* Meeting Code Copy Button */}
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={handleCopyCode}
-            className="rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer hidden sm:flex border-border/70 bg-card/60 hover:bg-card"
+            className="h-9 px-3 text-xs font-semibold hidden sm:flex border-border/70 bg-card/60 hover:bg-card"
             title="Copy Meeting Code"
+            leftIcon={<Copy className="h-3.5 w-3.5" />}
           >
-            <Copy className="h-3.5 w-3.5" />
             <span className="font-mono text-[11px]">{meetingCode}</span>
-          </Button>
+          </AppButton>
 
           {/* Meeting Link Copy Button */}
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={handleCopyLink}
-            className="rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer border-border/70 bg-card/60 hover:bg-card"
+            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
             title="Copy Direct Session Link"
+            leftIcon={<Link2 className="h-3.5 w-3.5 text-[#0071e3]" />}
           >
-            <Link2 className="h-3.5 w-3.5 text-[#0071e3]" />
             <span className="text-[11px]">Copy Link</span>
-          </Button>
+          </AppButton>
 
           {/* Google Meet Participants & Active Count Button */}
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
+            shape="rounded"
             onClick={() => setShowParticipantsModal(true)}
-            className="relative rounded-xl h-9 px-3 gap-1.5 text-xs font-semibold cursor-pointer border-border/70 bg-card/60 hover:bg-card"
+            className="relative h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
             title="View Classroom Participants"
+            leftIcon={<Users className="h-3.5 w-3.5 text-[#0071e3]" />}
           >
-            <Users className="h-3.5 w-3.5 text-[#0071e3]" />
             <span className="font-mono text-xs font-bold text-foreground">
               {classroom.participants.length}
             </span>
             {hasWaitingStudents && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse" />
             )}
-          </Button>
+          </AppButton>
 
           <VolumeControl />
 
@@ -401,19 +411,24 @@ export default function ClassroomPage({
               </p>
             </div>
             <div className="flex items-center gap-3 mt-2">
-              <Button
+              <AppButton
                 onClick={classroom.requestRejoin}
-                className="rounded-xl px-5 h-9 bg-[#0071e3] hover:bg-[#0077ED] text-white font-semibold text-xs cursor-pointer shadow-xs"
+                variant="primary"
+                shape="rounded"
+                size="sm"
+                className="px-5 h-9 font-semibold text-xs shadow-xs"
               >
-                Ask to Join Again
-              </Button>
-              <Button
+                <span>Ask to Join Again</span>
+              </AppButton>
+              <AppButton
                 variant="outline"
+                shape="rounded"
+                size="sm"
                 onClick={() => router.push(`/course/${courseId}`)}
-                className="rounded-xl px-4 h-9 font-semibold text-xs cursor-pointer"
+                className="px-4 h-9 font-semibold text-xs"
               >
-                Return to Course Space
-              </Button>
+                <span>Return to Course Space</span>
+              </AppButton>
             </div>
           </div>
         )}
@@ -430,12 +445,15 @@ export default function ClassroomPage({
                 The professor has ended this live broadcast. Redirecting to home...
               </p>
             </div>
-            <Button
+            <AppButton
               onClick={() => router.replace("/")}
-              className="mt-3 rounded-2xl px-6 h-10 bg-[#0071e3] hover:bg-[#0077ED] text-white font-semibold text-xs cursor-pointer shadow-lg shadow-[#0071e3]/20"
+              variant="primary"
+              shape="rounded"
+              size="sm"
+              className="mt-3 px-6 h-10 font-semibold text-xs shadow-lg"
             >
-              Return to Home
-            </Button>
+              <span>Return to Home</span>
+            </AppButton>
           </div>
         )}
 

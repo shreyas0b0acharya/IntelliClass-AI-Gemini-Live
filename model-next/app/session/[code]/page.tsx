@@ -6,8 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppButton } from "@/components/app";
+import { ThemeToggle } from "@/components/shared";
 import {
   Radio,
   Sparkles,
@@ -175,11 +175,18 @@ export default function SessionPreJoinPage({
             </p>
           </div>
           <div className="pt-2 flex flex-col gap-2">
-            <Button asChild className="rounded-xl h-11 font-semibold gap-2">
+            <AppButton
+              asChild
+              variant="primary"
+              shape="rounded"
+              size="lg"
+              className="h-11 font-semibold"
+              leftIcon={<ArrowLeft className="h-4 w-4" />}
+            >
               <Link href="/">
-                <ArrowLeft className="h-4 w-4" /> Return to Home
+                <span>Return to Home</span>
               </Link>
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -267,24 +274,27 @@ export default function SessionPreJoinPage({
 
             {/* Bottom Audio Test Bar */}
             <div className="mt-8 z-10 w-full flex items-center justify-center">
-              <Button
-                variant="outline"
+              <AppButton
+                variant={audioTested ? "success-tinted" : "outline"}
                 size="sm"
+                shape="pill"
                 onClick={handleTestAudio}
                 disabled={isTestingAudio}
-                className={`rounded-2xl h-10 px-4 gap-2 text-xs font-semibold cursor-pointer transition-all border ${
-                  audioTested
-                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-600"
-                    : "border-border/70 hover:bg-muted"
-                }`}
+                isLoading={isTestingAudio}
+                loadingText="Testing Audio..."
+                className="h-10 px-4 text-xs font-semibold"
+                leftIcon={
+                  !isTestingAudio ? (
+                    audioTested ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Volume2 className="h-4 w-4 text-primary" />
+                    )
+                  ) : undefined
+                }
               >
-                {audioTested ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <Volume2 className="h-4 w-4 text-primary" />
-                )}
                 <span>{audioTested ? "Audio Ready" : "Test Speaker & Audio"}</span>
-              </Button>
+              </AppButton>
             </div>
           </div>
 
@@ -321,14 +331,17 @@ export default function SessionPreJoinPage({
             </div>
 
             <div className="space-y-3 pt-2">
-              <Button
+              <AppButton
                 onClick={handleJoinClassroom}
-                className="w-full h-12 rounded-2xl font-bold text-base gap-2 bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-lg shadow-[#0071e3]/20 cursor-pointer"
+                variant={isLive ? "success" : "primary"}
+                shape="rounded"
+                size="lg"
+                className="w-full h-12 font-bold text-base shadow-lg"
+                leftIcon={<Play className="h-5 w-5 fill-current" />}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
               >
-                <Play className="h-5 w-5 fill-current" />
-                {isLive ? "Join Live Session" : "Join Session Room"}
-                <ArrowRight className="h-4 w-4 ml-auto" />
-              </Button>
+                <span>{isLive ? "Join Live Session" : "Join Session Room"}</span>
+              </AppButton>
 
               <p className="text-[11px] text-center text-[#86868b] font-medium">
                 {isLive

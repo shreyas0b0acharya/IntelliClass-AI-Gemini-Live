@@ -3,13 +3,11 @@
 import { useEffect, useState, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Course } from "@/lib/supabase/types";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
-import { MaterialList } from "@/features/materials/components/MaterialList";
-import { FileUploadDialog } from "@/features/materials/components/FileUploadDialog";
-import { SessionList } from "@/features/sessions/components/SessionList";
-import { CreateSessionDialog } from "@/features/sessions/components/CreateSessionDialog";
-import { Button } from "@/components/ui/button";
+import { MaterialList, FileUploadDialog } from "@/features/materials";
+import { SessionList, CreateSessionDialog } from "@/features/sessions";
+import { AppButton } from "@/components/app";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BookOpen, Presentation, FileText, Plus, Upload } from "lucide-react";
@@ -98,13 +96,15 @@ export default function CourseDetailPage({
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* ── 1. Top Navigation: Back to Dashboard Pill ──────────────────── */}
       <div className="flex items-center justify-between">
-        <button
+        <AppButton
+          variant="secondary"
+          shape="pill"
+          size="xs"
           onClick={() => router.push("/dashboard")}
-          className="text-xs font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white bg-black/5 dark:bg-white/10 rounded-full px-3 py-1.5 transition-colors cursor-pointer border border-black/5 dark:border-white/5 inline-flex items-center gap-1.5 shadow-xs"
+          leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Dashboard</span>
-        </button>
+        </AppButton>
       </div>
 
       {/* ── 2. Elevated macOS Course Header Card ──────────────────────── */}
@@ -156,24 +156,27 @@ export default function CourseDetailPage({
                   courseId={courseId}
                   onUploaded={() => setMaterialRefresh((r) => r + 1)}
                   trigger={
-                    <Button
+                    <AppButton
                       variant="outline"
-                      className="rounded-full px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer gap-2 h-10"
+                      shape="pill"
+                      className="px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs h-10"
+                      leftIcon={<Upload className="h-4 w-4 text-[#0071e3]" />}
                     >
-                      <Upload className="h-4 w-4 text-[#0071e3]" />
-                      Upload Syllabus PDF
-                    </Button>
+                      <span>Upload Syllabus PDF</span>
+                    </AppButton>
                   }
                 />
-                <Button
+                <AppButton
                   asChild
-                  className="rounded-full px-5 py-2.5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-xs sm:text-sm shadow-sm cursor-pointer gap-2 h-10"
+                  variant="primary"
+                  shape="pill"
+                  className="px-5 py-2.5 font-medium text-xs sm:text-sm shadow-xs h-10"
+                  leftIcon={<Plus className="h-4 w-4" />}
                 >
                   <Link href={`/course/${courseId}/sessions/new`}>
-                    <Plus className="h-4 w-4" />
-                    New AI Lecture
+                    <span>New AI Lecture</span>
                   </Link>
-                </Button>
+                </AppButton>
               </>
             )}
           </div>

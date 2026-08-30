@@ -76,6 +76,10 @@ export const studentAIQuestionAnsweringFlow = ai.defineFlow(
 
     // 2. Build system instruction with polite acknowledgment & transition back to lecture
     const profPersona = input.lecturerName || "Professor";
+    const sanitizedLastSentence = input.lastSpokenSentence
+      ? input.lastSpokenSentence.replace(/^[\s/]+/, "").replace(/[\s/]+$/, "").trim()
+      : "";
+
     const systemInstruction = `You are ${profPersona}, a warm, encouraging college professor teaching a live lecture.
 ${
   mode === "RAG"
@@ -86,14 +90,14 @@ ${
 Current Classroom State:
 - Topic: "${input.sessionTopic || "Current Topic"}"
 ${input.currentLectureContext ? `- Recent Context: "${input.currentLectureContext}"` : ""}
-${input.lastSpokenSentence ? `- Just spoken before question: "${input.lastSpokenSentence}"` : ""}
+${sanitizedLastSentence ? `- Just spoken before question: "${sanitizedLastSentence}"` : ""}
 
 Style Rules:
 1. Address the student warmly by name: "${input.studentName}, that is a good question."
 2. Explain the answer concisely in 2-3 spoken sentences in your authentic teaching style.
-3. NO markdown formatting (*, #, \`, bullets). Only spoken text.
+3. NO markdown formatting (*, #, \`, bullets, slashes). Only clean spoken text.
 4. Conclude with a natural transition back to the lecture: "Is that clear? Excellent. Now, coming back to what we were exploring — ${
-      input.lastSpokenSentence || "let us continue our discussion"
+      sanitizedLastSentence || "let us continue our discussion"
     }."`;
 
     const prompt =
@@ -110,12 +114,16 @@ Style Rules:
       system: systemInstruction,
       prompt: prompt,
       config: {
-        maxOutputTokens: 250,
-        temperature: 0.6,
+        maxOutputTokens: 2048,
+        temperature: 0.7,
       },
     });
 
-    const cleanAnswer = text.replace(/[*#`_~]/g, "").trim();
+    const cleanAnswer = text
+      .replace(/[*#`_~]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
     console.log(
       `✅ [Q&A Flow] Generated answer (${cleanAnswer.length} chars): "${cleanAnswer.slice(0, 100)}..."`
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, MessageCircleQuestion } from "lucide-react";
 
@@ -47,24 +47,19 @@ export function QuestionInput({
           className="flex-1 h-9 border-none bg-transparent shadow-none text-xs focus-visible:ring-0 placeholder:text-muted-foreground/70"
         />
 
-        <Button
+        <AppButton
           type="submit"
           size="sm"
+          variant="primary"
+          shape="rounded"
           disabled={disabled || isThinking || !question.trim()}
-          className="rounded-xl h-9 px-4 text-xs font-semibold gap-1.5 shadow-xs shrink-0 cursor-pointer"
+          isLoading={isThinking}
+          loadingText="Thinking..."
+          rightIcon={<Send className="h-3.5 w-3.5" />}
+          className="h-9 px-4 text-xs font-semibold shrink-0"
         >
-          {isThinking ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Thinking...</span>
-            </>
-          ) : (
-            <>
-              <Send className="h-3.5 w-3.5" />
-              <span>Ask Doubt</span>
-            </>
-          )}
-        </Button>
+          <span>Ask Doubt</span>
+        </AppButton>
       </form>
     </div>
   );

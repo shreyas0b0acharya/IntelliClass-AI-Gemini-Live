@@ -6,8 +6,8 @@ import { supabase } from "@/lib/supabase/client";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/shared";
+import { AppButton } from "@/components/app";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -155,95 +155,106 @@ function SessionCard({
         {/* Horizontal Utility Toolbar */}
         <div className="flex items-center gap-1 bg-black/[0.03] dark:bg-white/[0.03] p-1 rounded-xl border border-black/5 dark:border-white/5">
           {/* Copy student link button */}
-          <button
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            shape="rounded"
             onClick={handleCopyLink}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
             title="Copy student join link"
           >
             <Copy className="h-3.5 w-3.5" />
-          </button>
+          </AppButton>
 
           {/* Lecturer actions */}
           {isLecturer && (
             <>
-              <button
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                shape="rounded"
                 onClick={() => onEdit(session)}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
                 title="Edit session"
               >
                 <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                shape="rounded"
                 onClick={() => onRestart(session)}
                 disabled={restarting === session.id}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+                isLoading={restarting === session.id}
+                className="h-8 w-8 text-[#86868b] hover:text-[#0071e3]"
                 title="Reset session"
               >
-                {restarting === session.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3]" />
-                ) : (
-                  <RotateCcw className="h-3.5 w-3.5" />
-                )}
-              </button>
-              <button
+                <RotateCcw className="h-3.5 w-3.5" />
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                shape="rounded"
                 onClick={() => onDelete(session)}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-[#86868b] hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10"
                 title="Delete session"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              </AppButton>
             </>
           )}
         </div>
 
         {/* Primary CTA Button (h-10 rounded-full) */}
         {isLecturer && (
-          <Button
+          <AppButton
             asChild
             size="sm"
-            className={`rounded-full h-10 px-5 font-medium text-xs sm:text-sm gap-2 shadow-xs cursor-pointer ${
-              isLive
-                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                : "bg-[#0071e3] hover:bg-[#0077ed] text-white"
-            }`}
+            variant={isLive ? "success" : "primary"}
+            shape="pill"
+            className="h-10 px-5 font-medium text-xs sm:text-sm"
+            rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
           >
             <Link href={`/classroom/${session.id}`}>
-              {isLive ? "Broadcast" : "Open"}
-              <ArrowRight className="h-3.5 w-3.5" />
+              <span>{isLive ? "Broadcast" : "Open"}</span>
             </Link>
-          </Button>
+          </AppButton>
         )}
 
         {/* Student actions */}
         {!isLecturer && (
           <>
             {isLive ? (
-              <Button
+              <AppButton
                 asChild
                 size="sm"
-                className="rounded-full font-medium gap-2 h-10 px-5 shadow-xs bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm"
+                variant="success"
+                shape="pill"
+                className="h-10 px-5 font-medium text-xs sm:text-sm"
+                leftIcon={<Radio className="h-3.5 w-3.5" />}
               >
                 <Link href={`/classroom/${session.id}`}>
-                  <Radio className="h-3.5 w-3.5" />
-                  Join Live
+                  <span>Join Live</span>
                 </Link>
-              </Button>
+              </AppButton>
             ) : !isEnded ? (
-              <Button
+              <AppButton
                 asChild
                 size="sm"
-                className="rounded-full font-medium gap-2 h-10 px-5 bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs sm:text-sm shadow-xs"
+                variant="primary"
+                shape="pill"
+                className="h-10 px-5 font-medium text-xs sm:text-sm"
+                leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
+                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
               >
                 <Link href={`/classroom/${session.id}`}>
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                  Join Room
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <span>Join Room</span>
                 </Link>
-              </Button>
+              </AppButton>
             ) : (
               <div className="flex items-center gap-1.5 text-[11px] text-[#86868b] font-medium px-3.5 h-9 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5">
                 <Lock className="h-3.5 w-3.5" />
-                Ended
+                <span>Ended</span>
               </div>
             )}
           </>

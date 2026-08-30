@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
+import { AppButton } from "@/components/app/AppButton";
 import {
   Sparkles,
   Loader2,
@@ -14,6 +15,7 @@ import {
   Radio,
   CheckCircle2,
   ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,10 +49,12 @@ function LoginFormContent() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    setErrorMessage(null);
     setIsGoogleLoading(true);
     try {
       const callbackUrl = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`;
@@ -65,27 +69,43 @@ function LoginFormContent() {
     } catch (err: unknown) {
       console.error("Google OAuth error:", err);
       const msg = err instanceof Error ? err.message : "Failed to initiate Google Sign In";
+      setErrorMessage(msg);
       toast.error(msg);
       setIsGoogleLoading(false);
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter both email and password.");
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    setErrorMessage(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      const msg = "Please enter both your email address and password.";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
       if (error) {
-        throw error;
+        let userMessage = error.message;
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
+          userMessage = "Invalid email address or password. Please verify your credentials or click 'Forgot password?' below.";
+        } else if (error.message.toLowerCase().includes("email not confirmed")) {
+          userMessage = "Your email address has not been confirmed yet. Please check your inbox for the confirmation email.";
+        }
+        setErrorMessage(userMessage);
+        toast.error(userMessage);
+        return;
       }
 
       let finalRedirect = redirectTo;
@@ -98,15 +118,17 @@ function LoginFormContent() {
               finalRedirect = prof.role === "lecturer" ? "/dashboard" : "/";
             }
           }
-        } catch {}
+        } catch (profileErr) {
+          console.warn("Profile fetch warning after login:", profileErr);
+        }
       }
 
       toast.success("Welcome back to IntelliClass!");
-      router.push(finalRedirect);
-      router.refresh();
+      // Full window navigation ensures cookies and session are re-evaluated by middleware cleanly
+      window.location.href = finalRedirect;
     } catch (err: unknown) {
-      console.error("Login error:", err);
       const msg = err instanceof Error ? err.message : "Failed to sign in. Please verify your credentials.";
+      setErrorMessage(msg);
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -176,19 +198,19 @@ function LoginFormContent() {
         )}
 
         {/* Google SSO Button */}
-        <button
+        <AppButton
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isLoading || isGoogleLoading}
-          className="w-full h-12 rounded-full bg-white dark:bg-[#2c2c2e] border border-[#d2d2d7]/80 dark:border-[#3a3a3c] hover:bg-[#f5f5f7] dark:hover:bg-[#3a3a3c] text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold text-[15px] flex items-center justify-center gap-3 transition-colors duration-200 shadow-xs cursor-pointer disabled:opacity-50"
+          isLoading={isGoogleLoading}
+          variant="outline"
+          size="lg"
+          shape="pill"
+          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c]"
+          leftIcon={!isGoogleLoading && <GoogleIcon />}
         >
-          {isGoogleLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#0071e3]" />
-          ) : (
-            <GoogleIcon />
-          )}
           <span>Continue with Google</span>
-        </button>
+        </AppButton>
 
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-5 2xl:my-6 flex items-center justify-center">
@@ -202,8 +224,16 @@ function LoginFormContent() {
           </div>
         </div>
 
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs sm:text-[13px] font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+            <div className="flex-1 leading-snug">{errorMessage}</div>
+          </div>
+        )}
+
         {/* Email/Password Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} action="#" className="space-y-4">
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="email"
@@ -234,6 +264,12 @@ function LoginFormContent() {
               >
                 Password
               </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[#0071e3] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-4 top-3.5 h-4 w-4 text-[#86868b] pointer-events-none" />
@@ -250,23 +286,19 @@ function LoginFormContent() {
             </div>
           </div>
 
-          <button
+          <AppButton
             type="submit"
             disabled={isLoading || isGoogleLoading}
-            className="w-full h-12 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-[15px] sm:text-[16px] flex items-center justify-center gap-2 transition-all duration-200 shadow-sm active:scale-[0.98] cursor-pointer mt-3 disabled:opacity-50"
+            isLoading={isLoading}
+            loadingText="Signing In..."
+            variant="primary"
+            size="lg"
+            shape="pill"
+            className="w-full mt-3"
+            rightIcon={<ArrowRight className="h-4 w-4" />}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Signing In...</span>
-              </>
-            ) : (
-              <>
-                <span>Enter Academy</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
+            <span>Enter Academy</span>
+          </AppButton>
         </form>
 
         {/* Footer Link */}

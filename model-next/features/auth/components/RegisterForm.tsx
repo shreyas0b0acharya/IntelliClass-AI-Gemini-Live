@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
+import { AppButton } from "@/components/app/AppButton";
 import {
   GraduationCap,
   BookOpen,
@@ -16,6 +17,7 @@ import {
   Radio,
   CheckCircle2,
   ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { UserRole } from "@/lib/supabase/types";
@@ -52,10 +54,12 @@ function RegisterFormContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleSignUp = async () => {
+    setErrorMessage(null);
     setIsGoogleLoading(true);
     try {
       const callbackUrl = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}&role=${role}`;
@@ -70,31 +74,43 @@ function RegisterFormContent() {
     } catch (err: unknown) {
       console.error("Google OAuth error:", err);
       const msg = err instanceof Error ? err.message : "Failed to initiate Google Sign Up";
+      setErrorMessage(msg);
       toast.error(msg);
       setIsGoogleLoading(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email || !password) {
-      toast.error("Please fill in all fields.");
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    setErrorMessage(null);
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName || !cleanEmail || !password) {
+      const msg = "Please fill in all fields (name, email, and password).";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long.");
+      const msg = "Password must be at least 6 characters long.";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
     setIsLoading(true);
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {
-            full_name: name,
+            full_name: cleanName,
             role,
           },
         },
@@ -104,7 +120,7 @@ function RegisterFormContent() {
 
       if (authData.user) {
         try {
-          const { profile: savedProfile } = await api.saveProfile({ name, role });
+          const { profile: savedProfile } = await api.saveProfile({ name: cleanName, role });
           if (savedProfile) {
             localStorage.setItem("intelliclass_profile", JSON.stringify(savedProfile));
           }
@@ -118,12 +134,15 @@ function RegisterFormContent() {
         }
 
         toast.success(`Account created as ${role === "lecturer" ? "Professor / Lecturer" : "Student"}!`);
-        router.push(finalRedirect);
-        router.refresh();
+        window.location.href = finalRedirect;
       }
     } catch (err: unknown) {
       console.error("Registration error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to create account.";
+      let msg = "Failed to create account. Please check your information.";
+      if (err instanceof Error && err.message) {
+        msg = err.message;
+      }
+      setErrorMessage(msg);
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -236,19 +255,19 @@ function RegisterFormContent() {
         </div>
 
         {/* Google SSO Button */}
-        <button
+        <AppButton
           type="button"
           onClick={handleGoogleSignUp}
           disabled={isLoading || isGoogleLoading}
-          className="w-full h-12 rounded-full bg-white dark:bg-[#2c2c2e] border border-[#d2d2d7]/80 dark:border-[#3a3a3c] hover:bg-[#f5f5f7] dark:hover:bg-[#3a3a3c] text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold text-[14px] sm:text-[15px] flex items-center justify-center gap-2.5 transition-colors duration-200 shadow-xs cursor-pointer disabled:opacity-50"
+          isLoading={isGoogleLoading}
+          variant="outline"
+          size="lg"
+          shape="pill"
+          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c]"
+          leftIcon={!isGoogleLoading && <GoogleIcon />}
         >
-          {isGoogleLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#0071e3]" />
-          ) : (
-            <GoogleIcon />
-          )}
           <span>Continue with Google as {role === "lecturer" ? "Faculty" : "Student"}</span>
-        </button>
+        </AppButton>
 
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-4 2xl:my-5 flex items-center justify-center">
@@ -262,8 +281,16 @@ function RegisterFormContent() {
           </div>
         </div>
 
+        {/* Error Alert Banner */}
+        {errorMessage && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs sm:text-[13px] font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+            <div className="flex-1 leading-snug">{errorMessage}</div>
+          </div>
+        )}
+
         {/* Email/Password Form */}
-        <form onSubmit={handleRegister} className="space-y-3.5">
+        <form onSubmit={handleRegister} action="#" className="space-y-3.5">
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="name"
@@ -330,23 +357,19 @@ function RegisterFormContent() {
             </div>
           </div>
 
-          <button
+          <AppButton
             type="submit"
             disabled={isLoading || isGoogleLoading}
-            className="w-full h-12 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-[15px] sm:text-[16px] flex items-center justify-center gap-2 transition-all duration-200 shadow-sm active:scale-[0.98] cursor-pointer mt-3 disabled:opacity-50"
+            isLoading={isLoading}
+            loadingText="Creating Account..."
+            variant="primary"
+            size="lg"
+            shape="pill"
+            className="w-full mt-3"
+            rightIcon={<ArrowRight className="h-4 w-4" />}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Creating Account...</span>
-              </>
-            ) : (
-              <>
-                <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
+            <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
+          </AppButton>
         </form>
 
         {/* Footer Link */}

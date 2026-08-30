@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_MODEL_PREFERENCES, type ModelPreferences } from "@/lib/settings";
+import { DEFAULT_MODEL_PREFERENCES, type ModelPreferences } from "@/features/settings";
 
 /**
  * GET /api/settings

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { AppButton } from "@/components/app";
 import {
   FileText,
   ExternalLink,
@@ -133,28 +133,31 @@ export function MaterialViewerModal({
 
               {viewUrl && (
                 <>
-                  <Button
+                  <AppButton
                     asChild
                     variant="outline"
                     size="sm"
-                    className="rounded-xl h-8 px-2.5 text-xs font-semibold gap-1.5 hidden sm:flex cursor-pointer"
+                    shape="rounded"
+                    className="h-8 px-2.5 text-xs font-semibold hidden sm:flex"
+                    leftIcon={<Download className="h-3.5 w-3.5" />}
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer" download={file.file_name}>
-                      <Download className="h-3.5 w-3.5" />
                       <span>Download</span>
                     </a>
-                  </Button>
+                  </AppButton>
 
-                  <Button
+                  <AppButton
                     asChild
                     size="sm"
-                    className="rounded-xl h-8 px-3 text-xs font-bold bg-[#0071e3] hover:bg-[#0077ed] text-white gap-1.5 cursor-pointer shadow-xs"
+                    variant="primary"
+                    shape="rounded"
+                    className="h-8 px-3 text-xs font-bold"
+                    leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5" />
                       <span>Open in Tab</span>
                     </a>
-                  </Button>
+                  </AppButton>
                 </>
               )}
             </div>
