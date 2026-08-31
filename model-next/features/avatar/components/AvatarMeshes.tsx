@@ -12,11 +12,18 @@ export function AvatarMeshes({
   nodes,
   materials,
 }: AvatarMeshesProps) {
-  // Ensure cornea and eyeball materials have proper non-metallic dielectric properties across all devices
+  // Ensure cornea, eyeball, and eyelash materials have proper non-metallic dielectric properties across all devices
   useMemo(() => {
+    if (materials.AvatarEyelashes) {
+      materials.AvatarEyelashes.metalness = 0.0;
+      materials.AvatarEyelashes.roughness = 0.95;
+      materials.AvatarEyelashes.envMapIntensity = 0.0;
+      materials.AvatarEyelashes.color.setHex(0x1a1a1a);
+    }
     if (materials.AvatarLeftCornea) {
       materials.AvatarLeftCornea.metalness = 0.0;
       materials.AvatarLeftCornea.roughness = 0.15;
+      materials.AvatarLeftCornea.envMapIntensity = 0.3;
       materials.AvatarLeftCornea.transparent = true;
       materials.AvatarLeftCornea.depthWrite = false;
       materials.AvatarLeftCornea.depthTest = true;
@@ -25,6 +32,7 @@ export function AvatarMeshes({
     if (materials.AvatarRightCornea) {
       materials.AvatarRightCornea.metalness = 0.0;
       materials.AvatarRightCornea.roughness = 0.15;
+      materials.AvatarRightCornea.envMapIntensity = 0.3;
       materials.AvatarRightCornea.transparent = true;
       materials.AvatarRightCornea.depthWrite = false;
       materials.AvatarRightCornea.depthTest = true;
@@ -33,10 +41,12 @@ export function AvatarMeshes({
     if (materials.AvatarLeftEyeball) {
       materials.AvatarLeftEyeball.metalness = 0.0;
       materials.AvatarLeftEyeball.roughness = 0.2;
+      materials.AvatarLeftEyeball.envMapIntensity = 0.3;
     }
     if (materials.AvatarRightEyeball) {
       materials.AvatarRightEyeball.metalness = 0.0;
       materials.AvatarRightEyeball.roughness = 0.2;
+      materials.AvatarRightEyeball.envMapIntensity = 0.3;
     }
   }, [materials]);
   return (

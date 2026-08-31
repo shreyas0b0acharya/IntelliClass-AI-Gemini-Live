@@ -94,16 +94,15 @@ export function Experience({
         sequence={sequence}
       />
 
-      {/* HDR Environment lighting for High tier, consistent balanced 3-point studio lighting fallback for Medium & Low tiers */}
-      {capabilities.enableEnvironmentMap ? (
-        <Environment files="/environment/empty_warehouse_01_1k.hdr" />
-      ) : (
-        <>
-          <ambientLight intensity={0.9} color="#ffffff" />
-          <directionalLight position={[2, 4, 3]} intensity={1.5} color="#ffffff" />
-          <directionalLight position={[-2, 2, 2]} intensity={0.7} color="#dbe5ff" />
-          <directionalLight position={[0, 1.5, 3]} intensity={0.4} color="#ffffff" />
-        </>
+      {/* Studio portrait lighting: 3-point illumination + frontal eye catchlight across all tiers */}
+      <ambientLight intensity={0.9} color="#ffffff" />
+      <directionalLight position={[2, 4, 3]} intensity={1.5} color="#ffffff" />
+      <directionalLight position={[-2, 2, 2]} intensity={0.7} color="#dbe5ff" />
+      <directionalLight position={[0, 1.5, 3]} intensity={0.4} color="#ffffff" />
+
+      {/* Subtle HDR environment fill for high tier */}
+      {capabilities.enableEnvironmentMap && (
+        <Environment files="/environment/empty_warehouse_01_1k.hdr" environmentIntensity={0.25} />
       )}
 
       {/* Stage backdrop projection plane */}

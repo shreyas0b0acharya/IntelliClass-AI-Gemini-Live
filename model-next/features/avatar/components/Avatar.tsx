@@ -90,41 +90,68 @@ export function Avatar({
 
   const { nodes, materials } = useGraph(clone) as unknown as AvatarGLTFResult;
 
-  // Fix eye/cornea/head materials so they render consistently and identically across all devices and tiers.
+  // Fix eye/cornea/eyelashes materials so they render consistently and naturally across all devices and tiers.
   // AvatarSDK models export Cornea with metallicFactor omitted, which GLTF defaults to metalness = 1.0.
-  // Setting metalness = 0 on cornea and eyeball materials guarantees proper dielectric PBR shading without black voids.
+  // Eyelashes need high roughness (matte) and 0 envMapIntensity so they never reflect white metallic glare.
   useMemo(() => {
     clone.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.SkinnedMesh) {
         const mat = obj.material;
         if (mat && !Array.isArray(mat) && mat instanceof THREE.MeshStandardMaterial) {
-          const isCornea =
-            obj.name.toLowerCase().includes("cornea") ||
-            mat.name.toLowerCase().includes("cornea");
-          const isEye =
-            obj.name.toLowerCase().includes("eye") ||
-            mat.name.toLowerCase().includes("eye");
+          const nameLower = obj.name.toLowerCase();
+          const matLower = mat.name.toLowerCase();
 
-          if (isCornea || isEye) {
+          const isEyelash =
+            nameLower.includes("eyelash") || matLower.includes("eyelash");
+          const isCornea =
+            nameLower.includes("cornea") || matLower.includes("cornea");
+          const isEyeball =
+            (nameLower.includes("eyeball") ||
+              matLower.includes("eyeball") ||
+              obj.name === "EyeLeft" ||
+              obj.name === "EyeRight" ||
+              mat.name === "Wolf3D_Eye") &&
+            !isEyelash;
+
+          if (isEyelash) {
             mat.metalness = 0.0;
-            mat.roughness = isCornea ? 0.15 : 0.2;
-            if (isCornea) {
-              mat.transparent = true;
-              mat.depthWrite = false;
-              mat.depthTest = true;
-              mat.opacity = 1.0;
-            }
+            mat.roughness = 0.95;
+            mat.envMapIntensity = 0.0;
+            mat.color.setHex(0x1a1a1a);
+            mat.needsUpdate = true;
+          } else if (isCornea) {
+            mat.metalness = 0.0;
+            mat.roughness = 0.15;
+            mat.envMapIntensity = 0.3;
+            mat.transparent = true;
+            mat.depthWrite = false;
+            mat.depthTest = true;
+            mat.opacity = 1.0;
+            mat.needsUpdate = true;
+          } else if (isEyeball) {
+            mat.metalness = 0.0;
+            mat.roughness = 0.2;
+            mat.envMapIntensity = 0.3;
             mat.needsUpdate = true;
           }
         }
       }
     });
 
+    if (materials.AvatarEyelashes) {
+      materials.AvatarEyelashes.metalness = 0.0;
+      materials.AvatarEyelashes.roughness = 0.95;
+      materials.AvatarEyelashes.envMapIntensity = 0.0;
+      materials.AvatarEyelashes.color.setHex(0x1a1a1a);
+      materials.AvatarEyelashes.needsUpdate = true;
+    }
+
     const corneaMats = [materials.AvatarLeftCornea, materials.AvatarRightCornea];
     corneaMats.forEach((mat) => {
       if (mat) {
         mat.metalness = 0.0;
         mat.roughness = 0.15;
+        mat.envMapIntensity = 0.3;
         mat.transparent = true;
         mat.depthWrite = false;
         mat.depthTest = true;
@@ -138,6 +165,7 @@ export function Avatar({
       if (mat) {
         mat.metalness = 0.0;
         mat.roughness = 0.2;
+        mat.envMapIntensity = 0.3;
         mat.needsUpdate = true;
       }
     });
