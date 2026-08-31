@@ -68,7 +68,14 @@ export function Experience({
 
   return (
     <>
-      <OrbitControls target={[0, 1.8, -4.3]} enableZoom={true} enablePan={false} />
+      <OrbitControls
+        target={[0, 1.55, -3.8]}
+        enableZoom={true}
+        enablePan={true}
+        screenSpacePanning={true}
+        minDistance={0.4}
+        maxDistance={4.5}
+      />
 
       {/* Render full 3D classroom mesh only for High and Medium tiers.
           Low tier renders a lightweight 2D stage plane, saving 40.5MB on mobile! */}

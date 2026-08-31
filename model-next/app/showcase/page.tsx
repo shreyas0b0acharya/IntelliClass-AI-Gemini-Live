@@ -313,6 +313,8 @@ export default function App() {
         camera={{
           position: [-0.03, 1.539, 0.768],
           fov: 42,
+          near: 0.01,
+          far: 50,
         }}
       >
         <CameraLogger />

@@ -58,6 +58,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarBody.geometry}
           material={materials.AvatarBody}
           skeleton={nodes.AvatarBody.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -66,6 +67,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarLeftCornea.geometry}
           material={materials.AvatarLeftCornea}
           skeleton={nodes.AvatarLeftCornea.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -74,6 +76,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarLeftEyeball.geometry}
           material={materials.AvatarLeftEyeball}
           skeleton={nodes.AvatarLeftEyeball.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -82,6 +85,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarRightCornea.geometry}
           material={materials.AvatarRightCornea}
           skeleton={nodes.AvatarRightCornea.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -90,6 +94,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarRightEyeball.geometry}
           material={materials.AvatarRightEyeball}
           skeleton={nodes.AvatarRightEyeball.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -98,6 +103,7 @@ export function AvatarMeshes({
           geometry={nodes.AvatarTeethUpper.geometry}
           material={materials.AvatarTeethUpper}
           skeleton={nodes.AvatarTeethUpper.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -106,6 +112,7 @@ export function AvatarMeshes({
           geometry={nodes.outfit.geometry}
           material={materials.outfit}
           skeleton={nodes.outfit.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -114,6 +121,7 @@ export function AvatarMeshes({
           geometry={nodes.outfit_bottom.geometry}
           material={materials.outfit_bottom}
           skeleton={nodes.outfit_bottom.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -122,6 +130,7 @@ export function AvatarMeshes({
           geometry={nodes.outfit_shoes.geometry}
           material={materials.outfit_shoes}
           skeleton={nodes.outfit_shoes.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -130,6 +139,7 @@ export function AvatarMeshes({
           geometry={nodes.outfit_top.geometry}
           material={materials.outfit_top}
           skeleton={nodes.outfit_top.skeleton}
+          frustumCulled={false}
         />
       )}
 
@@ -141,6 +151,7 @@ export function AvatarMeshes({
           skeleton={nodes.AvatarEyelashes.skeleton}
           morphTargetDictionary={nodes.AvatarEyelashes.morphTargetDictionary}
           morphTargetInfluences={nodes.AvatarEyelashes.morphTargetInfluences}
+          frustumCulled={false}
         />
       )}
 
@@ -152,6 +163,7 @@ export function AvatarMeshes({
           skeleton={nodes.AvatarHead.skeleton}
           morphTargetDictionary={nodes.AvatarHead.morphTargetDictionary}
           morphTargetInfluences={nodes.AvatarHead.morphTargetInfluences}
+          frustumCulled={false}
         />
       )}
 
@@ -163,6 +175,7 @@ export function AvatarMeshes({
           skeleton={nodes.AvatarTeethLower.skeleton}
           morphTargetDictionary={nodes.AvatarTeethLower.morphTargetDictionary}
           morphTargetInfluences={nodes.AvatarTeethLower.morphTargetInfluences}
+          frustumCulled={false}
         />
       )}
     </>

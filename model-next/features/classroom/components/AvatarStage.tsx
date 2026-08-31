@@ -114,6 +114,8 @@ export function AvatarStage({
         camera={{
           position: [-0.03, 1.539, 0.768],
           fov: 42,
+          near: 0.01,
+          far: 50,
         }}
         className="w-full h-full"
       >

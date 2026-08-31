@@ -96,6 +96,7 @@ export function Avatar({
   useMemo(() => {
     clone.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.SkinnedMesh) {
+        obj.frustumCulled = false;
         const mat = obj.material;
         if (mat && !Array.isArray(mat) && mat instanceof THREE.MeshStandardMaterial) {
           const nameLower = obj.name.toLowerCase();
