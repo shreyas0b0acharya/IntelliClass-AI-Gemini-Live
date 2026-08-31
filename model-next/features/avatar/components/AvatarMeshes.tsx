@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { AvatarGLTFResult } from "../types/avatar.types";
 
 interface AvatarMeshesProps {
@@ -11,6 +12,33 @@ export function AvatarMeshes({
   nodes,
   materials,
 }: AvatarMeshesProps) {
+  // Ensure cornea and eyeball materials have proper non-metallic dielectric properties across all devices
+  useMemo(() => {
+    if (materials.AvatarLeftCornea) {
+      materials.AvatarLeftCornea.metalness = 0.0;
+      materials.AvatarLeftCornea.roughness = 0.15;
+      materials.AvatarLeftCornea.transparent = true;
+      materials.AvatarLeftCornea.depthWrite = false;
+      materials.AvatarLeftCornea.depthTest = true;
+      materials.AvatarLeftCornea.opacity = 1.0;
+    }
+    if (materials.AvatarRightCornea) {
+      materials.AvatarRightCornea.metalness = 0.0;
+      materials.AvatarRightCornea.roughness = 0.15;
+      materials.AvatarRightCornea.transparent = true;
+      materials.AvatarRightCornea.depthWrite = false;
+      materials.AvatarRightCornea.depthTest = true;
+      materials.AvatarRightCornea.opacity = 1.0;
+    }
+    if (materials.AvatarLeftEyeball) {
+      materials.AvatarLeftEyeball.metalness = 0.0;
+      materials.AvatarLeftEyeball.roughness = 0.2;
+    }
+    if (materials.AvatarRightEyeball) {
+      materials.AvatarRightEyeball.metalness = 0.0;
+      materials.AvatarRightEyeball.roughness = 0.2;
+    }
+  }, [materials]);
   return (
     <>
       <primitive object={nodes.Hips} />

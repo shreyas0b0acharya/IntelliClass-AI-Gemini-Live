@@ -72,16 +72,10 @@ export function Experience({
 
       {/* Render full 3D classroom mesh only for High and Medium tiers.
           Low tier renders a lightweight 2D stage plane, saving 40.5MB on mobile! */}
-      {capabilities.stageType !== "2d-backdrop" ? (
+      {capabilities.stageType !== "2d-backdrop" && (
         <React.Suspense fallback={null}>
           <ClassroomStage />
         </React.Suspense>
-      ) : (
-        /* Minimal stage lighting fallback */
-        <>
-          <ambientLight intensity={1.2} />
-          <directionalLight position={[0, 4, 2]} intensity={1.5} />
-        </>
       )}
 
       <Avatar
@@ -100,11 +94,16 @@ export function Experience({
         sequence={sequence}
       />
 
-      {/* HDR Environment lighting for High tier only */}
+      {/* HDR Environment lighting for High tier, consistent balanced 3-point studio lighting fallback for Medium & Low tiers */}
       {capabilities.enableEnvironmentMap ? (
         <Environment files="/environment/empty_warehouse_01_1k.hdr" />
       ) : (
-        <ambientLight intensity={0.9} />
+        <>
+          <ambientLight intensity={0.9} color="#ffffff" />
+          <directionalLight position={[2, 4, 3]} intensity={1.5} color="#ffffff" />
+          <directionalLight position={[-2, 2, 2]} intensity={0.7} color="#dbe5ff" />
+          <directionalLight position={[0, 1.5, 3]} intensity={0.4} color="#ffffff" />
+        </>
       )}
 
       {/* Stage backdrop projection plane */}

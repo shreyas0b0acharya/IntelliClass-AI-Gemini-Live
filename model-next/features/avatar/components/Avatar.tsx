@@ -90,6 +90,59 @@ export function Avatar({
 
   const { nodes, materials } = useGraph(clone) as unknown as AvatarGLTFResult;
 
+  // Fix eye/cornea/head materials so they render consistently and identically across all devices and tiers.
+  // AvatarSDK models export Cornea with metallicFactor omitted, which GLTF defaults to metalness = 1.0.
+  // Setting metalness = 0 on cornea and eyeball materials guarantees proper dielectric PBR shading without black voids.
+  useMemo(() => {
+    clone.traverse((obj) => {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.SkinnedMesh) {
+        const mat = obj.material;
+        if (mat && !Array.isArray(mat) && mat instanceof THREE.MeshStandardMaterial) {
+          const isCornea =
+            obj.name.toLowerCase().includes("cornea") ||
+            mat.name.toLowerCase().includes("cornea");
+          const isEye =
+            obj.name.toLowerCase().includes("eye") ||
+            mat.name.toLowerCase().includes("eye");
+
+          if (isCornea || isEye) {
+            mat.metalness = 0.0;
+            mat.roughness = isCornea ? 0.15 : 0.2;
+            if (isCornea) {
+              mat.transparent = true;
+              mat.depthWrite = false;
+              mat.depthTest = true;
+              mat.opacity = 1.0;
+            }
+            mat.needsUpdate = true;
+          }
+        }
+      }
+    });
+
+    const corneaMats = [materials.AvatarLeftCornea, materials.AvatarRightCornea];
+    corneaMats.forEach((mat) => {
+      if (mat) {
+        mat.metalness = 0.0;
+        mat.roughness = 0.15;
+        mat.transparent = true;
+        mat.depthWrite = false;
+        mat.depthTest = true;
+        mat.opacity = 1.0;
+        mat.needsUpdate = true;
+      }
+    });
+
+    const eyeballMats = [materials.AvatarLeftEyeball, materials.AvatarRightEyeball];
+    eyeballMats.forEach((mat) => {
+      if (mat) {
+        mat.metalness = 0.0;
+        mat.roughness = 0.2;
+        mat.needsUpdate = true;
+      }
+    });
+  }, [clone, materials]);
+
   const leftEyeBone =
     nodes.LeftEye ||
     nodes.EyeLeft ||
