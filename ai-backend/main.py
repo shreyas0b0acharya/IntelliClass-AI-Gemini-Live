@@ -9,7 +9,8 @@ from supabase import create_client, Client
 import os
 import base64
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -87,7 +88,7 @@ async def health():
 
 @app.post("/extract-images")
 async def extract_images(req: ExtractImagesRequest):
-    import fitz          # PyMuPDF
+    import pymupdf as fitz
     import requests as req_lib
     import io
     import uuid as uuid_lib
@@ -344,18 +345,15 @@ async def create_session(req: SessionRequest):
         if not api_key:
             raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=INDIAN_PROFESSOR_SYSTEM
-        )
-        
-        response = model.generate_content(
-            user_prompt,
-            generation_config=genai.types.GenerationConfig(
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=INDIAN_PROFESSOR_SYSTEM,
                 temperature=0.75,
-                max_output_tokens=8192
-            )
+                max_output_tokens=8192,
+            ),
         )
 
         raw_script = response.text or ""

@@ -117,10 +117,30 @@ export async function PATCH(
       "duration_ms",
     ];
 
+    const integerFields = new Set([
+      "current_sentence_index",
+      "sequence",
+      "driver_lease_version",
+      "target_epoch_ms",
+      "duration_ms",
+    ]);
+
     const updatePayload: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (field in body && !knownMissingColumns.has(field)) {
-        updatePayload[field] = body[field];
+        const val = body[field];
+        if (integerFields.has(field)) {
+          if (val === null || val === undefined) {
+            updatePayload[field] = null;
+          } else {
+            const num = Number(val);
+            if (!Number.isNaN(num)) {
+              updatePayload[field] = Math.round(num);
+            }
+          }
+        } else {
+          updatePayload[field] = val;
+        }
       }
     }
 
@@ -133,7 +153,7 @@ export async function PATCH(
       }
       if (!knownMissingColumns.has("driver_lease_version")) {
         updatePayload.driver_lease_version =
-          (Number(existingSession.driver_lease_version) || 0) + 1;
+          Math.round((Number(existingSession.driver_lease_version) || 0) + 1);
       }
     } else if (body.releaseLease === true) {
       if (!knownMissingColumns.has("active_driver_tab_id")) {

@@ -6,7 +6,8 @@
 // modern browsers/Node, clamping can coarsen to 1-2ms. This is acceptable
 // given our 350ms scheduling lead-time window. Do NOT assume sub-ms accuracy.
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   return Response.json(

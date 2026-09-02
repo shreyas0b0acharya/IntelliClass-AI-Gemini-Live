@@ -186,7 +186,7 @@ export function useClassroom(sessionId: string) {
         syncStore().setActiveMedia(mediaObj);
 
         sequenceRef.current++;
-        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
         const durationMs = 3500;
 
         broadcastEventRef.current?.({
@@ -211,8 +211,8 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle("...");
         syncStore().setCurrentSubtitle("...");
         sequenceRef.current++;
-        const durationMs = item.durationMs || 1200;
-        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const durationMs = Math.round(item.durationMs || 1200);
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
 
         broadcastEventRef.current?.({
           type: "SCHEDULED_PLAY",
@@ -237,7 +237,7 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle(promptText);
         syncStore().setCurrentSubtitle(promptText);
         sequenceRef.current++;
-        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
         const durationMs = 2000;
 
         broadcastEventRef.current?.({
@@ -294,9 +294,9 @@ export function useClassroom(sessionId: string) {
         }
 
         sequenceRef.current++;
-        const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
         const seq = sequenceRef.current;
-        const durationMs = speechResult.durationMs || 0;
+        const durationMs = Math.round(speechResult.durationMs || 0);
         const executionId = `${sessionId}_${item.id}_seq${seq}_${targetEpochMs}`;
 
         // Persist progress & timeline metadata to DB (fire-and-forget)
@@ -866,7 +866,7 @@ export function useClassroom(sessionId: string) {
         });
         audioUrl = speechRes.audioPath;
         lipSyncData = speechRes.lipSyncData;
-        targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+        targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
       } catch (e) {
         console.warn("Q&A speech synthesis fallback:", e);
       }
@@ -959,7 +959,7 @@ export function useClassroom(sessionId: string) {
     }
 
     sequenceRef.current++;
-    const targetEpochMs = getSynchronizedEpochMs() + LEAD_TIME_MS;
+    const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
 
     broadcastEvent({
       type: "RESUME",

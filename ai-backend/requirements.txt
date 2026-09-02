@@ -7,8 +7,9 @@ pymupdf
 # Tokenization (chunking)
 tiktoken
 
-# HTTP requests
-requests
+# HTTP requests & encoding
+requests>=2.32.0
+chardet>=5.0.0,<6.0.0
 
 # File uploads
 python-multipart
@@ -19,8 +20,8 @@ pydantic
 # Supabase client (Python)
 supabase
 
-# Google Gemini stable SDK
-google-generativeai
+# Google GenAI Official SDK
+google-genai>=1.0.0
 
 # Env variables
 python-dotenv

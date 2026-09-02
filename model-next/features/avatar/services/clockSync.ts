@@ -121,7 +121,7 @@ function sleep(ms: number): Promise<void> {
  * Safe to call before calibration — returns local Date.now() as fallback.
  */
 export function getSynchronizedEpochMs(): number {
-  return Date.now() + smoothedOffsetMs;
+  return Math.round(Date.now() + smoothedOffsetMs);
 }
 
 /**
