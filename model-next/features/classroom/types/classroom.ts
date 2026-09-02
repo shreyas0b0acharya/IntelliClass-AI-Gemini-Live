@@ -116,6 +116,15 @@ export type ClassroomEvent =
       stateVersion?: number;
       driverLeaseVersion?: number;
       stoppedReason?: string;
+    }
+  | {
+      // Broadcast by the lecturer when restarting an ended/paused session from scratch.
+      // MUST bypass all sequence guards on the receiver side so stale lastSeqRef
+      // values from the previous run never block item 0 from playing.
+      type: "RESTART";
+      sequence: 0; // always 0 — indicates a full counter reset
+      stateVersion?: number;
+      driverLeaseVersion?: number;
     };
 
 export type AdmissionStatus = "waiting" | "admitted" | "denied" | "left";

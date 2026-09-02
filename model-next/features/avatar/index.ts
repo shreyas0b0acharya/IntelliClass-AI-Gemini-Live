@@ -43,6 +43,7 @@ export {
   unlockAudioContext,
   preloadAudioBuffer,
   scheduleAudioPlayback,
+  stopAllAudio,
 } from "./services/audioManager";
 export {
   getSynchronizedEpochMs,

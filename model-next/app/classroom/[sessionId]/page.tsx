@@ -32,6 +32,8 @@ import {
   BookOpen,
   FileText,
   Eye,
+  RotateCcw,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -62,9 +64,16 @@ export default function ClassroomPage({
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedViewFile, setSelectedViewFile] = useState<CourseFile | null>(null);
 
-  // Forcefully exit students when the lecturer ends the session
+  // Forcefully exit students when the lecturer ends the session.
+  // Guard: only fire once the profile is known (profile !== null) to avoid
+  // a race where isLecturer is momentarily false for the actual lecturer.
   useEffect(() => {
-    if (classroom.session && !classroom.isLecturer && classroom.sessionStatus === "ended") {
+    if (
+      classroom.profile !== null &&
+      classroom.session &&
+      !classroom.isLecturer &&
+      classroom.sessionStatus === "ended"
+    ) {
       toast.info("🎓 The instructor has concluded this lecture session.", {
         description: "Redirecting you to the home page...",
         duration: 3000,
@@ -74,7 +83,7 @@ export default function ClassroomPage({
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [classroom.session, classroom.isLecturer, classroom.sessionStatus, router]);
+  }, [classroom.profile, classroom.session, classroom.isLecturer, classroom.sessionStatus, router]);
 
   // Adaptive Bandwidth Arbitration: yield background sync during live lecture audio
   useEffect(() => {
@@ -434,6 +443,42 @@ export default function ClassroomPage({
                 className="px-4 h-9 font-semibold text-xs"
               >
                 <span>Return to Course Space</span>
+              </AppButton>
+            </div>
+          </div>
+        )}
+
+        {/* Lecturer Session Ended — Recovery Overlay */}
+        {isLecturer && classroom.sessionStatus === "ended" && (
+          <div className="absolute inset-0 z-40 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-5">
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <RotateCcw className="h-8 w-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-2xl font-bold text-foreground">Session Ended</h2>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                This broadcast has concluded. You can restart it from the beginning or return to the course page.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <AppButton
+                onClick={classroom.restartSession}
+                variant="primary"
+                shape="rounded"
+                size="sm"
+                className="px-6 h-10 font-semibold text-xs shadow-lg gap-2"
+              >
+                <Play className="h-3.5 w-3.5" />
+                <span>Restart Broadcast</span>
+              </AppButton>
+              <AppButton
+                onClick={() => router.push(`/course/${courseId}`)}
+                variant="outline"
+                shape="rounded"
+                size="sm"
+                className="px-5 h-10 font-semibold text-xs"
+              >
+                <span>Return to Course</span>
               </AppButton>
             </div>
           </div>

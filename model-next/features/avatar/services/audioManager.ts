@@ -147,6 +147,27 @@ export function preloadAudioBuffer(audioPath: string): void {
  * For late joiners (targetEpochMs is in the past):
  *   offsetSeconds = how far into the buffer to seek
  *   source.start(ctx.currentTime, offsetSeconds)   ← immediate, mid-buffer
+ */
+const activeScheduledSources = new Set<AudioBufferSourceNode>();
+
+/**
+ * Immediately stops and disconnects all actively playing or scheduled Web Audio sources.
+ * Call this on component unmount, navigation, or when the user leaves the screen.
+ */
+export function stopAllAudio(): void {
+  if (typeof window === "undefined") return;
+  activeScheduledSources.forEach((source) => {
+    try {
+      source.onended = null;
+      source.stop();
+      source.disconnect();
+    } catch {}
+  });
+  activeScheduledSources.clear();
+}
+
+/**
+ * Schedules a preloaded audio buffer to play at an exact synchronized wall-clock epoch.
  *
  * @param audioPath     URL of the .wav file (must already be in cache for precision)
  * @param targetEpochMs Synchronized wall-clock ms when audio should START on all devices
@@ -212,7 +233,10 @@ export async function scheduleAudioPlayback(
     source.buffer = buffer;
     source.connect(getMasterGainNode());
 
+    activeScheduledSources.add(source);
+
     source.onended = () => {
+      activeScheduledSources.delete(source);
       onEnded();
     };
 

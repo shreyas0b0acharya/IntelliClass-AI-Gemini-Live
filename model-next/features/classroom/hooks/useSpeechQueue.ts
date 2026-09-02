@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SpeechItem, SpeechStatus } from "../types/speech";
 import type { HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 import {
   preloadAudioBuffer,
   scheduleAudioPlayback,
+  stopAllAudio,
 } from "@/features/avatar";
 
 export interface UseSpeechQueueOptions {
@@ -60,11 +61,19 @@ export function useSpeechQueue({
       } catch {}
       activeSourceRef.current = null;
     }
+    stopAllAudio();
     activeRequestIdRef.current = null;
     activeItemIdRef.current = null;
     setCurrentSpeech(null);
     setStatus("idle");
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   // ── Internal: fetch or deduplicate in-flight TTS synthesis ────────────
 
@@ -320,15 +329,23 @@ export function useSpeechQueue({
     [onSpeechComplete]
   );
 
-  return {
-    currentSpeech,
-    status,
-    playSpeech,
-    playScheduled,   // ← NEW: primary path for multi-device sync
-    playDirectSpeech,
-    synthesizeItem,  // ← NEW: driver uses this to get audio before broadcasting
-    handleAudioEnd,
-    stop,
-    prefetch,
-  };
+  // Memoize returned object so its reference is stable across re-renders.
+  // This prevents useCallbacks/useEffects in consumers (useClassroom) from
+  // re-creating on every state change (e.g. setSessionStatus causing re-render).
+  return useMemo(
+    () => ({
+      currentSpeech,
+      status,
+      playSpeech,
+      playScheduled,
+      playDirectSpeech,
+      synthesizeItem,
+      handleAudioEnd,
+      stop,
+      prefetch,
+    }),
+    // All the functions are themselves stable useCallbacks so this memo only
+    // busts when the reactive state (currentSpeech, status) changes.
+    [currentSpeech, status, playSpeech, playScheduled, playDirectSpeech, synthesizeItem, handleAudioEnd, stop, prefetch]
+  );
 }

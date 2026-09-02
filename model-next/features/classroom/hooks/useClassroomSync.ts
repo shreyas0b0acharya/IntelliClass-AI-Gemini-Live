@@ -650,15 +650,24 @@ export function useClassroomSync({
         }
       }
 
-      // Sequence check & drop out-of-order packets (except interactive types)
+      // Control and interactive events must ALWAYS be processed
+      const isControlOrInteractive =
+        event.type === "RESUME" ||
+        event.type === "PAUSE" ||
+        event.type === "END" ||
+        event.type === "SEEK_SYNC" ||
+        event.type === "INTERRUPT" ||
+        event.type === "ADMIT_PARTICIPANT" ||
+        event.type === "DENY_PARTICIPANT" ||
+        event.type === "KICK_PARTICIPANT" ||
+        event.type === "REQUEST_ADMISSION";
+
+      // Sequence check & drop out-of-order packets (except control and interactive types)
       if (
+        !isControlOrInteractive &&
         typeof event.sequence === "number" &&
-        event.sequence <= lastSequenceRef.current &&
-        event.type !== "INTERRUPT" &&
-        event.type !== "ADMIT_PARTICIPANT" &&
-        event.type !== "DENY_PARTICIPANT" &&
-        event.type !== "KICK_PARTICIPANT" &&
-        event.type !== "REQUEST_ADMISSION"
+        lastSequenceRef.current !== -1 &&
+        event.sequence <= lastSequenceRef.current
       ) {
         return;
       }
