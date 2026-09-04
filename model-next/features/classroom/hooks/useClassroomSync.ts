@@ -68,6 +68,7 @@ export function useClassroomSync({
   const isLecturerRef = useRef<boolean>(isLecturer);
   const myAdmissionStatusRef = useRef<AdmissionStatus>(myAdmissionStatus);
   const pendingEventQueueRef = useRef<ClassroomEvent[]>([]);
+  const hasInitializedJoinRef = useRef<boolean>(false);
 
   // Function refs
   const fetchSnapshotRef = useRef<() => Promise<void>>(() => Promise.resolve());
@@ -92,7 +93,13 @@ export function useClassroomSync({
       }
 
       if (data.myStatus) {
-        setMyAdmissionStatus(data.myStatus as AdmissionStatus);
+        setMyAdmissionStatus((prev) => {
+          // If already admitted, never revert back to "waiting" on stale snapshot
+          if (prev === "admitted" && data.myStatus === "waiting") {
+            return prev;
+          }
+          return data.myStatus as AdmissionStatus;
+        });
         if (data.myStatus === "denied") {
           onKickedRef.current?.();
         }
@@ -120,6 +127,15 @@ export function useClassroomSync({
             }
           }
         });
+
+        // Ensure locally admitted students are preserved in dbParticipants
+        admittedStudentIdsRef.current.forEach((admittedId) => {
+          const existing = newMap.get(admittedId);
+          if (existing) {
+            existing.status = "admitted";
+          }
+        });
+
         dbParticipantsRef.current = newMap;
       }
     } catch (err) {
@@ -174,6 +190,7 @@ export function useClassroomSync({
       if (targetUserId === "ALL") {
         dbParticipantsRef.current.forEach((p, uid) => {
           if (p.role === "student" && p.status === "waiting") {
+            p.status = "admitted";
             admittedStudentIdsRef.current.add(uid);
             promptedStudentIdsRef.current.delete(uid);
           }
@@ -181,6 +198,8 @@ export function useClassroomSync({
         activePromptToastIdsRef.current.forEach((tId) => toast.dismiss(tId));
         activePromptToastIdsRef.current.clear();
       } else {
+        const p = dbParticipantsRef.current.get(targetUserId);
+        if (p) p.status = "admitted";
         admittedStudentIdsRef.current.add(targetUserId);
         promptedStudentIdsRef.current.delete(targetUserId);
         if (activePromptToastIdsRef.current.has(targetUserId)) {
@@ -244,6 +263,8 @@ export function useClassroomSync({
       if (!isLecturerRef.current) return;
 
       // Symmetric eviction on denial
+      const p = dbParticipantsRef.current.get(targetUserId);
+      if (p) p.status = "denied";
       admittedStudentIdsRef.current.delete(targetUserId);
       promptedStudentIdsRef.current.delete(targetUserId);
 
@@ -296,6 +317,8 @@ export function useClassroomSync({
       if (!isLecturerRef.current) return;
 
       // Symmetric eviction on kick
+      const p = dbParticipantsRef.current.get(targetUserId);
+      if (p) p.status = "denied";
       admittedStudentIdsRef.current.delete(targetUserId);
       promptedStudentIdsRef.current.delete(targetUserId);
 
@@ -428,6 +451,7 @@ export function useClassroomSync({
           duration: 20000,
           onDismiss: () => {
             activePromptToastIdsRef.current.delete(studentId);
+            promptedStudentIdsRef.current.delete(studentId);
           },
           action: {
             label: "Accept",
@@ -465,6 +489,8 @@ export function useClassroomSync({
   // ── 6. INITIAL JOIN REGISTRATION & SNAPSHOT BOOTSTRAP ──────────────────────
   useEffect(() => {
     if (!sessionId || !userId) return;
+    if (hasInitializedJoinRef.current) return;
+    hasInitializedJoinRef.current = true;
 
     let mounted = true;
 
@@ -473,13 +499,13 @@ export function useClassroomSync({
         const joinRes = await fetch(`/api/classroom/${sessionId}/participants`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "join", userName }),
+          body: JSON.stringify({ action: "join", userName: myUserNameRef.current }),
         });
 
         if (joinRes.ok) {
           const joinData = await joinRes.json();
           if (mounted && joinData?.status) {
-            setMyAdmissionStatus(joinData.status as AdmissionStatus);
+            setMyAdmissionStatus((prev) => (prev === "admitted" ? prev : (joinData.status as AdmissionStatus)));
           }
         }
 
@@ -496,7 +522,7 @@ export function useClassroomSync({
     return () => {
       mounted = false;
     };
-  }, [sessionId, userId, userName]);
+  }, [sessionId, userId]);
 
   // ── 7. ADAPTIVE WAITING ROOM RECONCILIATION & VISIBILITY LISTENERS ─────────
   useEffect(() => {
@@ -591,6 +617,7 @@ export function useClassroomSync({
         if (event.targetUserId === "ALL") {
           dbParticipantsRef.current.forEach((p, uid) => {
             if (p.role === "student") {
+              p.status = "admitted";
               admittedStudentIdsRef.current.add(uid);
               promptedStudentIdsRef.current.delete(uid);
             }
@@ -600,6 +627,8 @@ export function useClassroomSync({
             toast.success("🎓 You have been admitted to the live lecture!");
           }
         } else if (event.targetUserId) {
+          const p = dbParticipantsRef.current.get(event.targetUserId);
+          if (p) p.status = "admitted";
           admittedStudentIdsRef.current.add(event.targetUserId);
           promptedStudentIdsRef.current.delete(event.targetUserId);
           if (event.targetUserId === userId) {
@@ -713,8 +742,13 @@ export function useClassroomSync({
         const isOnline =
           Boolean(onlineEntry) || now - lastSeen < 10000; // 10s presentation grace period
 
+        // Check local admitted guard so admitted students are never downgraded
+        const isLocallyAdmitted = admittedStudentIdsRef.current.has(pUserId);
+        const effectiveStatus = isLocallyAdmitted ? "admitted" : dbP.status;
+
         mergedRoster.push({
           ...dbP,
+          status: effectiveStatus,
           connectionStatus: isOnline ? "online" : "offline",
           connectionCount: onlineEntry?.count || 0,
         });
@@ -724,9 +758,10 @@ export function useClassroomSync({
       onlineUserMap.forEach(({ count, presence }, pUserId) => {
         if (!seenUserIds.has(pUserId)) {
           seenUserIds.add(pUserId);
+          const isLocallyAdmitted = admittedStudentIdsRef.current.has(pUserId);
           mergedRoster.push({
             ...presence,
-            status: presence.status || "waiting",
+            status: isLocallyAdmitted ? "admitted" : (presence.status || "waiting"),
             connectionStatus: "online",
             connectionCount: count,
           });

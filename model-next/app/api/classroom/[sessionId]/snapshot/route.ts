@@ -3,6 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SessionParticipantRecord, AdmissionStatus } from "@/lib/supabase/types";
 
+import {
+  getCachedParticipant,
+  getAllCachedParticipants,
+} from "@/lib/participants-cache";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -36,32 +41,55 @@ export async function GET(
 
     const isLecturer = session.created_by === user.id;
 
-    // 3. Fetch participants from PostgreSQL
+    // 3. Fetch participants from PostgreSQL with in-memory cache merge
     let participants: SessionParticipantRecord[] = [];
-    const { data: partData, error: partError } = await admin
-      .from("session_participants")
-      .select("*")
-      .eq("session_id", sessionId);
+    try {
+      const { data: partData, error: partError } = await admin
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sessionId);
 
-    if (!partError && Array.isArray(partData)) {
-      participants = partData as SessionParticipantRecord[];
+      if (!partError && Array.isArray(partData)) {
+        participants = partData as SessionParticipantRecord[];
+      } else {
+        participants = getAllCachedParticipants(sessionId);
+      }
+    } catch {
+      participants = getAllCachedParticipants(sessionId);
     }
 
-    const myParticipant = participants.find((p) => p.user_id === user.id);
-    let myStatus: AdmissionStatus = isLecturer ? "admitted" : (myParticipant?.status || "waiting");
+    // Merge in-memory cache to guarantee active admissions never revert
+    const cachedList = getAllCachedParticipants(sessionId);
+    const mergedMap = new Map<string, SessionParticipantRecord>();
+    participants.forEach((p) => mergedMap.set(p.user_id, p));
+    cachedList.forEach((cp) => {
+      const existing = mergedMap.get(cp.user_id);
+      if (!existing || cp.status === "admitted") {
+        mergedMap.set(cp.user_id, { ...(existing || {}), ...cp });
+      }
+    });
+
+    const allParticipants = Array.from(mergedMap.values());
+    const myParticipant = allParticipants.find((p) => p.user_id === user.id);
+    const cachedMy = getCachedParticipant(sessionId, user.id);
+    const myStatus: AdmissionStatus = isLecturer
+      ? "admitted"
+      : (myParticipant?.status || cachedMy?.status || "waiting");
 
     // 4. Filter participants roster based on RLS / authorization policy
     // Lecturer sees all participants; admitted students see all admitted classmates; waiting students see self only
     let visibleParticipants: SessionParticipantRecord[] = [];
 
     if (isLecturer) {
-      visibleParticipants = participants;
+      visibleParticipants = allParticipants;
     } else if (myStatus === "admitted") {
-      visibleParticipants = participants.filter(
+      visibleParticipants = allParticipants.filter(
         (p) => p.status === "admitted" || p.user_id === user.id
       );
     } else if (myParticipant) {
       visibleParticipants = [myParticipant];
+    } else if (cachedMy) {
+      visibleParticipants = [cachedMy];
     }
 
     const stateVersion = Number(session.state_version) || 0;

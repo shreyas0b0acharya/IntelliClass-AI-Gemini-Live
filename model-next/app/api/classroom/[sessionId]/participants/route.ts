@@ -3,6 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SessionParticipantRecord, AdmissionStatus } from "@/lib/supabase/types";
 
+import {
+  getCachedParticipant,
+  getAllCachedParticipants,
+  setCachedParticipant,
+  admitCachedParticipant,
+  setCachedStatus,
+} from "@/lib/participants-cache";
+
 // Helper to atomically bump state_version on the session in PostgreSQL
 async function bumpStateVersion(
   admin: ReturnType<typeof createAdminClient>,
@@ -67,39 +75,79 @@ export async function GET(
         });
       }
 
-      const { data: myRecord } = await admin
-        .from("session_participants")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("user_id", user.id)
-        .single();
+      let myStatus: AdmissionStatus = "waiting";
+      let admittedAt: string | null | undefined = null;
+
+      try {
+        const { data: myRecord, error: myError } = await admin
+          .from("session_participants")
+          .select("*")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (!myError && myRecord) {
+          myStatus = myRecord.status as AdmissionStatus;
+          admittedAt = myRecord.admitted_at;
+        } else {
+          const cached = getCachedParticipant(sessionId, user.id);
+          if (cached) {
+            myStatus = cached.status;
+            admittedAt = cached.admitted_at;
+          }
+        }
+      } catch {
+        const cached = getCachedParticipant(sessionId, user.id);
+        if (cached) {
+          myStatus = cached.status;
+          admittedAt = cached.admitted_at;
+        }
+      }
 
       return NextResponse.json({
-        status: (myRecord?.status || "waiting") as AdmissionStatus,
+        status: myStatus,
         role: "student",
         userId: user.id,
-        admittedAt: myRecord?.admitted_at,
+        admittedAt,
       });
     }
 
-    // Fetch full roster with RLS rules
-    const { data: partData, error: partError } = await admin
-      .from("session_participants")
-      .select("*")
-      .eq("session_id", sessionId);
+    // Fetch full roster with RLS rules & in-memory cache merge
+    let participants: SessionParticipantRecord[] = [];
+    try {
+      const { data: partData, error: partError } = await admin
+        .from("session_participants")
+        .select("*")
+        .eq("session_id", sessionId);
 
-    if (partError) {
-      return NextResponse.json({ error: partError.message }, { status: 500 });
+      if (!partError && Array.isArray(partData)) {
+        participants = partData as SessionParticipantRecord[];
+      } else {
+        participants = getAllCachedParticipants(sessionId);
+      }
+    } catch {
+      participants = getAllCachedParticipants(sessionId);
     }
 
-    const participants = (partData || []) as SessionParticipantRecord[];
-    const myRecord = participants.find((p) => p.user_id === user.id);
+    // Merge cached updates if any record is ahead in cache
+    const cachedList = getAllCachedParticipants(sessionId);
+    const mergedMap = new Map<string, SessionParticipantRecord>();
+    participants.forEach((p) => mergedMap.set(p.user_id, p));
+    cachedList.forEach((cp) => {
+      const existing = mergedMap.get(cp.user_id);
+      if (!existing || cp.status === "admitted") {
+        mergedMap.set(cp.user_id, { ...(existing || {}), ...cp });
+      }
+    });
+
+    const allParticipants = Array.from(mergedMap.values());
+    const myRecord = allParticipants.find((p) => p.user_id === user.id);
     const myStatus = isLecturer ? "admitted" : (myRecord?.status || "waiting");
 
-    let visible = participants;
+    let visible = allParticipants;
     if (!isLecturer) {
       if (myStatus === "admitted") {
-        visible = participants.filter((p) => p.status === "admitted" || p.user_id === user.id);
+        visible = allParticipants.filter((p) => p.status === "admitted" || p.user_id === user.id);
       } else if (myRecord) {
         visible = [myRecord];
       } else {
@@ -173,20 +221,30 @@ export async function POST(
     // ── ACTION: JOIN (Knock / Check Admission) ────────────────────────────────
     if (action === "join") {
       if (isLecturer) {
-        // Upsert lecturer as admitted
-        await admin.from("session_participants").upsert(
-          {
-            session_id: sessionId,
-            user_id: user.id,
-            user_name: resolvedUserName,
-            role: "lecturer",
-            status: "admitted",
-            joined_at: new Date().toISOString(),
-            admitted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "session_id,user_id" }
-        );
+        setCachedParticipant(sessionId, {
+          user_id: user.id,
+          user_name: resolvedUserName,
+          role: "lecturer",
+          status: "admitted",
+        });
+
+        try {
+          await admin.from("session_participants").upsert(
+            {
+              session_id: sessionId,
+              user_id: user.id,
+              user_name: resolvedUserName,
+              role: "lecturer",
+              status: "admitted",
+              joined_at: new Date().toISOString(),
+              admitted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "session_id,user_id" }
+          );
+        } catch (e) {
+          console.warn("[participants] DB upsert lecturer warning:", e);
+        }
 
         return NextResponse.json({
           status: "admitted" as AdmissionStatus,
@@ -195,70 +253,110 @@ export async function POST(
         });
       }
 
-      // Check existing student record
-      const { data: existing } = await admin
-        .from("session_participants")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("user_id", user.id)
-        .single();
+      // Check in-memory cache first: if already admitted, preserve admission
+      const cached = getCachedParticipant(sessionId, user.id);
+      if (cached && cached.status === "admitted") {
+        return NextResponse.json({
+          status: "admitted" as AdmissionStatus,
+          role: "student",
+          stateVersion: Number(session.state_version) || 0,
+        });
+      }
 
-      if (existing) {
-        if (existing.status === "admitted") {
+      // Check existing student record in PostgreSQL
+      try {
+        const { data: existing } = await admin
+          .from("session_participants")
+          .select("*")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (existing) {
+          setCachedParticipant(sessionId, existing);
+
+          if (existing.status === "admitted") {
+            return NextResponse.json({
+              status: "admitted" as AdmissionStatus,
+              role: "student",
+              stateVersion: Number(session.state_version) || 0,
+            });
+          }
+          if (existing.status === "denied") {
+            return NextResponse.json(
+              {
+                error: "Admission was denied by the lecturer. You may request to re-join after the cooldown.",
+                status: "denied" as AdmissionStatus,
+                updatedAt: existing.updated_at,
+              },
+              { status: 403 }
+            );
+          }
+          if (existing.status === "left") {
+            setCachedParticipant(sessionId, {
+              user_id: user.id,
+              user_name: resolvedUserName,
+              status: "waiting",
+            });
+
+            await admin
+              .from("session_participants")
+              .update({
+                status: "waiting",
+                joined_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("session_id", sessionId)
+              .eq("user_id", user.id);
+
+            const newVersion = await bumpStateVersion(admin, sessionId);
+            return NextResponse.json({
+              status: "waiting" as AdmissionStatus,
+              role: "student",
+              stateVersion: newVersion,
+            });
+          }
+
           return NextResponse.json({
-            status: "admitted" as AdmissionStatus,
+            status: "waiting" as AdmissionStatus,
             role: "student",
             stateVersion: Number(session.state_version) || 0,
           });
         }
-        if (existing.status === "denied") {
-          return NextResponse.json(
-            {
-              error: "Admission was denied by the lecturer. You may request to re-join after the cooldown.",
-              status: "denied" as AdmissionStatus,
-              updatedAt: existing.updated_at,
-            },
-            { status: 403 }
-          );
-        }
-        if (existing.status === "left") {
-          // Re-entering waiting lobby
-          await admin
-            .from("session_participants")
-            .update({
-              status: "waiting",
-              joined_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("session_id", sessionId)
-            .eq("user_id", user.id);
+      } catch (err) {
+        console.warn("[participants] DB existing student check warning:", err);
+      }
 
-          const newVersion = await bumpStateVersion(admin, sessionId);
-          return NextResponse.json({
-            status: "waiting" as AdmissionStatus,
-            role: "student",
-            stateVersion: newVersion,
-          });
-        }
-
-        // Already waiting
+      // If already in cache with waiting or denied status
+      if (cached) {
         return NextResponse.json({
-          status: "waiting" as AdmissionStatus,
+          status: cached.status,
           role: "student",
           stateVersion: Number(session.state_version) || 0,
         });
       }
 
       // New student registration -> insert waiting
-      await admin.from("session_participants").insert({
-        session_id: sessionId,
+      setCachedParticipant(sessionId, {
         user_id: user.id,
         user_name: resolvedUserName,
         role: "student",
         status: "waiting",
-        joined_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
+
+      try {
+        await admin.from("session_participants").insert({
+          session_id: sessionId,
+          user_id: user.id,
+          user_name: resolvedUserName,
+          role: "student",
+          status: "waiting",
+          joined_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn("[participants] DB insert student warning:", err);
+      }
 
       const newVersion = await bumpStateVersion(admin, sessionId);
       return NextResponse.json({
@@ -270,39 +368,47 @@ export async function POST(
 
     // ── ACTION: RE_REQUEST (Denied student requesting re-entry with 30s cooldown)
     if (action === "re_request") {
-      const { data: existing } = await admin
-        .from("session_participants")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("user_id", user.id)
-        .single();
+      setCachedParticipant(sessionId, {
+        user_id: user.id,
+        user_name: resolvedUserName,
+        status: "waiting",
+      });
 
-      if (!existing) {
-        return NextResponse.json({ error: "Participant record not found" }, { status: 404 });
+      try {
+        const { data: existing } = await admin
+          .from("session_participants")
+          .select("*")
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (existing) {
+          const COOLDOWN_MS = 30 * 1000;
+          const lastUpdated = new Date(existing.updated_at).getTime();
+          const elapsed = Date.now() - lastUpdated;
+
+          if (elapsed < COOLDOWN_MS) {
+            const remainingSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+            return NextResponse.json(
+              { error: `Please wait ${remainingSec}s before re-requesting admission.` },
+              { status: 429 }
+            );
+          }
+
+          await admin
+            .from("session_participants")
+            .update({
+              status: "waiting",
+              user_name: resolvedUserName,
+              joined_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("session_id", sessionId)
+            .eq("user_id", user.id);
+        }
+      } catch (err) {
+        console.warn("[participants] DB re_request warning:", err);
       }
-
-      const COOLDOWN_MS = 30 * 1000;
-      const lastUpdated = new Date(existing.updated_at).getTime();
-      const elapsed = Date.now() - lastUpdated;
-
-      if (elapsed < COOLDOWN_MS) {
-        const remainingSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-        return NextResponse.json(
-          { error: `Please wait ${remainingSec}s before re-requesting admission.` },
-          { status: 429 }
-        );
-      }
-
-      await admin
-        .from("session_participants")
-        .update({
-          status: "waiting",
-          user_name: resolvedUserName,
-          joined_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("session_id", sessionId)
-        .eq("user_id", user.id);
 
       const newVersion = await bumpStateVersion(admin, sessionId);
       return NextResponse.json({
@@ -326,31 +432,53 @@ export async function POST(
 
       // ── ACTION: ADMIT ──────────────────────────────────────────────────────
       if (action === "admit") {
-        if (targetUserId === "ALL") {
-          await admin
-            .from("session_participants")
-            .update({
-              status: "admitted",
-              admitted_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("session_id", sessionId)
-            .eq("status", "waiting");
-        } else {
-          await admin
-            .from("session_participants")
-            .upsert(
-              {
-                session_id: sessionId,
-                user_id: targetUserId,
-                user_name: userName || "Student",
-                role: "student",
+        // Immediate in-memory admission guarantees instant propagation without regression
+        admitCachedParticipant(sessionId, targetUserId, userName);
+
+        try {
+          if (targetUserId === "ALL") {
+            await admin
+              .from("session_participants")
+              .update({
                 status: "admitted",
                 admitted_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-              },
-              { onConflict: "session_id,user_id" }
-            );
+              })
+              .eq("session_id", sessionId)
+              .eq("status", "waiting");
+          } else {
+            // First attempt direct update for existing student record
+            const { data: updated, error: updateErr } = await admin
+              .from("session_participants")
+              .update({
+                status: "admitted",
+                admitted_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("session_id", sessionId)
+              .eq("user_id", targetUserId)
+              .select();
+
+            // If not found in table or update failed, fallback to upsert
+            if (updateErr || !updated || updated.length === 0) {
+              await admin
+                .from("session_participants")
+                .upsert(
+                  {
+                    session_id: sessionId,
+                    user_id: targetUserId,
+                    user_name: userName || "Student",
+                    role: "student",
+                    status: "admitted",
+                    admitted_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: "session_id,user_id" }
+                );
+            }
+          }
+        } catch (dbErr) {
+          console.warn("[participants] DB admit warning (cache preserved):", dbErr);
         }
 
         const newVersion = await bumpStateVersion(admin, sessionId);
@@ -364,14 +492,20 @@ export async function POST(
 
       // ── ACTION: DENY / KICK ────────────────────────────────────────────────
       if (action === "deny" || action === "kick") {
-        await admin
-          .from("session_participants")
-          .update({
-            status: "denied",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("session_id", sessionId)
-          .eq("user_id", targetUserId);
+        setCachedStatus(sessionId, targetUserId, "denied");
+
+        try {
+          await admin
+            .from("session_participants")
+            .update({
+              status: "denied",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("session_id", sessionId)
+            .eq("user_id", targetUserId);
+        } catch (dbErr) {
+          console.warn("[participants] DB deny/kick warning:", dbErr);
+        }
 
         const newVersion = await bumpStateVersion(admin, sessionId);
         return NextResponse.json({
@@ -385,14 +519,20 @@ export async function POST(
 
     // ── ACTION: LEAVE ────────────────────────────────────────────────────────
     if (action === "leave") {
-      await admin
-        .from("session_participants")
-        .update({
-          status: "left",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("session_id", sessionId)
-        .eq("user_id", user.id);
+      setCachedStatus(sessionId, user.id, "left");
+
+      try {
+        await admin
+          .from("session_participants")
+          .update({
+            status: "left",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("session_id", sessionId)
+          .eq("user_id", user.id);
+      } catch (dbErr) {
+        console.warn("[participants] DB leave warning:", dbErr);
+      }
 
       return NextResponse.json({ success: true, action: "leave" });
     }
