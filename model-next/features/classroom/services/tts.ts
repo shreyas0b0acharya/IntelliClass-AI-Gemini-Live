@@ -1,11 +1,16 @@
 import type { SpeechItem, TTSFetchOptions } from "../types/speech";
+import {
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+} from "@/config";
 
 export async function fetchSpeechTTS({
   text,
-  voice = "af_bella",
-  provider = "headtts",
+  voice = DEFAULT_FEMALE_VOICE_ID,
+  provider = DEFAULT_TTS_PROVIDER,
   modelId,
-  speed = 1.0,
+  speed = DEFAULT_SPEECH_SPEED,
   voiceSettings,
   requestId,
   signal,

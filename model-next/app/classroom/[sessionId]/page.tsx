@@ -23,6 +23,11 @@ import { AssetSyncModal } from "@/components/shared";
 import { assetStorage, resolveAvatarModel } from "@/features/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_TTS_PROVIDER,
+} from "@/config";
+import {
   Loader2,
   Clock,
   AlertTriangle,
@@ -246,9 +251,9 @@ export default function ClassroomPage({
         sessionStatus={classroom.sessionStatus}
         isLecturer={isLecturer}
         currentAvatarModel={avatarModel}
-        currentVoiceId={classroom.session.voice_id || "am_fenrir"}
-        currentSpeechSpeed={classroom.session.speech_speed ?? 1.0}
-        currentTtsProvider={classroom.session.tts_provider || "headtts"}
+        currentVoiceId={classroom.session.voice_id || DEFAULT_MALE_VOICE_ID}
+        currentSpeechSpeed={classroom.session.speech_speed ?? DEFAULT_SPEECH_SPEED}
+        currentTtsProvider={classroom.session.tts_provider || DEFAULT_TTS_PROVIDER}
         onSaveConfig={async (config) => {
           await classroom.updatePersonaConfig(config);
         }}

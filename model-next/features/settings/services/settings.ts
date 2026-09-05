@@ -6,35 +6,32 @@ import type { ModelPreferences } from "../types/settings.types";
 
 export type { ModelPreferences };
 
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_ELEVENLABS_VOICE_ID,
+  DEFAULT_ELEVENLABS_MODEL_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+  MALE_MODEL_PRESETS,
+  FEMALE_MODEL_PRESETS,
+} from "@/config";
+
+export { MALE_MODEL_PRESETS, FEMALE_MODEL_PRESETS };
+
 export const DEFAULT_MODEL_PREFERENCES: ModelPreferences = {
   defaultGender: "male",
-  defaultMaleModelName: "Prof. Arthur",
-  defaultFemaleModelName: "Dr. Clara",
-  defaultMaleVoice: "am_fenrir",
-  defaultFemaleVoice: "af_bella",
-  speechSpeed: 1.0,
+  defaultMaleModelName: MALE_MODEL_PRESETS[0],
+  defaultFemaleModelName: FEMALE_MODEL_PRESETS[0],
+  defaultMaleVoice: DEFAULT_MALE_VOICE_ID,
+  defaultFemaleVoice: DEFAULT_FEMALE_VOICE_ID,
+  speechSpeed: DEFAULT_SPEECH_SPEED,
   speechPitch: 1.0,
   modelQuality: "high",
-  ttsProvider: "headtts",
-  elevenLabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
-  elevenLabsModelId: "eleven_flash_v2_5",
+  ttsProvider: DEFAULT_TTS_PROVIDER,
+  elevenLabsVoiceId: DEFAULT_ELEVENLABS_VOICE_ID,
+  elevenLabsModelId: DEFAULT_ELEVENLABS_MODEL_ID,
 };
-
-export const MALE_MODEL_PRESETS = [
-  "Prof. Arthur",
-  "Prof. Alexander",
-  "Prof. Sharma",
-  "Prof. David",
-  "Dr. Julian",
-];
-
-export const FEMALE_MODEL_PRESETS = [
-  "Dr. Clara",
-  "Dr. Sophia",
-  "Prof. Bella",
-  "Dr. Elena",
-  "Prof. Evelyn",
-];
 
 import type { VoiceOption, VoiceGender, TTSModelOption } from "@/features/classroom/types/speech";
 import {

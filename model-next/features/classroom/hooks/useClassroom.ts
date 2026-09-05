@@ -29,8 +29,14 @@ import {
 import { fetchSpeechTTS } from "../services/tts";
 import { ELEVENLABS_VOICE_OPTIONS } from "@/features/settings/services/settings";
 import type { TTSProviderId } from "../types/speech";
-
-const LEAD_TIME_MS = 350;
+import {
+  CLASSROOM_TIMINGS,
+  LEAD_TIME_MS,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_HEADTTS_MODEL_ID,
+  DEFAULT_ELEVENLABS_MODEL_ID,
+} from "@/config";
 
 export interface MediaItemDisplay {
   type: "image" | "video";
@@ -44,21 +50,25 @@ export function resolveVoiceAndProvider(rawVoiceId?: string): {
   modelId: string;
 } {
   if (!rawVoiceId) {
-    return { voiceId: "af_bella", provider: "headtts", modelId: "kokoro-82m-onnx" };
+    return {
+      voiceId: DEFAULT_FEMALE_VOICE_ID,
+      provider: DEFAULT_TTS_PROVIDER,
+      modelId: DEFAULT_HEADTTS_MODEL_ID,
+    };
   }
   if (rawVoiceId.startsWith("elevenlabs:")) {
     return {
       voiceId: rawVoiceId.replace("elevenlabs:", ""),
       provider: "elevenlabs",
-      modelId: "eleven_flash_v2_5",
+      modelId: DEFAULT_ELEVENLABS_MODEL_ID,
     };
   }
   const isElevenLabs =
     ELEVENLABS_VOICE_OPTIONS.some((v) => v.id === rawVoiceId) || rawVoiceId.length >= 18;
   if (isElevenLabs) {
-    return { voiceId: rawVoiceId, provider: "elevenlabs", modelId: "eleven_flash_v2_5" };
+    return { voiceId: rawVoiceId, provider: "elevenlabs", modelId: DEFAULT_ELEVENLABS_MODEL_ID };
   }
-  return { voiceId: rawVoiceId, provider: "headtts", modelId: "kokoro-82m-onnx" };
+  return { voiceId: rawVoiceId, provider: DEFAULT_TTS_PROVIDER, modelId: DEFAULT_HEADTTS_MODEL_ID };
 }
 
 export function useClassroom(sessionId: string) {
@@ -202,7 +212,7 @@ export function useClassroom(sessionId: string) {
         isLecturerRef.current &&
         isConductorLeaseActiveRef.current
       ) {
-        scheduleAdvance(80);
+        scheduleAdvance(CLASSROOM_TIMINGS.AUTO_ADVANCE_DELAY_MS);
       }
     },
     onError: (err) => {
@@ -351,7 +361,7 @@ export function useClassroom(sessionId: string) {
         }
 
         sequenceRef.current++;
-        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + CLASSROOM_TIMINGS.LEAD_TIME_MS);
         const seq = sequenceRef.current;
         const durationMs = Math.round(speechResult.durationMs || 0);
         const executionId = `${sessionId}_${item.id}_seq${seq}_${targetEpochMs}`;
@@ -459,7 +469,7 @@ export function useClassroom(sessionId: string) {
     };
 
     pollOrRenewLease();
-    const interval = setInterval(pollOrRenewLease, 5000);
+    const interval = setInterval(pollOrRenewLease, CLASSROOM_TIMINGS.DRIVER_LEASE_RENEW_INTERVAL_MS);
 
     return () => {
       active = false;
@@ -560,7 +570,7 @@ export function useClassroom(sessionId: string) {
         // Conductor prefetch next items (students stream broadcasted cache)
         if (isLecturerRef.current && foundIdx !== -1) {
           const nextItems = itemsRef.current
-            .slice(foundIdx + 1, foundIdx + 4)
+            .slice(foundIdx + 1, foundIdx + 1 + CLASSROOM_TIMINGS.PREFETCH_LOOKAHEAD_COUNT)
             .filter((i): i is LectureSpeechItem => i.type === "speech")
             .map((i) => i.text);
           if (nextItems.length > 0) {
@@ -602,7 +612,7 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle(event.text || "");
         syncStore().setCurrentSubtitle(event.text || "");
 
-        if (remainingMs > 200 && event.audioUrl) {
+        if (remainingMs > CLASSROOM_TIMINGS.SEEK_SYNC_MIN_REMAINING_MS && event.audioUrl) {
           preloadAudioBuffer(event.audioUrl);
           speech.playScheduled({
             audioUrl: event.audioUrl,
@@ -1079,7 +1089,7 @@ export function useClassroom(sessionId: string) {
       try {
         const speechRes = await fetchSpeechTTS({
           text: answer,
-          voice: session.voice_id || "af_bella",
+          voice: session.voice_id || DEFAULT_FEMALE_VOICE_ID,
         });
         audioUrl = speechRes.audioPath;
         lipSyncData = speechRes.lipSyncData;

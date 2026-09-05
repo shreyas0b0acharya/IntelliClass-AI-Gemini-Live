@@ -17,7 +17,17 @@ import {
   type AvatarModelId,
 } from "@/features/avatar";
 import type { VoiceOption, TTSModelOption, TTSProviderId, VoiceGender } from "@/features/classroom/types/speech";
-import { ALL_DEFAULT_VOICE_OPTIONS, TTS_MODELS } from "@/features/classroom/constants/voices";
+import { ALL_DEFAULT_VOICE_OPTIONS } from "@/features/classroom/constants/voices";
+import {
+  DEFAULT_AVATAR_MODEL,
+  DEFAULT_FEMALE_AVATAR_MODEL,
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_TTS_PROVIDER,
+  SPEECH_SPEED_LIMITS,
+  TTS_MODELS,
+  getVoicePreviewPhrase,
+} from "@/config";
 import { api } from "@/lib/api";
 import {
   User,
@@ -60,17 +70,17 @@ export function SessionPersonaModal({
   isLecturer,
   currentAvatarModel,
   currentVoiceId,
-  currentSpeechSpeed = 1.0,
-  currentTtsProvider = "headtts",
+  currentSpeechSpeed = DEFAULT_SPEECH_SPEED,
+  currentTtsProvider = DEFAULT_TTS_PROVIDER,
   onSaveConfig,
 }: SessionPersonaModalProps) {
   const isLocked = sessionStatus === "running" || !isLecturer;
 
   // Form state
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarModelId>(
-    currentAvatarModel === "women-avatarsdk" ? "women-avatarsdk" : "men-avatarsdk"
+    currentAvatarModel === DEFAULT_FEMALE_AVATAR_MODEL ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL
   );
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(currentVoiceId || "am_fenrir");
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(currentVoiceId || DEFAULT_MALE_VOICE_ID);
   const [speechSpeed, setSpeechSpeed] = useState<number>(currentSpeechSpeed);
   const [providerFilter, setProviderFilter] = useState<"all" | "elevenlabs" | "headtts">("all");
 
@@ -88,10 +98,10 @@ export function SessionPersonaModal({
   useEffect(() => {
     if (open) {
       setSelectedAvatar(
-        currentAvatarModel === "women-avatarsdk" ? "women-avatarsdk" : "men-avatarsdk"
+        currentAvatarModel === DEFAULT_FEMALE_AVATAR_MODEL ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL
       );
-      setSelectedVoiceId(currentVoiceId || "am_fenrir");
-      setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : 1.0);
+      setSelectedVoiceId(currentVoiceId || DEFAULT_MALE_VOICE_ID);
+      setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : DEFAULT_SPEECH_SPEED);
     }
   }, [open, currentAvatarModel, currentVoiceId, currentSpeechSpeed]);
 
@@ -161,7 +171,7 @@ export function SessionPersonaModal({
   const handleQuickFixAvatar = (newAvatarId?: AvatarModelId) => {
     if (newAvatarId) {
       setSelectedAvatar(newAvatarId);
-      toast.success(`Switched avatar to ${newAvatarId === "women-avatarsdk" ? "Dr. Clara" : "Prof. Arthur"}`);
+      toast.success(`Switched avatar to ${newAvatarId === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur"}`);
     }
   };
 
@@ -186,8 +196,8 @@ export function SessionPersonaModal({
     }
 
     setTestingAudio(true);
-    const avatarName = selectedAvatar === "women-avatarsdk" ? "Dr. Clara" : "Prof. Arthur";
-    const sampleText = `Hello class, I am ${avatarName}. Welcome to our lecture today. Let us explore the core concepts together.`;
+    const avatarName = selectedAvatar === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur";
+    const sampleText = getVoicePreviewPhrase(avatarName);
 
     try {
       const response = await fetch("/api/tts", {
@@ -462,7 +472,7 @@ export function SessionPersonaModal({
                     onClick={() => handleQuickFixAvatar(pairingValidation.quickFixAvatarId)}
                     className="px-3 py-1.5 rounded-xl bg-amber-600 text-white dark:bg-amber-500 text-[11px] font-bold hover:opacity-90 transition-opacity"
                   >
-                    Switch to {pairingValidation.quickFixAvatarId === "women-avatarsdk" ? "Dr. Clara" : "Prof. Arthur"}
+                    Switch to {pairingValidation.quickFixAvatarId === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur"}
                   </button>
                 )}
                 <button

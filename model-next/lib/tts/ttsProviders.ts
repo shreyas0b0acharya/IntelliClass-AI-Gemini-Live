@@ -16,6 +16,19 @@ import {
   type ElevenLabsAlignment,
 } from "./ElevenLabsAlignmentToVisemeAdapter";
 import { SPEECH_PREPROCESSOR_VERSION, SpeechPreprocessor } from "./SpeechPreprocessor";
+import {
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_ELEVENLABS_VOICE_ID,
+  ELEVENLABS_FALLBACK_VOICE_ID,
+  DEFAULT_HEADTTS_MODEL_ID,
+  DEFAULT_ELEVENLABS_MODEL_ID,
+  DEFAULT_CALIBRATED_SPEED,
+  SPEECH_SPEED_LIMITS,
+  ELEVENLABS_API_CONFIG,
+} from "@/config";
 
 export interface TTSCacheKeyParams {
   provider: TTSProviderId;
@@ -154,7 +167,7 @@ export class HeadTTSProvider implements ITTSServiceProvider {
 export class ElevenLabsProvider implements ITTSServiceProvider {
   async synthesize(
     text: string,
-    voiceId: string = "EXAVITQu4vr4xnSDxMaL",
+    voiceId: string = DEFAULT_ELEVENLABS_VOICE_ID,
     speed: number = 1.0,
     options?: { modelId?: string; voiceSettings?: ElevenLabsVoiceSettings; signal?: AbortSignal }
   ): Promise<ProviderSynthesisOutput> {
@@ -163,7 +176,7 @@ export class ElevenLabsProvider implements ITTSServiceProvider {
       throw new Error("ELEVENLABS_API_KEY environment variable is not configured.");
     }
 
-    const modelId = options?.modelId || process.env.ELEVENLABS_DEFAULT_MODEL || "eleven_flash_v2_5";
+    const modelId = options?.modelId || process.env.ELEVENLABS_DEFAULT_MODEL || DEFAULT_ELEVENLABS_MODEL_ID;
 
     const voiceSettings = {
       stability: options?.voiceSettings?.stability ?? 0.5,
@@ -173,7 +186,7 @@ export class ElevenLabsProvider implements ITTSServiceProvider {
       speed: speed,
     };
 
-    const endpoint = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+    const endpoint = `${ELEVENLABS_API_CONFIG.BASE_URL}/text-to-speech/${encodeURIComponent(
       voiceId
     )}/with-timestamps?output_format=mp3_44100_128`;
 
@@ -232,25 +245,30 @@ export class ElevenLabsProvider implements ITTSServiceProvider {
 // 3. Central TTSManager Gateway
 // ─────────────────────────────────────────────
 
-export const PROVIDER_BASELINE_SPEED: Record<TTSProviderId, number> = {
-  headtts: 1.0,
-  elevenlabs: 0.90, // Initial calibrated preset for academic cadence
-};
+export const PROVIDER_BASELINE_SPEED = DEFAULT_CALIBRATED_SPEED;
 
 /**
  * Calculates effective TTS synthesis speed from user pacing preference.
- * Keeps user pacing slider (e.g. 0.75x - 1.25x) proportional across providers.
+ * Uses provider baseline speed (e.g. elevenlabs 0.90) as default starting preset,
+ * and clamps user-selected speeds within supported provider limits.
  */
 export function calculateEffectiveSpeed(
   provider: TTSProviderId,
-  userPacing: number = 1.0
+  userPacing?: number | null
 ): number {
-  const base = PROVIDER_BASELINE_SPEED[provider] ?? 1.0;
+  const speed =
+    typeof userPacing === "number" && userPacing > 0
+      ? userPacing
+      : (PROVIDER_BASELINE_SPEED[provider] ?? DEFAULT_SPEECH_SPEED);
+
   if (provider === "elevenlabs") {
-    // Proportional mapping around 0.90 baseline; clamps to ElevenLabs supported range [0.70, 1.20]
-    return Math.min(1.20, Math.max(0.70, Number((userPacing * base).toFixed(2))));
+    // Clamp to ElevenLabs supported range [0.70, 1.20]
+    return Math.min(
+      SPEECH_SPEED_LIMITS.MAX,
+      Math.max(SPEECH_SPEED_LIMITS.MIN, Number(speed.toFixed(2)))
+    );
   }
-  return Number((userPacing * base).toFixed(2));
+  return Number(speed.toFixed(2));
 }
 
 export class TTSManager {
@@ -270,12 +288,12 @@ export class TTSManager {
 
     // Step 1: Preprocess and normalize text
     const normalizedText = SpeechPreprocessor.process(rawText);
-    const provider: TTSProviderId = options.provider || "headtts";
-    const userPacing = typeof options.speed === "number" && options.speed > 0 ? options.speed : 1.0;
+    const provider: TTSProviderId = options.provider || DEFAULT_TTS_PROVIDER;
+    const userPacing = typeof options.speed === "number" && options.speed > 0 ? options.speed : undefined;
     const speed = calculateEffectiveSpeed(provider, userPacing);
-    const voiceId = options.voice || (provider === "elevenlabs" ? "21m00Tcm4TlvDq8ikWAM" : "af_bella");
+    const voiceId = options.voice || (provider === "elevenlabs" ? ELEVENLABS_FALLBACK_VOICE_ID : DEFAULT_FEMALE_VOICE_ID);
     const modelId =
-      options.modelId || (provider === "elevenlabs" ? "eleven_flash_v2_5" : "kokoro-82m-onnx");
+      options.modelId || (provider === "elevenlabs" ? DEFAULT_ELEVENLABS_MODEL_ID : DEFAULT_HEADTTS_MODEL_ID);
     const requestId = options.requestId || crypto.randomUUID();
 
     // Step 2: Compute versioned, immutable cache key

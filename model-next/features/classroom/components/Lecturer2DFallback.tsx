@@ -6,6 +6,7 @@ import { SubtitleBar } from "./SubtitleBar";
 import { ProjectionBoard } from "./ProjectionBoard";
 import { QuestionInput } from "./QuestionInput";
 import type { MediaItemDisplay } from "../hooks/useClassroom";
+import { DEFAULT_AVATAR_MODEL, DEFAULT_FEMALE_AVATAR_MODEL } from "@/config";
 
 interface Lecturer2DFallbackProps {
   model?: string;
@@ -21,7 +22,7 @@ interface Lecturer2DFallbackProps {
 }
 
 export function Lecturer2DFallback({
-  model = "men-avatarsdk",
+  model = DEFAULT_AVATAR_MODEL,
   isSpeaking,
   subtitle,
   activeMedia,
@@ -32,7 +33,7 @@ export function Lecturer2DFallback({
   onQuestionChange,
   onQuestionSubmit,
 }: Lecturer2DFallbackProps) {
-  const isFemale = model.includes("women") || model.includes("julia");
+  const isFemale = model === DEFAULT_FEMALE_AVATAR_MODEL;
   const avatarName = isFemale ? "Professor Elena" : "Professor Sharma";
   const avatarInitials = isFemale ? "PE" : "PS";
 

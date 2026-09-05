@@ -11,9 +11,10 @@ import * as THREE from "three";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
 import { useDeviceTier } from "../hooks/useDeviceTier";
+import { DEFAULT_AVATAR_MODEL, CLASSROOM_STAGE_MODEL_PATH } from "@/config";
 
 function ClassroomStage() {
-  const { scene } = useGLTF("/models/CLASSROOM.glb");
+  const { scene } = useGLTF(CLASSROOM_STAGE_MODEL_PATH);
 
   // Dispose geometries and materials on unmount
   useEffect(() => {
@@ -52,7 +53,7 @@ interface ExperienceProps {
 }
 
 export function Experience({
-  model = "men-avatarsdk",
+  model = DEFAULT_AVATAR_MODEL,
   animation = "weight shift",
   behaviorState = "idle",
   headFollow = true,

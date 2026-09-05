@@ -2,6 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import crypto from "crypto";
 import { resolveAvatarModel } from "@/features/avatar";
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SESSION_STATUS,
+} from "@/config";
 
 export async function GET(
   request: NextRequest,
@@ -48,9 +54,9 @@ export async function GET(
       .filter((s) => s.status !== "deleted")
       .map((s) => ({
         ...s,
-        voice_id: s.voice_id || "am_fenrir",
+        voice_id: s.voice_id || DEFAULT_MALE_VOICE_ID,
         avatar_model: resolveAvatarModel(s.avatar_model, s.voice_id),
-        speech_speed: typeof s.speech_speed === "number" ? s.speech_speed : 1.0,
+        speech_speed: typeof s.speech_speed === "number" ? s.speech_speed : DEFAULT_SPEECH_SPEED,
         meeting_code: s.meeting_code || s.id?.slice(0, 8),
       }));
 
@@ -117,13 +123,13 @@ export async function POST(
 
     const body = (await request.json()) as Record<string, unknown>;
     const topic = typeof body.topic === "string" ? body.topic.trim() : "";
-    const voice_id = typeof body.voice_id === "string" ? body.voice_id : "am_fenrir";
+    const voice_id = typeof body.voice_id === "string" ? body.voice_id : DEFAULT_MALE_VOICE_ID;
     const avatar_model = resolveAvatarModel(
       typeof body.avatar_model === "string" ? body.avatar_model : undefined,
       voice_id
     );
-    const speech_speed = typeof body.speech_speed === "number" ? body.speech_speed : 1.0;
-    const tts_provider = typeof body.tts_provider === "string" ? body.tts_provider : "headtts";
+    const speech_speed = typeof body.speech_speed === "number" ? body.speech_speed : DEFAULT_SPEECH_SPEED;
+    const tts_provider = typeof body.tts_provider === "string" ? body.tts_provider : DEFAULT_TTS_PROVIDER;
     
     // Always auto-generate a unique system meeting code
     const meeting_code = generateUniqueMeetingCode();
@@ -136,11 +142,11 @@ export async function POST(
     const insertPayload: Record<string, unknown> = {
       course_id: courseId,
       topic,
-      voice_id: voice_id || "am_fenrir",
+      voice_id: voice_id || DEFAULT_MALE_VOICE_ID,
       avatar_model,
       speech_speed,
       tts_provider,
-      status: "created",
+      status: DEFAULT_SESSION_STATUS,
       created_by: user.id,
       meeting_code,
     };
@@ -187,7 +193,7 @@ export async function POST(
     // Ensure client always receives non-null voice_id, avatar_model, speech_speed, and meeting_code
     const normalizedSession = {
       ...session,
-      voice_id: session.voice_id || voice_id || "am_fenrir",
+      voice_id: session.voice_id || voice_id || DEFAULT_MALE_VOICE_ID,
       avatar_model: session.avatar_model || avatar_model,
       speech_speed: typeof session.speech_speed === "number" ? session.speech_speed : speech_speed,
       meeting_code: session.meeting_code || meeting_code,

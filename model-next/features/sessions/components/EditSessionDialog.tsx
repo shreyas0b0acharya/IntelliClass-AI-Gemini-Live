@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
 import { Pencil, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,13 +27,13 @@ interface EditSessionDialogProps {
 }
 
 const VOICE_MAP: Record<string, string> = {
-  af_bella: "female",
-  am_fenrir: "male",
+  [DEFAULT_FEMALE_VOICE_ID]: "female",
+  [DEFAULT_MALE_VOICE_ID]: "male",
 };
 
 const GENDER_TO_VOICE: Record<string, string> = {
-  female: "af_bella",
-  male: "am_fenrir",
+  female: DEFAULT_FEMALE_VOICE_ID,
+  male: DEFAULT_MALE_VOICE_ID,
 };
 
 export function EditSessionDialog({
@@ -43,7 +44,7 @@ export function EditSessionDialog({
 }: EditSessionDialogProps) {
   const [topic, setTopic] = useState(session.topic);
   const [voiceGender, setVoiceGender] = useState(
-    VOICE_MAP[session.voice_id || "am_fenrir"] ?? "male"
+    VOICE_MAP[session.voice_id || DEFAULT_MALE_VOICE_ID] ?? "male"
   );
   const [saving, setSaving] = useState(false);
 

@@ -1,28 +1,21 @@
 // model-next/features/avatar/services/avatarRegistry.ts
 //
 // Canonical registry for 3D avatar personas and persona-voice validation.
+// Imports from central @/config and re-exports for 100% backward compatibility.
 
-import type { AvatarModelId, AvatarModelInfo } from "../types/avatar.types";
+import {
+  AVATAR_MODELS,
+  DEFAULT_AVATAR_MODEL,
+  DEFAULT_FEMALE_AVATAR_MODEL,
+  DEFAULT_MALE_AVATAR_MODEL,
+  type AvatarModelId,
+  type AvatarModelInfo,
+} from "@/config";
 import type { VoiceGender } from "@/features/classroom/types/speech";
 
-export const AVATAR_MODELS: AvatarModelInfo[] = [
-  {
-    id: "men-avatarsdk",
-    name: "Prof. Arthur",
-    gender: "male",
-    file: "men-avatarsdk",
-    description: "Photorealistic male professor avatar with formal academic attire.",
-  },
-  {
-    id: "women-avatarsdk",
-    name: "Dr. Clara",
-    gender: "female",
-    file: "women-avatarsdk",
-    description: "Photorealistic female lecturer avatar with articulate facial blendshapes.",
-  },
-];
-
-export const DEFAULT_AVATAR_MODEL: AvatarModelId = "men-avatarsdk";
+// Re-export for backward compatibility
+export { AVATAR_MODELS, DEFAULT_AVATAR_MODEL };
+export type { AvatarModelId, AvatarModelInfo };
 
 export function getAvatarMetadata(modelId?: string): AvatarModelInfo {
   const found = AVATAR_MODELS.find((m) => m.id === modelId);
@@ -31,7 +24,7 @@ export function getAvatarMetadata(modelId?: string): AvatarModelInfo {
 
 /**
  * Resolves the appropriate 3D avatar model for a given session.
- * Fallback derives directly from voice gender so female voices never map to men-avatarsdk.
+ * Explicit avatar selection takes precedence; fallback derives cleanly from voice gender metadata.
  */
 export function resolveAvatarModel(
   avatarModel?: string,
@@ -42,38 +35,11 @@ export function resolveAvatarModel(
     return avatarModel;
   }
 
-  // If explicit voiceGender passed
-  if (voiceGender === "female") return "women-avatarsdk";
-  if (voiceGender === "male") return "men-avatarsdk";
+  // Explicit voiceGender metadata from API
+  if (voiceGender === "female") return DEFAULT_FEMALE_AVATAR_MODEL;
+  if (voiceGender === "male") return DEFAULT_MALE_AVATAR_MODEL;
 
-  // Check voiceId naming convention if gender unknown
-  if (voiceId) {
-    const v = voiceId.toLowerCase();
-    const knownFemale = [
-      "af_",
-      "female",
-      "bella",
-      "sarah",
-      "alice",
-      "sia",
-      "jessica",
-      "matilda",
-      "rachel",
-      "laura",
-      "freya",
-      "exavitqu4vr4xnsdxmal", // Sarah
-      "xb7hh8msujpsbsdyk0k2", // Alice
-      "cgSgspJ2msm6clMCkdW9".toLowerCase(), // Jessica
-      "xrexe9ykig1wjnnlvkgx", // Matilda
-      "21m00tcm4tlvdq8ikwam", // Rachel
-      "fgy2whr4bwhkzg8x6d8f", // Laura
-    ];
-    if (knownFemale.some((needle) => v.startsWith(needle) || v.includes(needle))) {
-      return "women-avatarsdk";
-    }
-  }
-
-  return "men-avatarsdk";
+  return DEFAULT_AVATAR_MODEL;
 }
 
 export interface PersonaValidationResult {
@@ -101,8 +67,10 @@ export function validatePersonaPairing(
     return { isMatch: true };
   }
 
-  const oppositeAvatar = avatarModelId === "women-avatarsdk" ? "men-avatarsdk" : "women-avatarsdk";
-  const oppMeta = getAvatarMetadata(oppositeAvatar);
+  const oppositeAvatar =
+    avatarModelId === "women-avatarsdk"
+      ? DEFAULT_MALE_AVATAR_MODEL
+      : DEFAULT_FEMALE_AVATAR_MODEL;
 
   return {
     isMatch: false,

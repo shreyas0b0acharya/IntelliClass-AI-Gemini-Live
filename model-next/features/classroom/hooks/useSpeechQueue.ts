@@ -9,6 +9,11 @@ import {
   scheduleAudioPlayback,
   stopAllAudio,
 } from "@/features/avatar";
+import {
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+} from "@/config";
 
 export interface UseSpeechQueueOptions {
   voice?: string;
@@ -34,10 +39,10 @@ export interface ScheduledPlayPayload {
 }
 
 export function useSpeechQueue({
-  voice = "af_bella",
-  provider = "headtts",
+  voice = DEFAULT_FEMALE_VOICE_ID,
+  provider = DEFAULT_TTS_PROVIDER,
   modelId,
-  speed = 1.0,
+  speed = DEFAULT_SPEECH_SPEED,
   onSpeechComplete,
   onError,
 }: UseSpeechQueueOptions = {}) {

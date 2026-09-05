@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
+import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
 import { StatusBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,9 +75,9 @@ function SessionCard({
   });
 
   const voiceLabel =
-    session.voice_id === "af_bella"
+    session.voice_id === DEFAULT_FEMALE_VOICE_ID
       ? "Prof. Bella (F)"
-      : session.voice_id === "am_fenrir"
+      : session.voice_id === DEFAULT_MALE_VOICE_ID
         ? "Prof. Sharma (M)"
         : session.voice_id || "Default Voice";
 

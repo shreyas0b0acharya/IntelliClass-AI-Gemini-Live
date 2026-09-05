@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { SessionController } from "./SessionController";
 import { VolumeControl } from "./VolumeControl";
 import { ThemeToggle } from "@/components/shared";
+import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_AVATAR_MODEL } from "@/config";
 import type { ClassroomCapabilities } from "../types/capabilities";
 import type { SessionStateStatus } from "../types/classroom";
 import {
@@ -119,7 +120,7 @@ export function ClassroomHeader({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const isDrClara = avatarModel === "women-avatarsdk";
+  const isDrClara = avatarModel === DEFAULT_FEMALE_AVATAR_MODEL;
   const personaName = isDrClara ? "Dr. Clara" : "Prof. Arthur";
 
   return (
@@ -163,7 +164,7 @@ export function ClassroomHeader({
             <span className="text-muted-foreground/40 shrink-0">•</span>
             <span className="shrink-0 font-medium text-foreground/80">{personaName}</span>
             <span className="hidden sm:inline text-muted-foreground/40 shrink-0">•</span>
-            <span className="hidden sm:inline truncate">Voice: {voiceId || "am_fenrir"}</span>
+            <span className="hidden sm:inline truncate">Voice: {voiceId || DEFAULT_MALE_VOICE_ID}</span>
           </div>
         </div>
       </div>
@@ -255,7 +256,7 @@ export function ClassroomHeader({
                     )}
                   </div>
                   <span className="text-[10px] text-muted-foreground">
-                    {personaName} • {voiceId || "am_fenrir"} {speechSpeed ? `(${speechSpeed.toFixed(2)}x)` : ""}
+                    {personaName} • {voiceId || DEFAULT_MALE_VOICE_ID} {speechSpeed ? `(${speechSpeed.toFixed(2)}x)` : ""}
                   </span>
                 </div>
               </DropdownMenuItem>

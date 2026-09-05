@@ -12,6 +12,13 @@ import {
   VoiceSpeedControls,
   HeadTTSTestButton,
 } from "@/features/settings";
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_MALE_AVATAR_MODEL,
+  DEFAULT_FEMALE_AVATAR_MODEL,
+} from "@/config";
 import type { CourseFile } from "@/lib/supabase/types";
 import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
 import { Button } from "@/components/ui/button";
@@ -66,9 +73,9 @@ function CreateSessionModalContent({
     () =>
       (preferences.defaultGender === "female"
         ? preferences.defaultFemaleVoice
-        : preferences.defaultMaleVoice) || "am_fenrir"
+        : preferences.defaultMaleVoice) || DEFAULT_MALE_VOICE_ID
   );
-  const [speed, setSpeed] = useState(() => preferences.speechSpeed || 1.0);
+  const [speed, setSpeed] = useState(() => preferences.speechSpeed || DEFAULT_SPEECH_SPEED);
   const [files, setFiles] = useState<CourseFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -103,10 +110,10 @@ function CreateSessionModalContent({
     setIsTestingVoice(false);
     if (newGender === "male") {
       setLecturerName(preferences.defaultMaleModelName);
-      setVoiceId("am_fenrir");
+      setVoiceId(DEFAULT_MALE_VOICE_ID);
     } else {
       setLecturerName(preferences.defaultFemaleModelName);
-      setVoiceId("af_bella");
+      setVoiceId(DEFAULT_FEMALE_VOICE_ID);
     }
   };
 
@@ -122,7 +129,7 @@ function CreateSessionModalContent({
     setStatusStep("Initializing classroom session...");
 
     try {
-      const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
+      const avatarModel = gender === "female" ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_MALE_AVATAR_MODEL;
       const { session: sessionData } = await api.createCourseSession(courseId, {
         topic: topic.trim(),
         voice_id: voiceId,
@@ -281,8 +288,8 @@ function CreateSessionModalContent({
  <Label className="">
                 3D Avatar &amp; LipSync
               </Label>
- <span className=" font-mono text-primary ">
-                {gender === "male" ? "men-avatarsdk" : "women-avatarsdk"}
+              <span className="text-[10px] font-mono text-primary font-semibold">
+                {gender === "male" ? DEFAULT_MALE_AVATAR_MODEL : DEFAULT_FEMALE_AVATAR_MODEL}
               </span>
             </div>
 

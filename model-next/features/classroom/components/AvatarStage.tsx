@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Experience, type HeadTTSData, useDeviceTier } from "@/features/avatar";
+import { DEFAULT_AVATAR_MODEL, CLASSROOM_STAGE_CAMERA } from "@/config";
 import { Lecturer2DFallback } from "./Lecturer2DFallback";
 import type { MediaItemDisplay } from "../hooks/useClassroom";
 
@@ -26,7 +27,7 @@ interface AvatarStageProps {
 }
 
 export function AvatarStage({
-  model = "men-avatarsdk",
+  model = DEFAULT_AVATAR_MODEL,
   isSpeaking,
   audioPath,
   lipSyncData,
@@ -111,12 +112,7 @@ export function AvatarStage({
           antialias: capabilities.tier === "high",
           preserveDrawingBuffer: false,
         }}
-        camera={{
-          position: [-0.03, 1.539, 0.768],
-          fov: 42,
-          near: 0.01,
-          far: 50,
-        }}
+        camera={CLASSROOM_STAGE_CAMERA}
         className="w-full h-full"
       >
         <color attach="background" args={["#121316"]} />
