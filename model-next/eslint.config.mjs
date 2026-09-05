@@ -17,6 +17,9 @@ const eslintConfig = defineConfig([
         },
       ],
       "@typescript-eslint/no-empty-object-type": "off",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/purity": "warn",
     },
   },
   // Override default ignores of eslint-config-next.

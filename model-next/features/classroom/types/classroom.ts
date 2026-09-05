@@ -32,6 +32,28 @@ export type ClassroomEvent =
       durationMs: number;      // expected audio duration for prefetch-next-item timing
       lipSyncData: HeadTTSData; // viseme timestamps relative to audio start (ms)
       text: string;            // subtitle text for this segment
+      media?: {
+        type: "image" | "video";
+        url: string;
+        label?: string;
+      };
+    }
+  | {
+      type: "MEDIA_PROJECT";
+      sequence: number;
+      stateVersion?: number;
+      driverLeaseVersion?: number;
+      media: {
+        type: "image" | "video";
+        url: string;
+        label?: string;
+      };
+    }
+  | {
+      type: "MEDIA_DISMISS";
+      sequence: number;
+      stateVersion?: number;
+      driverLeaseVersion?: number;
     }
   | {
       type: "SEEK_SYNC";

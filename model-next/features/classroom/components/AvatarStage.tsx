@@ -100,7 +100,7 @@ export function AvatarStage({
   return (
     <div
       ref={canvasContainerRef}
-      className="relative w-full h-full min-h-[400px] overflow-hidden rounded-3xl bg-neutral-900 shadow-2xl border border-border/40"
+      className="relative w-full h-full min-h-0 overflow-hidden rounded-2xl md:rounded-3xl bg-neutral-900 shadow-2xl border border-border/40"
     >
       {/* 3D Adaptive Canvas */}
       <Canvas

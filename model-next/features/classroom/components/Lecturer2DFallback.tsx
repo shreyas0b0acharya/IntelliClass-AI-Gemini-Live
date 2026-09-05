@@ -52,7 +52,7 @@ export function Lecturer2DFallback({
   }, [isSpeaking]);
 
   return (
-    <div className="relative w-full h-full min-h-[420px] rounded-3xl overflow-hidden bg-gradient-to-b from-[#1c1c1e] via-[#121214] to-black border border-white/10 shadow-2xl flex flex-col items-center justify-between p-6 select-none">
+    <div className="relative w-full h-full min-h-0 rounded-2xl md:rounded-3xl overflow-hidden bg-gradient-to-b from-[#1c1c1e] via-[#121214] to-black border border-white/10 shadow-2xl flex flex-col items-center justify-between p-3 sm:p-6 select-none">
       {/* Background ambient lighting */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div

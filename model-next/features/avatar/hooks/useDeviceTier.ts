@@ -166,7 +166,7 @@ export function useDeviceTier() {
   // Runtime monitor state
   const slowFrameCountRef = useRef(0);
   const fastFrameCountRef = useRef(0);
-  const lastTierChangeTimeRef = useRef(Date.now());
+  const lastTierChangeTimeRef = useRef(0);
   const isSpeakingRef = useRef(false);
 
   // Inform the tier monitor of lecture speech state to defer upgrades to sentence boundaries

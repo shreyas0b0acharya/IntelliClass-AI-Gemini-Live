@@ -203,7 +203,7 @@ export function useClassroom(sessionId: string) {
 
         sequenceRef.current++;
         const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
-        const durationMs = 3500;
+        const durationMs = 1500;
 
         broadcastEventRef.current?.({
           type: "SCHEDULED_PLAY",
@@ -217,6 +217,7 @@ export function useClassroom(sessionId: string) {
           durationMs,
           lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
           text: item.caption || "",
+          media: mediaObj,
         });
         scheduleAdvance(durationMs);
         return;
@@ -485,6 +486,23 @@ export function useClassroom(sessionId: string) {
           syncStore().setCurrentIndex(foundIdx);
         }
 
+        // ── Handle projected visual slide / diagram ──
+        if (event.media) {
+          setActiveMedia(event.media);
+          syncStore().setActiveMedia(event.media);
+        } else if (foundIdx !== -1) {
+          const matchedItem = itemsRef.current[foundIdx];
+          if (matchedItem.type === "image" || matchedItem.type === "video") {
+            const mediaObj: MediaItemDisplay = {
+              type: matchedItem.type === "video" ? "video" : "image",
+              url: matchedItem.mediaRef,
+              label: matchedItem.caption || "Visual Asset",
+            };
+            setActiveMedia(mediaObj);
+            syncStore().setActiveMedia(mediaObj);
+          }
+        }
+
         // Non-audio scheduled items (media/pause/engagement) — just advance subtitle
         if (!event.audioUrl) {
           setCurrentSubtitle(event.text || "");
@@ -625,6 +643,26 @@ export function useClassroom(sessionId: string) {
         }
       }
 
+      // ── MEDIA_PROJECT (Live visual slide/diagram projection) ─────────
+      else if (event.type === "MEDIA_PROJECT") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        const mediaObj: MediaItemDisplay = {
+          type: event.media.type,
+          url: event.media.url,
+          label: event.media.label || "Projected Visual",
+        };
+        setActiveMedia(mediaObj);
+        syncStore().setActiveMedia(mediaObj);
+        toast.info(`🖼️ Visual projected: ${mediaObj.label}`);
+      }
+
+      // ── MEDIA_DISMISS ───────────────────────────────────────────────
+      else if (event.type === "MEDIA_DISMISS") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        setActiveMedia(null);
+        syncStore().setActiveMedia(null);
+      }
+
       // ── END ────────────────────────────────────────────────────────
       else if (event.type === "END") {
         lastSeqRef.current = event.sequence;
@@ -632,6 +670,8 @@ export function useClassroom(sessionId: string) {
         sessionStatusRef.current = "ended";
         syncStore().setStatus("ended");
         executingItemIdRef.current = null;
+        setActiveMedia(null);
+        syncStore().setActiveMedia(null);
         if (event.stoppedReason) {
           setStoppedReason(event.stoppedReason);
           syncStore().setStoppedReason(event.stoppedReason);
@@ -661,6 +701,8 @@ export function useClassroom(sessionId: string) {
         processedExecutionIdsRef.current.clear();
         driverLeaseVersionRef.current = event.driverLeaseVersion ?? 0;
         speech.stop();
+        setActiveMedia(null);
+        syncStore().setActiveMedia(null);
         setSessionStatus("created");
         sessionStatusRef.current = "created";
         syncStore().setStatus("created");
@@ -1172,6 +1214,38 @@ export function useClassroom(sessionId: string) {
     toast.success("Curriculum script updated successfully!");
   };
 
+  const projectMedia = useCallback(
+    (mediaObj: MediaItemDisplay) => {
+      setActiveMedia(mediaObj);
+      syncStore().setActiveMedia(mediaObj);
+      if (isLecturerRef.current) {
+        sequenceRef.current++;
+        broadcastEventRef.current?.({
+          type: "MEDIA_PROJECT",
+          sequence: sequenceRef.current,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+          media: mediaObj,
+        });
+        toast.success(`Projected "${mediaObj.label || "Visual"}" to stage`);
+      }
+    },
+    [syncStore]
+  );
+
+  const dismissMedia = useCallback(() => {
+    setActiveMedia(null);
+    syncStore().setActiveMedia(null);
+    if (isLecturerRef.current) {
+      sequenceRef.current++;
+      broadcastEventRef.current?.({
+        type: "MEDIA_DISMISS",
+        sequence: sequenceRef.current,
+        driverLeaseVersion: driverLeaseVersionRef.current,
+      });
+      toast.info("Dismissed visual projection");
+    }
+  }, [syncStore]);
+
   return {
     user,
     profile,
@@ -1189,6 +1263,8 @@ export function useClassroom(sessionId: string) {
     currentSubtitle,
     activeMedia,
     setActiveMedia,
+    projectMedia,
+    dismissMedia,
     isThinking,
     userQuestion,
     setUserQuestion,

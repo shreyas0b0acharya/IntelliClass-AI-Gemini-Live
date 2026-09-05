@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { AppButton } from "@/components/app";
-import { Play, Pause, Square, RotateCcw, Radio, Users, AlertTriangle } from "lucide-react";
+import { Play, Pause, Square, Radio, AlertTriangle } from "lucide-react";
 import type { SessionStateStatus } from "../types/classroom";
-
 import { unlockAudioContext } from "@/features/avatar";
 
 interface SessionControllerProps {
@@ -17,18 +16,18 @@ interface SessionControllerProps {
   onPause: () => void | Promise<void>;
   onEnd: () => void | Promise<void>;
   onRestart: () => void | Promise<void>;
+  isCompact?: boolean;
 }
 
 export function SessionController({
   status,
   isLecturer,
-  activeStudentCount = 0,
   emptyRoomCountdown = null,
-  stoppedReason,
+  stoppedReason: _stoppedReason,
   onStart,
   onPause,
   onEnd,
-  onRestart,
+  isCompact = false,
 }: SessionControllerProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -48,72 +47,57 @@ export function SessionController({
   // ─── Student Read-Only View (Zero Playback Controls) ──────────────────────
   if (!isLecturer) {
     return (
-      <div className="flex items-center gap-2.5">
-        {/* Active Broadcast Status */}
+      <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+        {/* Active Broadcast Status Badge (Apple HIG Capsule) */}
         <div
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border shadow-xs ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide border shadow-xs ${
             status === "running"
-              ? "bg-red-500/10 border-red-500/30 text-red-500"
+              ? "bg-red-500/10 border-red-500/25 text-[#ff3b30] dark:text-[#ff453a]"
               : status === "paused"
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+              ? "bg-amber-500/10 border-amber-500/25 text-[#ff9500] dark:text-[#ff9f0a]"
               : status === "ended"
-              ? "bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10 text-[#86868b]"
-              : "bg-muted/40 border-border/50 text-muted-foreground"
+              ? "bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10 text-muted-foreground"
+              : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground"
           }`}
         >
           <div
             className={`w-2 h-2 rounded-full ${
               status === "running"
-                ? "bg-red-500 animate-pulse"
+                ? "bg-[#ff3b30] animate-pulse"
                 : status === "paused"
-                ? "bg-amber-500"
+                ? "bg-[#ff9500]"
                 : "bg-muted-foreground/40"
             }`}
           />
           {status === "running" ? (
-            <span className="flex items-center gap-1.5">
-              <Radio className="h-3.5 w-3.5 animate-pulse" /> Live Broadcast
+            <span className="flex items-center gap-1">
+              <Radio className="h-3 w-3 animate-pulse" />
+              <span>Live</span>
             </span>
           ) : status === "paused" ? (
-            "Lecture Paused"
+            <span>Paused</span>
           ) : status === "ended" ? (
-            stoppedReason === "no_students_timeout" ? (
-              "Classroom Auto-Stopped"
-            ) : (
-              "Class Completed"
-            )
+            <span>Ended</span>
           ) : (
-            "Classroom Standby"
+            <span>Standby</span>
           )}
-        </div>
-
-        {/* Live Student Counter */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]">
-          <Users className="h-3.5 w-3.5 text-[#0071e3]" />
-          <span>{activeStudentCount} Online</span>
         </div>
       </div>
     );
   }
 
-  // ─── Lecturer Full Control Suite ──────────────────────────────────────────
+  // ─── Lecturer Full Control Suite (Adaptive & Mobile-Friendly) ─────────────
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
       {/* 30s Empty Room Timeout Warning Pill */}
       {emptyRoomCountdown !== null && status === "running" && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 animate-pulse">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span>Auto-stop in {emptyRoomCountdown}s (No students)</span>
+        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 animate-pulse">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          <span>{isCompact ? `${emptyRoomCountdown}s` : `Auto-stop in ${emptyRoomCountdown}s`}</span>
         </div>
       )}
 
-      {/* Active Student Count Badge */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]">
-        <Users className="h-3.5 w-3.5 text-[#0071e3]" />
-        <span>{activeStudentCount} Students</span>
-      </div>
-
-      {/* Start / Resume */}
+      {/* Start / Resume Action Button */}
       {(status === "created" || status === "paused" || status === "ended") && (
         <AppButton
           onClick={() => handleAction("start", onStart)}
@@ -121,15 +105,23 @@ export function SessionController({
           isLoading={actionLoading === "start"}
           variant="success"
           shape="pill"
-          size="default"
-          className="h-10 px-5 text-xs font-bold uppercase tracking-wider"
-          leftIcon={actionLoading !== "start" ? <Play className="h-4 w-4" fill="currentColor" /> : undefined}
+          size="sm"
+          className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-[#34c759] hover:bg-[#30b34e] text-white shadow-xs shrink-0"
+          leftIcon={actionLoading !== "start" ? <Play className="h-3.5 w-3.5" fill="currentColor" /> : undefined}
         >
-          {status === "paused" ? "Resume Class" : "Start Broadcast"}
+          <span>
+            {isCompact
+              ? status === "paused"
+                ? "Resume"
+                : "Start"
+              : status === "paused"
+              ? "Resume Class"
+              : "Start Broadcast"}
+          </span>
         </AppButton>
       )}
 
-      {/* Pause */}
+      {/* Pause Action Button */}
       {status === "running" && (
         <AppButton
           onClick={() => handleAction("pause", onPause)}
@@ -137,43 +129,27 @@ export function SessionController({
           isLoading={actionLoading === "pause"}
           variant="secondary"
           shape="pill"
-          size="default"
-          className="h-10 px-5 text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
-          leftIcon={actionLoading !== "pause" ? <Pause className="h-4 w-4" fill="currentColor" /> : undefined}
+          size="sm"
+          className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-[#ff9500] hover:bg-[#e08500] text-white shadow-xs shrink-0"
+          leftIcon={actionLoading !== "pause" ? <Pause className="h-3.5 w-3.5" fill="currentColor" /> : undefined}
         >
-          Pause Class
+          <span>{isCompact ? "Pause" : "Pause Class"}</span>
         </AppButton>
       )}
 
-      {/* End */}
-      {status !== "created" && status !== "ended" && (
+      {/* End Lecture Button (Desktop only; on compact, safely accessible via overflow menu) */}
+      {status !== "created" && status !== "ended" && !isCompact && (
         <AppButton
           onClick={() => handleAction("end", onEnd)}
           disabled={actionLoading !== null}
           isLoading={actionLoading === "end"}
           variant="destructive"
           shape="pill"
-          size="default"
-          className="h-10 px-4 text-xs font-bold uppercase tracking-wider"
+          size="sm"
+          className="h-8 sm:h-9 px-3 text-xs font-semibold bg-[#ff3b30] hover:bg-[#e0342a] text-white shadow-xs shrink-0"
           leftIcon={actionLoading !== "end" ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : undefined}
         >
-          End Class
-        </AppButton>
-      )}
-
-      {/* Restart */}
-      {(status === "ended" || status === "paused") && (
-        <AppButton
-          onClick={() => handleAction("restart", onRestart)}
-          disabled={actionLoading !== null}
-          isLoading={actionLoading === "restart"}
-          variant="ghost"
-          size="icon"
-          shape="pill"
-          title="Restart from beginning"
-          className="h-10 w-10 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          <RotateCcw className="h-4 w-4" />
+          <span>End Class</span>
         </AppButton>
       )}
     </div>
