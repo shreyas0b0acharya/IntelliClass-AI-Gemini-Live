@@ -248,9 +248,19 @@ export const api = {
       script?: string;
       topic?: string;
       voice_id?: string;
+      driverTabId?: string;
+      releaseLease?: boolean;
+      target_epoch_ms?: number;
+      duration_ms?: number;
     }
   ) => {
-    return fetchApi<{ session: ClassroomSession }>(`/api/classroom/${sessionId}`, {
+    return fetchApi<{
+      session: ClassroomSession;
+      success?: boolean;
+      isDriver?: boolean;
+      activeDriverTabId?: string | null;
+      driverLeaseVersion?: number;
+    }>(`/api/classroom/${sessionId}`, {
       method: "PATCH",
       body: JSON.stringify(updates),
     });
@@ -274,6 +284,21 @@ export const api = {
       window.dispatchEvent(new CustomEvent("intelliclass:sessions-changed", { detail: { deletedId: sessionId } }));
     }
     return res;
+  },
+
+  getClassroomSnapshot: async (sessionId: string) => {
+    return fetchApi<{
+      session: ClassroomSession;
+      myStatus: string;
+      myRole: "lecturer" | "student";
+      stateVersion: number;
+      driverLeaseVersion: number;
+      activeDriverTabId: string | null;
+      driverLeaseExpiresAt: string | null;
+      targetEpochMs: number;
+      durationMs: number;
+      participants: { userId: string; name: string; role: string; status: string }[];
+    }>(`/api/classroom/${sessionId}/snapshot`);
   },
 
 

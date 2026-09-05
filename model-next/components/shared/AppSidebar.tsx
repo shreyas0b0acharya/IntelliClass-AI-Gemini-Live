@@ -40,7 +40,7 @@ import { AppButton } from "@/components/app";
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const { isLecturer } = useAuth();
+  const { user, isLecturer, isLoading: isAuthLoading } = useAuth();
   const isCollapsed = state === "collapsed";
 
   const [courses, setCourses] = React.useState<Course[]>([]);
@@ -48,6 +48,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
   React.useEffect(() => {
+    if (isAuthLoading || !user) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
 
     const loadCourses = () => {
@@ -56,7 +61,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           if (active && fetched) setCourses(fetched);
         })
         .catch((err) => {
-          console.error("Failed to load courses in sidebar:", err);
+          if (err?.status !== 401) {
+            console.error("Failed to load courses in sidebar:", err);
+          }
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -91,7 +98,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
       supabase.removeChannel(channel);
     };
-  }, [refreshTrigger]);
+  }, [user, isAuthLoading, refreshTrigger]);
 
   const handleLinkClick = () => {
     if (isMobile) {

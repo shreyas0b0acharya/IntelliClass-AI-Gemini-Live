@@ -13,8 +13,27 @@ export { useAvatarBehavior } from "./components/AvatarBehaviorContext";
 
 // Hooks
 export { useLipSync } from "./hooks/useLipSync";
+export { useDeviceTier } from "./hooks/useDeviceTier";
+export type { DeviceTier, DeviceCapabilities } from "./hooks/useDeviceTier";
+export { useAssetSync } from "./hooks/useAssetSync";
 
 // Services & Utils
+export { assetStorage } from "./services/assetStorage";
+export type {
+  AssetManifest,
+  ManifestAsset,
+  AssetVariant,
+  AssetSyncProgress,
+  AssetPriority,
+} from "./services/assetStorage";
+export {
+  createInitialBehaviorStore,
+  updateAvatarProceduralFrame,
+} from "./services/AvatarProceduralDriver";
+export type {
+  ProceduralDriverNodes,
+  ProceduralDriverOptions,
+} from "./services/AvatarProceduralDriver";
 export {
   getAudioContext,
   getMasterGainNode,
@@ -24,6 +43,7 @@ export {
   unlockAudioContext,
   preloadAudioBuffer,
   scheduleAudioPlayback,
+  stopAllAudio,
 } from "./services/audioManager";
 export {
   getSynchronizedEpochMs,

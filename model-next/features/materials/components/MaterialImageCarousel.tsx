@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 interface MaterialImageCarouselProps {
   fileName: string;
   assets: MediaAsset[];
+  onProjectToStage?: (media: { type: "image"; url: string; label: string }) => void;
 }
 
 function resolveMediaUrl(url: string): string {
@@ -21,7 +22,11 @@ function resolveMediaUrl(url: string): string {
   return url;
 }
 
-export function MaterialImageCarousel({ fileName, assets }: MaterialImageCarouselProps) {
+export function MaterialImageCarousel({
+  fileName,
+  assets,
+  onProjectToStage,
+}: MaterialImageCarouselProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
 
@@ -121,13 +126,32 @@ export function MaterialImageCarousel({ fileName, assets }: MaterialImageCarouse
       {/* Fullscreen Lightbox Modal */}
       <Dialog open={Boolean(selectedAsset)} onOpenChange={(open) => !open && setSelectedAsset(null)}>
         <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border border-black/10 dark:border-white/10 bg-black/90 backdrop-blur-2xl text-white shadow-2xl">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-sky-400" />
-              <DialogTitle className="text-sm font-bold text-white">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className="h-4 w-4 text-sky-400 shrink-0" />
+              <DialogTitle className="text-sm font-bold text-white truncate">
                 {selectedAsset?.label || "Visual Diagram Asset"}
               </DialogTitle>
             </div>
+            {onProjectToStage && selectedAsset && (
+              <AppButton
+                variant="primary"
+                size="sm"
+                shape="pill"
+                onClick={() => {
+                  onProjectToStage({
+                    type: "image",
+                    url: resolveMediaUrl(selectedAsset.file_url),
+                    label: selectedAsset.label || "Projected Diagram",
+                  });
+                  setSelectedAsset(null);
+                }}
+                leftIcon={<Sparkles className="h-3.5 w-3.5" />}
+                className="h-8 px-3 text-xs font-semibold shadow-xs shrink-0"
+              >
+                <span>Project to Stage</span>
+              </AppButton>
+            )}
           </div>
 
           <div className="p-6 flex items-center justify-center max-h-[70vh] overflow-hidden bg-black/50">

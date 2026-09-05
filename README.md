@@ -112,7 +112,9 @@ pnpm health
 
 | Command | Action |
 | :--- | :--- |
-| `pnpm dev` | Starts Next.js frontend, HeadTTS, and FastAPI simultaneously |
+| `pnpm start` | Starts Next.js in production build mode (`next start`), HeadTTS, and FastAPI simultaneously |
+| `pnpm start:frontend` | Starts production `model-next` build server |
+| `pnpm dev` | Starts Next.js frontend (`next dev`), HeadTTS, and FastAPI simultaneously |
 | `pnpm dev:frontend` | Starts `model-next` development server |
 | `pnpm dev:tts` | Starts `HeadTTS` ONNX synthesis server |
 | `pnpm dev:ai` | Starts `ai-backend` FastAPI server with auto-reload |

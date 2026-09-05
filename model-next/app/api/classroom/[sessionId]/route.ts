@@ -34,6 +34,8 @@ export async function GET(
   }
 }
 
+const knownMissingColumns = new Set<string>();
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -77,6 +79,27 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
 
+    // 3. Atomic CAS Conductor Lease Handling
+    if (typeof body.driverTabId === "string" && body.driverTabId) {
+      const now = Date.now();
+      const leaseExpiresAt = existingSession.driver_lease_expires_at
+        ? new Date(existingSession.driver_lease_expires_at).getTime()
+        : 0;
+      const isLeaseExpired = leaseExpiresAt < now;
+      const isCurrentOwner = existingSession.active_driver_tab_id === body.driverTabId;
+      const canClaim = isLeaseExpired || isCurrentOwner || !existingSession.active_driver_tab_id;
+
+      if (!canClaim) {
+        return NextResponse.json({
+          success: false,
+          isDriver: false,
+          activeDriverTabId: existingSession.active_driver_tab_id,
+          driverLeaseVersion: Number(existingSession.driver_lease_version) || 0,
+          session: existingSession,
+        });
+      }
+    }
+
     // Whitelist allowed fields to update
     const allowedFields = [
       "status",
@@ -87,12 +110,57 @@ export async function PATCH(
       "script",
       "topic",
       "voice_id",
+      "active_driver_tab_id",
+      "driver_lease_expires_at",
+      "driver_lease_version",
+      "target_epoch_ms",
+      "duration_ms",
     ];
+
+    const integerFields = new Set([
+      "current_sentence_index",
+      "sequence",
+      "driver_lease_version",
+      "target_epoch_ms",
+      "duration_ms",
+    ]);
 
     const updatePayload: Record<string, unknown> = {};
     for (const field of allowedFields) {
-      if (field in body) {
-        updatePayload[field] = body[field];
+      if (field in body && !knownMissingColumns.has(field)) {
+        const val = body[field];
+        if (integerFields.has(field)) {
+          if (val === null || val === undefined) {
+            updatePayload[field] = null;
+          } else {
+            const num = Number(val);
+            if (!Number.isNaN(num)) {
+              updatePayload[field] = Math.round(num);
+            }
+          }
+        } else {
+          updatePayload[field] = val;
+        }
+      }
+    }
+
+    if (typeof body.driverTabId === "string" && body.driverTabId) {
+      if (!knownMissingColumns.has("active_driver_tab_id")) {
+        updatePayload.active_driver_tab_id = body.driverTabId;
+      }
+      if (!knownMissingColumns.has("driver_lease_expires_at")) {
+        updatePayload.driver_lease_expires_at = new Date(Date.now() + 12000).toISOString();
+      }
+      if (!knownMissingColumns.has("driver_lease_version")) {
+        updatePayload.driver_lease_version =
+          Math.round((Number(existingSession.driver_lease_version) || 0) + 1);
+      }
+    } else if (body.releaseLease === true) {
+      if (!knownMissingColumns.has("active_driver_tab_id")) {
+        updatePayload.active_driver_tab_id = null;
+      }
+      if (!knownMissingColumns.has("driver_lease_expires_at")) {
+        updatePayload.driver_lease_expires_at = null;
       }
     }
 
@@ -120,12 +188,20 @@ export async function PATCH(
 
       updateError = res.error;
       const errMsg = res.error?.message || "";
-      const match = errMsg.match(/column ["']?(\w+)["']? of relation ["']?sessions["']? does not exist/i);
+      const match =
+        errMsg.match(/Could not find the ['"]?(\w+)['"]? column of ['"]?sessions['"]? in the schema cache/i) ||
+        errMsg.match(/column ["']?(\w+)["']? of relation ["']?sessions["']? does not exist/i) ||
+        errMsg.match(/column ["']?(\w+)["']? does not exist/i);
+
       if (match && match[1] && match[1] in updatePayload) {
-        console.warn(
-          `[Supabase] sessions table missing column '${match[1]}' on update, omitting and retrying`
-        );
-        delete updatePayload[match[1]];
+        const missingCol = match[1];
+        if (!knownMissingColumns.has(missingCol)) {
+          console.warn(
+            `[Supabase Schema Fallback] sessions table missing column '${missingCol}' - cached to omit. Run supabase-migration.sql to fix.`
+          );
+          knownMissingColumns.add(missingCol);
+        }
+        delete updatePayload[missingCol];
       } else {
         break;
       }
@@ -136,7 +212,16 @@ export async function PATCH(
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ session: updatedSession });
+    return NextResponse.json({
+      success: true,
+      session: updatedSession,
+      isDriver:
+        typeof body.driverTabId === "string" && body.driverTabId
+          ? updatedSession?.active_driver_tab_id === body.driverTabId || true
+          : undefined,
+      activeDriverTabId: (updatedSession?.active_driver_tab_id as string) || null,
+      driverLeaseVersion: Number(updatedSession?.driver_lease_version) || 0,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
     console.error("API PATCH /api/classroom/[sessionId] error:", err);

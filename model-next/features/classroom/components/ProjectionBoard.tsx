@@ -12,13 +12,15 @@ import {
   Maximize2,
   X,
   Image as ImageIcon,
-  Sparkles,
   ExternalLink,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ProjectionBoardProps {
   media: MediaItemDisplay | null;
   onClose?: () => void;
+  isCompact?: boolean;
+  isShortLandscape?: boolean;
 }
 
 function resolveMediaUrl(url: string): string {
@@ -31,7 +33,12 @@ function resolveMediaUrl(url: string): string {
   return url;
 }
 
-export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
+export function ProjectionBoard({
+  media,
+  onClose,
+  isCompact = false,
+  isShortLandscape = false,
+}: ProjectionBoardProps) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -41,28 +48,42 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
   return (
     <>
       <div
-        className={`absolute top-4 right-4 z-20 transition-all duration-300 ${
-          isMinimized ? "w-44" : "w-72 sm:w-80 md:w-96"
-        } rounded-3xl overflow-hidden border border-white/20 dark:border-white/10 bg-black/80 backdrop-blur-2xl shadow-2xl text-white`}
+        className={cn(
+          "absolute top-3 sm:top-4 right-3 sm:right-4 z-20 transition-all duration-300 ease-out",
+          isMinimized
+            ? "w-44 sm:w-52"
+            : isCompact
+            ? "w-68 sm:w-76 max-w-[calc(100vw-1.5rem)]"
+            : "w-72 sm:w-84 md:w-96",
+          "rounded-2xl sm:rounded-3xl overflow-hidden",
+          "border border-black/10 dark:border-white/10",
+          "bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-2xl shadow-2xl",
+          "text-foreground select-none"
+        )}
       >
         {/* Board Header */}
-        <div className="p-3 px-4 border-b border-white/10 flex items-center justify-between bg-white/[0.05]">
+        <div className="p-2.5 sm:p-3 px-3 sm:px-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white truncate">
-              <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" />
-              <span className="truncate">{media.label || "Projected Slide"}</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Slide</span>
             </div>
+            <span
+              className="truncate text-xs font-bold text-foreground leading-tight"
+              title={media.label || "Projected Diagram"}
+            >
+              {media.label || "Projected Visual"}
+            </span>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
             <AppButton
               variant="ghost"
               size="xs"
-              shape="rounded"
+              shape="pill"
               onClick={() => setIsMinimized(!isMinimized)}
-              className="text-white/70 hover:text-white hover:bg-white/10 text-[10px] font-mono px-1.5 h-6"
-              title={isMinimized ? "Expand Board" : "Minimize Board"}
+              className="h-6 px-2 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              title={isMinimized ? "Expand Visual Board" : "Minimize to PIP"}
             >
               {isMinimized ? "Expand" : "Min"}
             </AppButton>
@@ -70,10 +91,10 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
             <AppButton
               variant="ghost"
               size="icon-xs"
-              shape="rounded"
+              shape="pill"
               onClick={() => setIsZoomed(true)}
-              className="text-white/70 hover:text-white hover:bg-white/10 h-6 w-6"
-              title="Full Screen Zoom"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              title="Full Screen Inspection"
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </AppButton>
@@ -82,9 +103,9 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
               <AppButton
                 variant="ghost"
                 size="icon-xs"
-                shape="rounded"
+                shape="pill"
                 onClick={onClose}
-                className="text-white/70 hover:text-white hover:bg-white/10 h-6 w-6"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
                 title="Dismiss Visual"
               >
                 <X className="h-3.5 w-3.5" />
@@ -94,10 +115,13 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
         </div>
 
         {/* Board Display Canvas */}
-        {!isMinimized && (
+        {!isMinimized ? (
           <div
             onClick={() => setIsZoomed(true)}
-            className="p-3 relative group cursor-pointer overflow-hidden bg-black/40 flex items-center justify-center max-h-64"
+            className={cn(
+              "p-2.5 sm:p-3 relative group cursor-pointer overflow-hidden flex items-center justify-center bg-black/5 dark:bg-black/30",
+              isShortLandscape ? "max-h-48" : "max-h-60 sm:max-h-72"
+            )}
           >
             {media.type === "video" ? (
               <video
@@ -106,23 +130,46 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
                 loop
                 muted
                 playsInline
-                className="max-h-56 w-full object-contain rounded-2xl shadow-inner"
+                className="max-h-52 sm:max-h-64 w-full object-contain rounded-xl sm:rounded-2xl shadow-xs"
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={resolvedUrl}
                 alt={media.label || "Projected Diagram"}
-                className="max-h-56 w-full object-contain rounded-2xl shadow-inner transition-transform group-hover:scale-105"
-                loading="eager"
+                className="max-h-52 sm:max-h-64 w-full object-contain rounded-xl sm:rounded-2xl shadow-xs transition-transform duration-200 group-hover:scale-[1.02]"
+                loading="lazy"
+                decoding="async"
               />
             )}
 
             {/* Hover expand hint */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-2xl">
-              <span className="px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white flex items-center gap-1.5 shadow-lg">
-                <Maximize2 className="h-3.5 w-3.5" /> Click to Zoom
+            <div className="absolute inset-0 bg-black/20 dark:bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-xl pointer-events-none">
+              <span className="px-3 py-1.5 rounded-full bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-md text-xs font-semibold text-foreground flex items-center gap-1.5 shadow-lg border border-black/10 dark:border-white/10">
+                <Maximize2 className="h-3.5 w-3.5 text-[#0071e3]" /> Click to Inspect
               </span>
+            </div>
+          </div>
+        ) : (
+          /* Minimized PIP Thumbnail Strip */
+          <div
+            onClick={() => setIsMinimized(false)}
+            className="p-2 flex items-center gap-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          >
+            <div className="w-10 h-8 rounded-lg overflow-hidden bg-black/10 shrink-0 border border-black/10 dark:border-white/10 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resolvedUrl}
+                alt={media.label || "Slide"}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[11px] font-semibold text-foreground truncate">
+                {media.label || "Slide"}
+              </span>
+              <span className="text-[9px] text-[#0071e3] font-medium">Click to expand</span>
             </div>
           </div>
         )}
@@ -131,20 +178,20 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
       {/* Lightbox Full Zoom Modal */}
       {isZoomed && (
         <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
-          <DialogContent className="max-w-4xl max-h-[90vh] rounded-3xl p-0 overflow-hidden border border-white/15 bg-black/95 text-white shadow-2xl flex flex-col">
-            <div className="p-4 px-6 border-b border-white/10 flex items-center justify-between">
-              <DialogTitle className="text-sm font-bold text-white flex items-center gap-2">
+          <DialogContent className="max-w-4xl max-h-[92vh] rounded-3xl p-0 overflow-hidden border border-black/10 dark:border-white/15 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-3xl shadow-2xl flex flex-col text-foreground">
+            <div className="p-4 px-6 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
+              <DialogTitle className="text-sm font-bold flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-[#0071e3]" />
-                <span>{media.label || "Projected Visual Diagram"}</span>
+                <span className="truncate max-w-lg">{media.label || "Projected Visual Diagram"}</span>
               </DialogTitle>
 
               <AppButton
                 asChild
                 variant="outline"
                 size="sm"
-                shape="rounded"
-                className="h-8 px-3 text-xs bg-white/10 hover:bg-white/20 border-white/15 text-white"
-                leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
+                shape="pill"
+                className="h-8 px-3 text-xs bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border-black/10 dark:border-white/15 text-foreground"
+                leftIcon={<ExternalLink className="h-3.5 w-3.5 text-[#0071e3]" />}
               >
                 <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
                   <span>Open Full Asset</span>
@@ -152,20 +199,20 @@ export function ProjectionBoard({ media, onClose }: ProjectionBoardProps) {
               </AppButton>
             </div>
 
-            <div className="p-6 flex-1 flex items-center justify-center overflow-hidden bg-black">
+            <div className="p-4 sm:p-6 flex-1 flex items-center justify-center overflow-hidden bg-black/95 rounded-b-3xl">
               {media.type === "video" ? (
                 <video
                   src={resolvedUrl}
                   autoPlay
                   controls
-                  className="max-w-full max-h-[72vh] object-contain rounded-2xl shadow-2xl"
+                  className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-2xl"
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={resolvedUrl}
                   alt={media.label || "Projected Diagram"}
-                  className="max-w-full max-h-[72vh] object-contain rounded-2xl shadow-2xl"
+                  className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-2xl"
                 />
               )}
             </div>

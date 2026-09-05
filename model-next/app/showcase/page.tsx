@@ -11,6 +11,8 @@ import {
   splitIntoSentences,
   type HeadTTSData,
   AudioTest,
+  scheduleAudioPlayback,
+  getSynchronizedEpochMs,
 } from "@/features/avatar";
 import { Navbar } from "@/components/shared";
 
@@ -107,6 +109,9 @@ export default function App() {
   /**
    * Stops current playback and clears queue
    */
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const [targetEpochMs, setTargetEpochMs] = useState<number | undefined>();
+
   const handleStopSpeech = useCallback(() => {
     cancelRef.current = true;
     queueRef.current = [];
@@ -114,9 +119,18 @@ export default function App() {
     waitingForNextRef.current = false;
     sentenceIndexRef.current = 0;
     totalSentencesRef.current = 0;
+    if (activeSourceRef.current) {
+      try {
+        activeSourceRef.current.onended = null;
+        activeSourceRef.current.stop();
+        activeSourceRef.current.disconnect();
+      } catch {}
+      activeSourceRef.current = null;
+    }
     setPlayLipSync(false);
     setAudioPath(undefined);
     setLipSyncData(undefined);
+    setTargetEpochMs(undefined);
     setIsGenerating(false);
     setStatusText("");
   }, []);
@@ -139,9 +153,19 @@ export default function App() {
           : "Speaking..."
       );
 
+      const targetEpoch = getSynchronizedEpochMs() + 50;
+      setTargetEpochMs(targetEpoch);
       setAudioPath(next.audioPath);
       setLipSyncData(next.lipSyncData);
       setPlayLipSync(true);
+
+      void scheduleAudioPlayback(next.audioPath, targetEpoch, () => {
+        if (!cancelRef.current) {
+          playNextSentence();
+        }
+      }).then((src) => {
+        activeSourceRef.current = src;
+      });
     } else if (sentenceIndexRef.current < totalSentencesRef.current) {
       // Waiting for background fetch of next sentence
       waitingForNextRef.current = true;
@@ -213,9 +237,19 @@ export default function App() {
       if (cancelRef.current) return;
 
       sentenceIndexRef.current = 1;
+      const targetEpoch = getSynchronizedEpochMs() + 50;
+      setTargetEpochMs(targetEpoch);
       setAudioPath(firstResult.audioPath);
       setLipSyncData(firstResult.lipSyncData);
       setPlayLipSync(true);
+
+      void scheduleAudioPlayback(firstResult.audioPath, targetEpoch, () => {
+        if (!cancelRef.current) {
+          playNextSentence();
+        }
+      }).then((src) => {
+        activeSourceRef.current = src;
+      });
 
       setStatusText(
         sentences.length > 1
@@ -233,13 +267,6 @@ export default function App() {
       alert(error instanceof Error ? error.message : "TTS generation failed");
       handleStopSpeech();
     }
-  };
-
-  /**
-   * Fired when a sentence finishes playing in useLipSync
-   */
-  const handleLipSyncEnd = () => {
-    playNextSentence();
   };
 
   return (
@@ -286,6 +313,8 @@ export default function App() {
         camera={{
           position: [-0.03, 1.539, 0.768],
           fov: 42,
+          near: 0.01,
+          far: 50,
         }}
       >
         <CameraLogger />
@@ -299,7 +328,7 @@ export default function App() {
           playLipSync={playLipSync}
           audioPath={audioPath}
           lipSyncData={lipSyncData}
-          onLipSyncEnd={handleLipSyncEnd}
+          targetEpochMs={targetEpochMs}
         />
       </Canvas>
       </main>

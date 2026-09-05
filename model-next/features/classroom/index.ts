@@ -14,11 +14,16 @@ export { SessionController } from "./components/SessionController";
 export { SessionProgressHUD } from "./components/SessionProgressHUD";
 export { SubtitleBar } from "./components/SubtitleBar";
 export { VolumeControl } from "./components/VolumeControl";
+export { Lecturer2DFallback } from "./components/Lecturer2DFallback";
+export { ClassroomHeader } from "./components/ClassroomHeader";
+export { StageOverlay } from "./components/StageOverlay";
+export { MobileViewSwitcher } from "./components/MobileViewSwitcher";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";
 export { useClassroomSync } from "./hooks/useClassroomSync";
 export { useSpeechQueue } from "./hooks/useSpeechQueue";
+export { useClassroomLayout, type ClassroomLayoutFacts } from "./hooks/useClassroomLayout";
 
 // Store
 export { useClassroomStore } from "./store/classroomStore";
@@ -50,3 +55,5 @@ export type {
   SpeechItem,
   TTSFetchOptions,
 } from "./types/speech";
+export type { ClassroomCapabilities } from "./types/capabilities";
+export { getCapabilities } from "./types/capabilities";

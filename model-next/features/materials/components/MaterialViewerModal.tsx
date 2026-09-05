@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Maximize2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,6 +28,7 @@ interface MaterialViewerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mediaAssets?: MediaAsset[];
+  onProjectToStage?: (media: { type: "image"; url: string; label: string }) => void;
 }
 
 export function MaterialViewerModal({
@@ -35,6 +37,7 @@ export function MaterialViewerModal({
   open,
   onOpenChange,
   mediaAssets = [],
+  onProjectToStage,
 }: MaterialViewerModalProps) {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,7 +46,6 @@ export function MaterialViewerModal({
 
   useEffect(() => {
     if (!open || !file) {
-      setViewUrl(null);
       return;
     }
 
@@ -189,11 +191,32 @@ export function MaterialViewerModal({
                         loading="lazy"
                       />
                     </div>
-                    <div className="p-2.5 bg-black/[0.02] dark:bg-white/[0.03] border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                      <span className="text-[11px] font-bold truncate text-foreground">
+                    <div className="p-2.5 bg-black/[0.02] dark:bg-white/[0.03] border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold truncate text-foreground flex-1">
                         {diag.label}
                       </span>
-                      <Maximize2 className="h-3.5 w-3.5 text-[#86868b] group-hover:text-[#0071e3] shrink-0 ml-1" />
+                      {onProjectToStage ? (
+                        <AppButton
+                          variant="ghost"
+                          size="xs"
+                          shape="pill"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onProjectToStage({
+                              type: "image",
+                              url: diag.file_url,
+                              label: diag.label,
+                            });
+                            onOpenChange(false);
+                          }}
+                          className="h-6 px-2 text-[10px] text-[#0071e3] hover:bg-[#0071e3]/10 font-bold shrink-0"
+                          title="Project directly to stage"
+                        >
+                          Project
+                        </AppButton>
+                      ) : (
+                        <Maximize2 className="h-3.5 w-3.5 text-[#86868b] group-hover:text-[#0071e3] shrink-0 ml-1" />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -220,10 +243,30 @@ export function MaterialViewerModal({
         {selectedDiagram && (
           <Dialog open={Boolean(selectedDiagram)} onOpenChange={(open) => !open && setSelectedDiagram(null)}>
             <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border border-white/10 bg-black/95 text-white shadow-2xl">
-              <div className="p-4 border-b border-white/10">
-                <DialogTitle className="text-sm font-bold text-white">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3">
+                <DialogTitle className="text-sm font-bold text-white truncate max-w-md">
                   {selectedDiagram.label}
                 </DialogTitle>
+                {onProjectToStage && (
+                  <AppButton
+                    variant="primary"
+                    size="sm"
+                    shape="pill"
+                    onClick={() => {
+                      onProjectToStage({
+                        type: "image",
+                        url: selectedDiagram.file_url,
+                        label: selectedDiagram.label || "Projected Diagram",
+                      });
+                      setSelectedDiagram(null);
+                      onOpenChange(false);
+                    }}
+                    leftIcon={<Sparkles className="h-3.5 w-3.5" />}
+                    className="h-8 px-3 text-xs font-semibold shadow-xs"
+                  >
+                    <span>Project to Stage</span>
+                  </AppButton>
+                )}
               </div>
               <div className="p-6 flex items-center justify-center max-h-[70vh] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

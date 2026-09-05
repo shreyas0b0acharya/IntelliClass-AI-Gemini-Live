@@ -13,7 +13,11 @@ import {
 
 const emptySubscribe = () => () => {};
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  variant?: "button" | "segmented";
+}
+
+export function ThemeToggle({ variant = "button" }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
   const mounted = React.useSyncExternalStore(
     emptySubscribe,
@@ -22,6 +26,11 @@ export function ThemeToggle() {
   );
 
   if (!mounted) {
+    if (variant === "segmented") {
+      return (
+        <div className="flex items-center p-0.5 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5 h-7 w-24 opacity-50" />
+      );
+    }
     return (
       <AppButton
         variant="ghost"
@@ -31,6 +40,67 @@ export function ThemeToggle() {
       >
         <Sun className="h-4 w-4" />
       </AppButton>
+    );
+  }
+
+  // ── Segmented Control Variant (Apple HIG Inset Capsule for Menus & Settings) ──
+  if (variant === "segmented") {
+    return (
+      <div
+        role="radiogroup"
+        aria-label="Interface theme"
+        className="inline-flex items-center p-0.5 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5 gap-0.5 select-none"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={theme === "light"}
+          onClick={() => setTheme("light")}
+          title="Light Mode"
+          className={`flex items-center justify-center h-6 w-7 rounded-full transition-all duration-150 ${
+            theme === "light"
+              ? "bg-white text-amber-500 shadow-xs scale-[1.02]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Sun className="h-3.5 w-3.5" />
+          <span className="sr-only">Light Mode</span>
+        </button>
+
+        <button
+          type="button"
+          role="radio"
+          aria-checked={theme === "dark"}
+          onClick={() => setTheme("dark")}
+          title="Dark Mode"
+          className={`flex items-center justify-center h-6 w-7 rounded-full transition-all duration-150 ${
+            theme === "dark"
+              ? "bg-[#636366] text-indigo-300 shadow-xs scale-[1.02]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Moon className="h-3.5 w-3.5" />
+          <span className="sr-only">Dark Mode</span>
+        </button>
+
+        <button
+          type="button"
+          role="radio"
+          aria-checked={theme === "system"}
+          onClick={() => setTheme("system")}
+          title="System Preference"
+          className={`flex items-center justify-center h-6 w-7 rounded-full transition-all duration-150 ${
+            theme === "system"
+              ? "bg-white dark:bg-[#636366] text-foreground shadow-xs scale-[1.02]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Laptop className="h-3.5 w-3.5" />
+          <span className="sr-only">System Preference</span>
+        </button>
+      </div>
     );
   }
 

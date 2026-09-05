@@ -1,47 +1,46 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   useClassroom,
   useClassroomStore,
+  useClassroomLayout,
   AvatarStage,
-  SubtitleBar,
-  QuestionInput,
-  SessionController,
-  ChatPanel,
   AudioUnlockModal,
   LeaveClassroomDialog,
   ParticipantsModal,
   LectureScriptModal,
-  SessionProgressHUD,
-  ProjectionBoard,
-  VolumeControl,
+  ClassroomHeader,
+  StageOverlay,
+  MobileViewSwitcher,
+  ChatPanel,
+  getCapabilities,
 } from "@/features/classroom";
-import { ThemeToggle } from "@/components/shared";
+import { AssetSyncModal } from "@/components/shared";
+import { assetStorage } from "@/features/avatar";
 import { AppButton } from "@/components/app";
 import {
-  ArrowLeft,
-  Copy,
-  Link2,
-  Users,
   Loader2,
   Clock,
   AlertTriangle,
   BookOpen,
   FileText,
   Eye,
+  RotateCcw,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { MaterialViewerModal } from "@/features/materials";
+import { MaterialViewerModal, MaterialImageCarousel } from "@/features/materials";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export default function ClassroomPage({
   params,
@@ -52,6 +51,10 @@ export default function ClassroomPage({
   const router = useRouter();
   const classroom = useClassroom(sessionId);
   const store = useClassroomStore();
+  const layout = useClassroomLayout();
+
+  // Active view tab for compact/mobile layouts ("stage" vs "chat")
+  const [activeTab, setActiveTab] = useState<"stage" | "chat">("stage");
 
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -61,9 +64,56 @@ export default function ClassroomPage({
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedViewFile, setSelectedViewFile] = useState<CourseFile | null>(null);
 
-  // Forcefully exit students when the lecturer ends the session
+  // Live Closed Captions (CC) toggle — persistent per user across sessions
+  const [showCaptions, setShowCaptions] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("intelliclass_show_captions");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+
+  const handleToggleCaptions = () => {
+    setShowCaptions((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("intelliclass_show_captions", String(next));
+      }
+      toast.info(next ? "💬 Live captions enabled" : "Live captions hidden", { duration: 1500 });
+      return next;
+    });
+  };
+
+  // Script Progress HUD toggle (Lecturer only) — persistent across sessions
+  const [showProgressHUD, setShowProgressHUD] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("intelliclass_show_progress_hud");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+
+  const handleToggleProgressHUD = () => {
+    setShowProgressHUD((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("intelliclass_show_progress_hud", String(next));
+      }
+      toast.info(next ? "📊 Progress HUD enabled" : "Progress HUD hidden", { duration: 1500 });
+      return next;
+    });
+  };
+
+  // Forcefully exit students when the lecturer ends the session.
+  // Guard: only fire once the profile is known (profile !== null) to avoid
+  // a race where isLecturer is momentarily false for the actual lecturer.
   useEffect(() => {
-    if (classroom.session && !classroom.isLecturer && classroom.sessionStatus === "ended") {
+    if (
+      classroom.profile !== null &&
+      classroom.session &&
+      !classroom.isLecturer &&
+      classroom.sessionStatus === "ended"
+    ) {
       toast.info("🎓 The instructor has concluded this lecture session.", {
         description: "Redirecting you to the home page...",
         duration: 3000,
@@ -73,11 +123,22 @@ export default function ClassroomPage({
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [classroom.session, classroom.isLecturer, classroom.sessionStatus, router]);
+  }, [classroom.profile, classroom.session, classroom.isLecturer, classroom.sessionStatus, router]);
+
+  // Adaptive Bandwidth Arbitration: yield background sync during live lecture audio
+  useEffect(() => {
+    assetStorage.setAudioStreaming(Boolean(classroom.currentSpeech));
+  }, [classroom.currentSpeech]);
+
+  const isLecturer = Boolean(classroom.isLecturer);
+  const capabilities = useMemo(
+    () => getCapabilities(isLecturer ? "lecturer" : "student"),
+    [isLecturer]
+  );
 
   if (!classroom.session || !classroom.user) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
+      <div className="h-dvh min-h-dvh w-screen flex flex-col items-center justify-center gap-4 bg-background">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary animate-spin">
           <Loader2 className="h-6 w-6" />
         </div>
@@ -88,7 +149,6 @@ export default function ClassroomPage({
     );
   }
 
-  const isLecturer = classroom.isLecturer;
   const courseId = classroom.session.course_id;
   const meetingCode = classroom.session.meeting_code || classroom.session.id?.slice(0, 8);
 
@@ -99,17 +159,6 @@ export default function ClassroomPage({
 
   const hasWaitingStudents =
     isLecturer && classroom.participants.some((p) => p.status === "waiting");
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(meetingCode);
-    toast.success(`Meeting code "${meetingCode}" copied!`);
-  };
-
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}/session/${encodeURIComponent(meetingCode)}`;
-    navigator.clipboard.writeText(url);
-    toast.success(`Session link copied!`);
-  };
 
   const handleStopAndLeave = async () => {
     if (isLecturer && classroom.sessionStatus === "running") {
@@ -122,11 +171,26 @@ export default function ClassroomPage({
     router.push(`/course/${courseId}`);
   };
 
+  const handleOpenMaterials = async () => {
+    if (courseFiles.length === 0 && courseId) {
+      try {
+        const res = await api.getCourseFiles(courseId);
+        setCourseFiles(res.files || []);
+        const mRes = await api.getMediaAssets(courseId);
+        setMediaAssets(mRes.assets || []);
+      } catch (e) {
+        console.warn("Failed to load course materials:", e);
+      }
+    }
+    setShowMaterialsModal(true);
+  };
+
   return (
     <div
-      className={`h-screen w-screen flex flex-col overflow-hidden bg-background ${
+      className={cn(
+        "h-dvh min-h-dvh w-screen flex flex-col overflow-hidden bg-background select-none",
         isLecturer ? "role-lecturer" : "role-student"
-      }`}
+      )}
     >
       {/* Audio Unlock Overlay */}
       {!classroom.audioUnlocked && (
@@ -202,30 +266,39 @@ export default function ClassroomPage({
                 return (
                   <div
                     key={file.id}
-                    className="p-3 rounded-2xl border border-border/40 bg-background/50 hover:border-[#0071e3]/40 transition-all flex items-center justify-between gap-3"
+                    className="p-3 rounded-2xl border border-border/40 bg-background/50 hover:border-[#0071e3]/40 transition-all flex flex-col gap-2"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                        <FileText className="h-4 w-4" />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate text-foreground">{file.file_name}</p>
+                          <span className="text-[10px] text-muted-foreground">{sizeMb} MB</span>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate text-foreground">{file.file_name}</p>
-                        <span className="text-[10px] text-muted-foreground">{sizeMb} MB</span>
-                      </div>
+
+                      <AppButton
+                        size="sm"
+                        variant="primary"
+                        shape="rounded"
+                        onClick={() => {
+                          setSelectedViewFile(file);
+                        }}
+                        className="h-8 px-3 text-xs font-bold shrink-0"
+                        leftIcon={<Eye className="h-3.5 w-3.5" />}
+                      >
+                        <span>View PDF</span>
+                      </AppButton>
                     </div>
 
-                    <AppButton
-                      size="sm"
-                      variant="primary"
-                      shape="rounded"
-                      onClick={() => {
-                        setSelectedViewFile(file);
-                      }}
-                      className="h-8 px-3 text-xs font-bold shrink-0"
-                      leftIcon={<Eye className="h-3.5 w-3.5" />}
-                    >
-                      <span>View PDF</span>
-                    </AppButton>
+                    {/* Extracted Diagram Carousel with Instant 'Project to Stage' for Lecturer */}
+                    <MaterialImageCarousel
+                      fileName={file.file_name}
+                      assets={mediaAssets}
+                      onProjectToStage={isLecturer ? classroom.projectMedia : undefined}
+                    />
                   </div>
                 );
               })
@@ -242,144 +315,43 @@ export default function ClassroomPage({
           open={Boolean(selectedViewFile)}
           onOpenChange={(open) => !open && setSelectedViewFile(null)}
           mediaAssets={mediaAssets}
+          onProjectToStage={isLecturer ? classroom.projectMedia : undefined}
         />
       )}
 
-      {/* Classroom Header */}
-      <header className="h-16 px-6 shrink-0 flex items-center justify-between border-b border-border/40 bg-card/40 backdrop-blur-xl z-20">
-        <div className="flex items-center gap-4 min-w-0">
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={() => setShowLeaveDialog(true)}
-            className="h-9 px-3 text-xs font-semibold"
-            leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
-          >
-            <span>Course Space</span>
-          </AppButton>
+      {/* Modular, Accessible Classroom Header */}
+      <ClassroomHeader
+        topic={classroom.session.topic}
+        meetingCode={meetingCode}
+        courseId={courseId}
+        isLecturer={isLecturer}
+        capabilities={capabilities}
+        sessionStatus={classroom.sessionStatus}
+        voiceId={classroom.session.voice_id}
+        avatarModel={avatarModel}
+        activeStudentCount={classroom.activeStudentCount}
+        emptyRoomCountdown={classroom.emptyRoomCountdown}
+        stoppedReason={classroom.stoppedReason || undefined}
+        participantsCount={classroom.participants.length}
+        hasWaitingStudents={hasWaitingStudents}
+        scriptItemCount={store.items.length}
+        onLeaveClick={() => setShowLeaveDialog(true)}
+        onOpenParticipants={() => setShowParticipantsModal(true)}
+        onOpenScript={() => setShowScriptModal(true)}
+        onOpenMaterials={handleOpenMaterials}
+        onStartSession={classroom.startSession}
+        onPauseSession={classroom.pauseSession}
+        onEndSession={classroom.endSession}
+        onRestartSession={classroom.restartSession}
+        isCompact={layout.isCompact}
+        showCaptions={showCaptions}
+        onToggleCaptions={handleToggleCaptions}
+        showProgressHUD={showProgressHUD}
+        onToggleProgressHUD={handleToggleProgressHUD}
+      />
 
-          <div className="flex flex-col min-w-0">
-            <h1 className="text-sm font-bold text-foreground truncate max-w-sm sm:max-w-md">
-              {classroom.session.topic}
-            </h1>
-            <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-              <span>Voice: {classroom.session.voice_id || "am_fenrir"}</span>
-              <span>•</span>
-              <span>Model: {avatarModel === "women-avatarsdk" ? "Dr. Clara (Female)" : "Prof. Arthur (Male)"}</span>
-              <span>•</span>
-              <span className={isLecturer ? "text-indigo-500 font-bold" : "text-emerald-500 font-bold"}>
-                {isLecturer ? "Faculty Broadcast View" : "Student Immersion"}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Course Materials / PDF Viewer Button */}
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={async () => {
-              if (courseFiles.length === 0 && courseId) {
-                try {
-                  const res = await api.getCourseFiles(courseId);
-                  setCourseFiles(res.files || []);
-                  const mRes = await api.getMediaAssets(courseId);
-                  setMediaAssets(mRes.assets || []);
-                } catch (e) {
-                  console.warn("Failed to load course materials:", e);
-                }
-              }
-              setShowMaterialsModal(true);
-            }}
-            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
-            title="View Course Textbooks & Materials"
-            leftIcon={<FileText className="h-3.5 w-3.5 text-emerald-500" />}
-          >
-            <span className="text-[11px] hidden sm:inline">Course Materials</span>
-          </AppButton>
-
-          {/* View Script Button */}
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={() => setShowScriptModal(true)}
-            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
-            title="Inspect Lesson Script"
-            leftIcon={<BookOpen className="h-3.5 w-3.5 text-[#0071e3]" />}
-          >
-            <span className="text-[11px] hidden sm:inline">Curriculum Script</span>
-            <span className="font-mono text-[10px] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded">
-              {store.items.length || 0}
-            </span>
-          </AppButton>
-
-          {/* Meeting Code Copy Button */}
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={handleCopyCode}
-            className="h-9 px-3 text-xs font-semibold hidden sm:flex border-border/70 bg-card/60 hover:bg-card"
-            title="Copy Meeting Code"
-            leftIcon={<Copy className="h-3.5 w-3.5" />}
-          >
-            <span className="font-mono text-[11px]">{meetingCode}</span>
-          </AppButton>
-
-          {/* Meeting Link Copy Button */}
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={handleCopyLink}
-            className="h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
-            title="Copy Direct Session Link"
-            leftIcon={<Link2 className="h-3.5 w-3.5 text-[#0071e3]" />}
-          >
-            <span className="text-[11px]">Copy Link</span>
-          </AppButton>
-
-          {/* Google Meet Participants & Active Count Button */}
-          <AppButton
-            variant="outline"
-            size="sm"
-            shape="rounded"
-            onClick={() => setShowParticipantsModal(true)}
-            className="relative h-9 px-3 text-xs font-semibold border-border/70 bg-card/60 hover:bg-card"
-            title="View Classroom Participants"
-            leftIcon={<Users className="h-3.5 w-3.5 text-[#0071e3]" />}
-          >
-            <span className="font-mono text-xs font-bold text-foreground">
-              {classroom.participants.length}
-            </span>
-            {hasWaitingStudents && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse" />
-            )}
-          </AppButton>
-
-          <VolumeControl />
-
-          <SessionController
-            status={classroom.sessionStatus}
-            isLecturer={isLecturer}
-            activeStudentCount={classroom.activeStudentCount}
-            emptyRoomCountdown={classroom.emptyRoomCountdown}
-            stoppedReason={classroom.stoppedReason}
-            onStart={classroom.startSession}
-            onPause={classroom.pauseSession}
-            onEnd={classroom.endSession}
-            onRestart={classroom.restartSession}
-          />
-          <ThemeToggle />
-        </div>
-      </header>
-
-      {/* Main Classroom Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-hidden relative">
+      {/* Main Classroom Area: State-Preserving Persistent Panels */}
+      <div className="flex-1 relative min-h-0 overflow-hidden lg:grid lg:grid-cols-4">
         {/* Student Waiting Room State (Google Meet Knocking) */}
         {!isLecturer && classroom.myAdmissionStatus === "waiting" && (
           <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4">
@@ -433,6 +405,42 @@ export default function ClassroomPage({
           </div>
         )}
 
+        {/* Lecturer Session Ended — Recovery Overlay */}
+        {isLecturer && classroom.sessionStatus === "ended" && (
+          <div className="absolute inset-0 z-40 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-5">
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <RotateCcw className="h-8 w-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-2xl font-bold text-foreground">Session Ended</h2>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                This broadcast has concluded. You can restart it from the beginning or return to the course page.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <AppButton
+                onClick={classroom.restartSession}
+                variant="primary"
+                shape="rounded"
+                size="sm"
+                className="px-6 h-10 font-semibold text-xs shadow-lg gap-2"
+              >
+                <Play className="h-3.5 w-3.5" />
+                <span>Restart Broadcast</span>
+              </AppButton>
+              <AppButton
+                onClick={() => router.push(`/course/${courseId}`)}
+                variant="outline"
+                shape="rounded"
+                size="sm"
+                className="px-5 h-10 font-semibold text-xs"
+              >
+                <span>Return to Course</span>
+              </AppButton>
+            </div>
+          </div>
+        )}
+
         {/* Student Session Ended Forced Exit State */}
         {!isLecturer && classroom.sessionStatus === "ended" && (
           <div className="absolute inset-0 z-40 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-4">
@@ -457,61 +465,104 @@ export default function ClassroomPage({
           </div>
         )}
 
-        {/* 3D Avatar Stage & Overlay Area */}
-        <div className="lg:col-span-3 flex flex-col relative h-full bg-gradient-to-b from-background via-background/95 to-muted/20 p-4">
-          <div className="flex-1 relative w-full h-full rounded-3xl overflow-hidden shadow-2xl">
-            {/* Top HUD: Session Progress & Script Trigger */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full flex justify-center px-4">
-              <SessionProgressHUD
-                status={classroom.sessionStatus}
+        {/* ── Panel 1: Lecture Stage (Canvas + Overlays) ── */}
+        <div
+          id="panel-stage"
+          role="tabpanel"
+          aria-labelledby="tab-stage"
+          className={cn(
+            "h-full overflow-hidden transition-opacity duration-200",
+            // Desktop: 3 columns, always visible and interactive
+            "lg:relative lg:col-span-3 lg:visible lg:opacity-100 lg:pointer-events-auto lg:z-auto",
+            // Compact (Mobile / Short Viewports): absolute full-screen toggled by activeTab
+            layout.isCompact && (
+              activeTab === "stage"
+                ? "visible opacity-100 pointer-events-auto z-10 absolute inset-0"
+                : "invisible opacity-0 pointer-events-none z-0 absolute inset-0"
+            )
+          )}
+        >
+          <div className="flex flex-col relative h-full bg-gradient-to-b from-background via-background/95 to-muted/20 p-2 sm:p-4">
+            <div className="flex-1 relative w-full h-full min-h-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl">
+              <AvatarStage
+                model={avatarModel}
+                isSpeaking={Boolean(classroom.currentSpeech)}
+                audioPath={classroom.currentSpeech?.audioPath}
+                lipSyncData={classroom.currentSpeech?.lipSyncData}
+                targetEpochMs={classroom.currentSpeech?.targetEpochMs}
+                sequence={classroom.currentSpeech?.sequence}
+                onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
+                subtitle={classroom.currentSubtitle}
+                activeMedia={classroom.activeMedia || store.activeMedia}
+                userQuestion={classroom.userQuestion}
+                isThinking={classroom.isThinking}
+                sessionStatus={classroom.sessionStatus}
+                onCloseMedia={() => classroom.setActiveMedia(null)}
+                onQuestionChange={classroom.setUserQuestion}
+                onQuestionSubmit={(e) => {
+                  e?.preventDefault();
+                  classroom.handleInterrupt();
+                }}
+              />
+
+              <StageOverlay
+                sessionStatus={classroom.sessionStatus}
                 currentIndex={store.currentIndex}
                 totalItems={store.items.length}
                 currentSpeechText={classroom.currentSpeech?.text}
                 isThinking={classroom.isThinking}
                 onOpenScript={() => setShowScriptModal(true)}
-              />
-            </div>
-
-            <AvatarStage
-              model={avatarModel}
-              isSpeaking={Boolean(classroom.currentSpeech)}
-              audioPath={classroom.currentSpeech?.audioPath}
-              lipSyncData={classroom.currentSpeech?.lipSyncData}
-              onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
-            />
-
-            {/* Live Visual Projection Board (Displays Extracted Diagrams & Figures) */}
-            <ProjectionBoard
-              media={classroom.activeMedia || store.activeMedia}
-              onClose={() => classroom.setActiveMedia(null)}
-            />
-
-            {/* Subtitles Overlay */}
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 w-full flex justify-center">
-              <SubtitleBar subtitle={classroom.currentSubtitle} />
-            </div>
-
-            {/* Question / Interruption Bar */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-full flex justify-center">
-              <QuestionInput
-                question={classroom.userQuestion}
-                isThinking={classroom.isThinking}
-                disabled={classroom.sessionStatus !== "running"}
+                canEditCurriculum={capabilities.canEditCurriculum}
+                activeMedia={classroom.activeMedia || store.activeMedia}
+                onCloseMedia={isLecturer ? classroom.dismissMedia : () => classroom.setActiveMedia(null)}
+                subtitle={classroom.currentSubtitle}
+                showCaptions={showCaptions}
+                showProgressHUD={showProgressHUD}
+                canAskDoubt={capabilities.canAskDoubt}
+                userQuestion={classroom.userQuestion}
                 onQuestionChange={classroom.setUserQuestion}
-                onSubmit={(e) => {
+                onQuestionSubmit={(e) => {
                   e?.preventDefault();
                   classroom.handleInterrupt();
                 }}
+                isCompact={layout.isCompact}
+                isShortLandscape={layout.isShortLandscape}
               />
             </div>
           </div>
         </div>
 
-        {/* Live Chat & Transcript Sidebar */}
-        <div className="hidden lg:flex lg:col-span-1 h-full overflow-hidden">
+        {/* ── Panel 2: Live Chat & Notes Sidebar ── */}
+        <div
+          id="panel-chat"
+          role="tabpanel"
+          aria-labelledby="tab-chat"
+          className={cn(
+            "h-full overflow-hidden transition-opacity duration-200 border-l border-border/40 bg-card/40",
+            // Desktop: 1 column, always visible and interactive
+            "lg:relative lg:col-span-1 lg:visible lg:opacity-100 lg:pointer-events-auto lg:z-auto",
+            // Compact (Mobile / Short Viewports): absolute full-screen toggled by activeTab
+            layout.isCompact && (
+              activeTab === "chat"
+                ? "visible opacity-100 pointer-events-auto z-10 absolute inset-0 bg-background"
+                : "invisible opacity-0 pointer-events-none z-0 absolute inset-0"
+            )
+          )}
+        >
           <ChatPanel sessionId={sessionId} userId={classroom.user.id} />
         </div>
       </div>
+
+      {/* ── Mobile Accessible Switcher (Rendered on Compact Screens) ── */}
+      {layout.isCompact && (
+        <MobileViewSwitcher
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      )}
+
+      {/* Background Core Asset Sync Modal */}
+      <AssetSyncModal preferredGender={avatarModel.includes("women") ? "women" : "men"} />
     </div>
   );
 }

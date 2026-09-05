@@ -1,20 +1,42 @@
 "use client";
 
+import React, { useEffect } from "react";
 import {
   Environment,
   OrbitControls,
   useTexture,
   useGLTF,
 } from "@react-three/drei";
+import * as THREE from "three";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
+import { useDeviceTier } from "../hooks/useDeviceTier";
 
 function ClassroomStage() {
   const { scene } = useGLTF("/models/CLASSROOM.glb");
+
+  // Dispose geometries and materials on unmount
+  useEffect(() => {
+    return () => {
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => {
+              m.map?.dispose();
+              m.dispose();
+            });
+          } else if (obj.material) {
+            obj.material.map?.dispose();
+            obj.material.dispose();
+          }
+        }
+      });
+    };
+  }, [scene]);
+
   return <primitive object={scene} />;
 }
-
-useGLTF.preload("/models/CLASSROOM.glb");
 
 interface ExperienceProps {
   model?: string;
@@ -25,6 +47,8 @@ interface ExperienceProps {
   audioPath?: string;
   lipSyncData?: HeadTTSData;
   onLipSyncEnd?: () => void;
+  targetEpochMs?: number;
+  sequence?: number;
 }
 
 export function Experience({
@@ -36,14 +60,30 @@ export function Experience({
   audioPath,
   lipSyncData,
   onLipSyncEnd,
+  targetEpochMs,
+  sequence,
 }: ExperienceProps) {
+  const { capabilities } = useDeviceTier();
   const texture = useTexture("/textures/Blackboard-Stage-Wall.png");
 
   return (
     <>
-      <OrbitControls target={[0, 1.8, -4.3]} />
+      <OrbitControls
+        target={[0, 1.55, -3.8]}
+        enableZoom={true}
+        enablePan={true}
+        screenSpacePanning={true}
+        minDistance={0.4}
+        maxDistance={4.5}
+      />
 
-      <ClassroomStage />
+      {/* Render full 3D classroom mesh only for High and Medium tiers.
+          Low tier renders a lightweight 2D stage plane, saving 40.5MB on mobile! */}
+      {capabilities.stageType !== "2d-backdrop" && (
+        <React.Suspense fallback={null}>
+          <ClassroomStage />
+        </React.Suspense>
+      )}
 
       <Avatar
         key={model}
@@ -57,11 +97,23 @@ export function Experience({
         audioPath={audioPath}
         lipSyncData={lipSyncData}
         onLipSyncEnd={onLipSyncEnd}
+        targetEpochMs={targetEpochMs}
+        sequence={sequence}
       />
 
-      <Environment files="/environment/empty_warehouse_01_1k.hdr" />
+      {/* Studio portrait lighting: 3-point illumination + frontal eye catchlight across all tiers */}
+      <ambientLight intensity={0.9} color="#ffffff" />
+      <directionalLight position={[2, 4, 3]} intensity={1.5} color="#ffffff" />
+      <directionalLight position={[-2, 2, 2]} intensity={0.7} color="#dbe5ff" />
+      <directionalLight position={[0, 1.5, 3]} intensity={0.4} color="#ffffff" />
 
-      <mesh receiveShadow position={[0, 1.8, -4.3]}>
+      {/* Subtle HDR environment fill for high tier */}
+      {capabilities.enableEnvironmentMap && (
+        <Environment files="/environment/empty_warehouse_01_1k.hdr" environmentIntensity={0.25} />
+      )}
+
+      {/* Stage backdrop projection plane */}
+      <mesh receiveShadow={capabilities.shadows} position={[0, 1.8, -4.3]}>
         <planeGeometry args={[8.9, 4.8]} />
         <meshBasicMaterial map={texture} />
       </mesh>
@@ -70,5 +122,3 @@ export function Experience({
 }
 
 export default Experience;
-
-useTexture.preload("/textures/Blackboard-Stage-Wall.png");

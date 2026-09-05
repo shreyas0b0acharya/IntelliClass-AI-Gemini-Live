@@ -23,18 +23,14 @@ export function AvatarAnimations({
   group,
   onReady,
 }: AvatarAnimationsProps) {
-  // Start with default weight shift in list immediately so it loads in parallel with model
-  const [animList, setAnimList] = useState<
-    {
-      name: string;
-      path: string;
-    }[]
-  >([
-    {
-      name: "weight shift",
-      path: `/animations/${modelName}/weight shift.fbx`,
-    },
-  ]);
+  const currentTargetAnim = animation || "weight shift";
+
+  // Only load animations that are actively requested or predicted
+  const [loadedAnimMap, setLoadedAnimMap] = useState<Map<string, string>>(() => {
+    const initialMap = new Map<string, string>();
+    initialMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
+    return initialMap;
+  });
 
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsRef = useRef<Map<string, THREE.AnimationAction>>(new Map());
@@ -46,10 +42,10 @@ export function AvatarAnimations({
     onReadyRef.current = onReady;
   }, [onReady]);
 
-  const animationRef = useRef(animation);
+  const animationRef = useRef(currentTargetAnim);
   useEffect(() => {
-    animationRef.current = animation;
-  }, [animation]);
+    animationRef.current = currentTargetAnim;
+  }, [currentTargetAnim]);
 
   const getMixer = () => {
     if (!mixerRef.current && group.current) {
@@ -88,40 +84,23 @@ export function AvatarAnimations({
   }, [group]);
 
   /*
-   * Fetch list of available animation files for this avatar model
+   * On-demand dynamic loading: when target animation changes, load ONLY that clip
    */
   useEffect(() => {
-    let cancelled = false;
+    if (!currentTargetAnim || currentTargetAnim.toLowerCase() === "none") {
+      return;
+    }
 
-    fetch(`/api/animations/${modelName}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Failed to load animation manifest");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled && Array.isArray(data)) {
-          setAnimList((prev) => {
-            const existingPaths = new Set(prev.map((p) => p.path));
-            const additions = data.filter(
-              (d: { path: string }) => !existingPaths.has(d.path)
-            );
-            return [...prev, ...additions];
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Error loading animation list:", error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [modelName]);
+    setLoadedAnimMap((prev) => {
+      if (prev.has(currentTargetAnim)) return prev;
+      const nextMap = new Map(prev);
+      nextMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
+      return nextMap;
+    });
+  }, [currentTargetAnim, modelName]);
 
   /*
-   * Play an animation action
+   * Play an animation action with smooth cross-fading
    */
   const playAction = (targetAnim: string, isFirst = false) => {
     if (!targetAnim || targetAnim.toLowerCase() === "none") {
@@ -197,17 +176,19 @@ export function AvatarAnimations({
    * Handle animation prop changes (e.g. user switching gestures)
    */
   useEffect(() => {
-    const targetAnim = animation || "None";
+    const targetAnim = currentTargetAnim || "None";
     playActionRef.current(targetAnim, false);
-  }, [animation]);
+  }, [currentTargetAnim]);
+
+  const animEntries = Array.from(loadedAnimMap.entries());
 
   return (
     <React.Suspense fallback={null}>
-      {animList.map((anim) => (
+      {animEntries.map(([name, path]) => (
         <AnimationLoader
-          key={`${modelName}-${anim.path}`}
-          path={anim.path}
-          name={anim.name}
+          key={`${modelName}-${name}`}
+          path={path}
+          name={name}
           onLoad={handleClipLoad}
         />
       ))}
@@ -216,6 +197,3 @@ export function AvatarAnimations({
 }
 
 export default AvatarAnimations;
-
-useFBX.preload("/animations/men-avatarsdk/weight shift.fbx");
-useFBX.preload("/animations/women-avatarsdk/weight shift.fbx");

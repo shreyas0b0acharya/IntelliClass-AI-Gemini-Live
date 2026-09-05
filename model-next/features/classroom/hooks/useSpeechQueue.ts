@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SpeechItem, SpeechStatus } from "../types/speech";
 import type { HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 import {
   preloadAudioBuffer,
   scheduleAudioPlayback,
+  stopAllAudio,
 } from "@/features/avatar";
 
 export interface UseSpeechQueueOptions {
@@ -60,11 +61,19 @@ export function useSpeechQueue({
       } catch {}
       activeSourceRef.current = null;
     }
+    stopAllAudio();
     activeRequestIdRef.current = null;
     activeItemIdRef.current = null;
     setCurrentSpeech(null);
     setStatus("idle");
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   // ── Internal: fetch or deduplicate in-flight TTS synthesis ────────────
 
@@ -101,11 +110,19 @@ export function useSpeechQueue({
     []
   );
 
-  // ── Prefetch upcoming sentences concurrently in background ────────────
-
+  // ── Prefetch upcoming sentences in background (device-aware depth) ──
   const prefetch = useCallback(
     async (texts: string[], selectedVoice: string = voice) => {
-      const uniqueTexts = Array.from(new Set(texts.map((t) => t?.trim()).filter(Boolean)));
+      const isMobileOrSlow =
+        typeof window !== "undefined" &&
+        (window.innerWidth <= 768 ||
+          (navigator as unknown as { connection?: { saveData?: boolean } })?.connection?.saveData);
+
+      // On mobile/constrained networks, prefetch only N+1 (1 sentence)
+      // On desktop, prefetch up to N+2 (2 sentences)
+      const maxDepth = isMobileOrSlow ? 1 : 2;
+      const uniqueTexts = Array.from(new Set(texts.map((t) => t?.trim()).filter(Boolean))).slice(0, maxDepth);
+
       if (uniqueTexts.length === 0) return;
 
       await Promise.allSettled(
@@ -184,6 +201,8 @@ export function useSpeechQueue({
         durationMs,
         lipSyncData,
         text,
+        targetEpochMs,
+        sequence,
       };
 
       setCurrentSpeech(speechItem);
@@ -310,15 +329,23 @@ export function useSpeechQueue({
     [onSpeechComplete]
   );
 
-  return {
-    currentSpeech,
-    status,
-    playSpeech,
-    playScheduled,   // ← NEW: primary path for multi-device sync
-    playDirectSpeech,
-    synthesizeItem,  // ← NEW: driver uses this to get audio before broadcasting
-    handleAudioEnd,
-    stop,
-    prefetch,
-  };
+  // Memoize returned object so its reference is stable across re-renders.
+  // This prevents useCallbacks/useEffects in consumers (useClassroom) from
+  // re-creating on every state change (e.g. setSessionStatus causing re-render).
+  return useMemo(
+    () => ({
+      currentSpeech,
+      status,
+      playSpeech,
+      playScheduled,
+      playDirectSpeech,
+      synthesizeItem,
+      handleAudioEnd,
+      stop,
+      prefetch,
+    }),
+    // All the functions are themselves stable useCallbacks so this memo only
+    // busts when the reactive state (currentSpeech, status) changes.
+    [currentSpeech, status, playSpeech, playScheduled, playDirectSpeech, synthesizeItem, handleAudioEnd, stop, prefetch]
+  );
 }

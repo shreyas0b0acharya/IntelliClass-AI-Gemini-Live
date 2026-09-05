@@ -15,14 +15,12 @@ import {
   Volume2,
   Clock,
   HelpCircle,
-  Image as ImageIcon,
   Play,
   CheckCircle2,
   Sparkles,
   Edit3,
   List,
   Save,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -293,20 +291,58 @@ export function LectureScriptModal({
               }
 
               if (item.type === "image" || item.type === "video") {
+                const resolvedUrl = item.mediaRef.startsWith("/api/media/")
+                  ? item.mediaRef
+                  : item.mediaRef.replace(/course-files\/(.+)$/, "/api/media/$1");
+
                 return (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400 flex items-center gap-2.5"
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      isCurrent
+                        ? "bg-purple-500/15 border-purple-500/40 ring-1 ring-purple-500/40 shadow-sm"
+                        : "bg-purple-500/5 dark:bg-purple-500/10 border-purple-500/20"
+                    }`}
                   >
-                    <ImageIcon className="h-4 w-4 shrink-0" />
-                    <div>
-                      <p className="font-bold text-[11px] uppercase tracking-wider">
-                        Visual Cue ({item.type})
-                      </p>
-                      <p className="text-xs text-foreground truncate max-w-sm mt-0.5">
-                        {item.caption || item.mediaRef}
-                      </p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-10 rounded-xl overflow-hidden bg-black/10 shrink-0 border border-black/10 dark:border-white/10 flex items-center justify-center">
+                        {item.type === "video" ? (
+                          <video src={resolvedUrl} className="w-full h-full object-cover" muted />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={resolvedUrl}
+                            alt={item.caption || "Visual asset"}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono font-bold text-[#86868b] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
+                            #{idx + 1}
+                          </span>
+                          <p className="font-bold text-[11px] uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                            Projected {item.type === "video" ? "Video" : "Slide"}
+                          </p>
+                        </div>
+                        <p
+                          className="text-xs font-semibold text-foreground truncate max-w-sm mt-0.5"
+                          title={item.caption || item.mediaRef}
+                        >
+                          {item.caption || "Visual Diagram Asset"}
+                        </p>
+                      </div>
                     </div>
+
+                    {isCurrent && (
+                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/15 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse shrink-0">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        ON STAGE
+                      </span>
+                    )}
                   </div>
                 );
               }
