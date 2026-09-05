@@ -121,6 +121,7 @@ export function AvatarStage({
       >
         <color attach="background" args={["#121316"]} />
         <Experience
+          key={model}
           model={model}
           animation="weight shift"
           behaviorState={isSpeaking ? "talking" : "idle"}

@@ -20,6 +20,7 @@ import {
   Activity,
   Settings2,
   Lock,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SessionController } from "./SessionController";
@@ -60,6 +61,8 @@ interface ClassroomHeaderProps {
   onEndSession?: () => void | Promise<void>;
   onRestartSession?: () => void | Promise<void>;
   isCompact?: boolean;
+  speechSpeed?: number;
+  onOpenPersonaConfig?: () => void;
   showCaptions?: boolean;
   onToggleCaptions?: () => void;
   showProgressHUD?: boolean;
@@ -75,6 +78,7 @@ export function ClassroomHeader({
   sessionStatus,
   voiceId,
   avatarModel,
+  speechSpeed,
   activeStudentCount,
   emptyRoomCountdown,
   stoppedReason,
@@ -85,6 +89,7 @@ export function ClassroomHeader({
   onOpenParticipants,
   onOpenScript,
   onOpenMaterials,
+  onOpenPersonaConfig,
   onStartSession,
   onPauseSession,
   onEndSession,
@@ -184,6 +189,23 @@ export function ClassroomHeader({
           </Button>
         )}
 
+        {/* Pre-Class Persona & Voice Setup (Visible to Lecturer) */}
+        {isLecturer && (onOpenPersonaConfig || onOpenConfig) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenPersonaConfig || onOpenConfig}
+            className="h-8 sm:h-9 px-2.5 text-xs font-semibold shrink-0 gap-1.5"
+            title={sessionStatus !== "running" ? "Configure Avatar Persona & Voice" : "View Persona & Audio Settings (Locked while broadcasting)"}
+          >
+            <User className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden md:inline text-xs">{personaName}</span>
+            {sessionStatus === "running" && (
+              <span className="text-[9px] px-1 py-0.2 rounded-md bg-muted text-muted-foreground font-mono">🔒</span>
+            )}
+          </Button>
+        )}
+
         {/* Session Conductor (Primary Playback Controls) */}
         <SessionController
           status={sessionStatus}
@@ -215,6 +237,29 @@ export function ClassroomHeader({
  <DropdownMenuLabel className="">
               Classroom Tools
             </DropdownMenuLabel>
+
+            {/* Persona & Audio Configuration */}
+            {isLecturer && (onOpenPersonaConfig || onOpenConfig) && (
+              <DropdownMenuItem
+                onClick={onOpenPersonaConfig || onOpenConfig}
+                className="gap-2.5 py-2 cursor-pointer rounded-xl"
+              >
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-xs text-foreground">Avatar Persona & Voice</span>
+                    {sessionStatus === "running" && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-chart-4/10 text-chart-4 font-bold">
+                        Locked (Live)
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {personaName} • {voiceId || "am_fenrir"} {speechSpeed ? `(${speechSpeed.toFixed(2)}x)` : ""}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            )}
 
             {/* Course Materials */}
             {capabilities.canViewMaterials && (

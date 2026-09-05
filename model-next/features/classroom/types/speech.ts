@@ -2,6 +2,36 @@ import type { LipSyncData } from "@/features/avatar";
 
 export type TTSProviderId = "headtts" | "elevenlabs";
 
+export type VoiceGender = "male" | "female" | "unknown";
+
+export interface VoiceOption {
+  id: string;
+  name: string;
+  provider: TTSProviderId;
+  gender: VoiceGender;
+  accent?: string;
+  age?: string;
+  useCase?: string;
+  category?: string; // e.g. "premade" | "cloned" | "system"
+  description?: string;
+}
+
+export interface TTSModelOption {
+  id: string;
+  name: string;
+  provider: TTSProviderId;
+  description: string;
+  isDefault?: boolean;
+}
+
+export interface SessionPersonaConfig {
+  avatarModel: "men-avatarsdk" | "women-avatarsdk";
+  ttsProvider: TTSProviderId;
+  voiceId: string;
+  modelId?: string;
+  speechSpeed: number; // User pacing preference (e.g. 1.0)
+}
+
 export type SpeechStatus =
   | "idle"
   | "prefetching"

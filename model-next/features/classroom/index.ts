@@ -19,6 +19,7 @@ export { ClassroomHeader } from "./components/ClassroomHeader";
 export { StageOverlay } from "./components/StageOverlay";
 export { MobileViewSwitcher } from "./components/MobileViewSwitcher";
 export { ClassroomConfigModal } from "./components/ClassroomConfigModal";
+export { SessionPersonaModal } from "./components/SessionPersonaModal";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";

@@ -4,13 +4,50 @@
 // Normalizes formulas, academic acronyms, and markdown formatting while strictly preserving
 // meaningful punctuation for natural breathing and neural prosody cues.
 
-export const SPEECH_PREPROCESSOR_VERSION = 1;
+export const SPEECH_PREPROCESSOR_VERSION = 2;
+
+/**
+ * Pronunciation overrides for terms that TTS models frequently mispronounce.
+ * Supports phonetic respelling or natural phonetic approximation.
+ */
+export const DEFAULT_PRONUNCIATION_OVERRIDES: Record<string, string> = {
+  // Languages, frameworks, tools
+  LaTeX: "lay-teck",
+  PostgreSQL: "post-gres-Q-L",
+  Postgres: "post-gres",
+  NumPy: "num-pie",
+  SciPy: "sigh-pie",
+  PyTorch: "pie-torch",
+  Kubernetes: "koo-ber-net-eez",
+  nginx: "engine-X",
+  OAuth: "O-Auth",
+  gRPC: "G-R-P-C",
+  // Common math/CS concepts
+  modulo: "mod-you-low",
+  dijkstra: "dike-stra",
+  boolean: "boo-lee-an",
+  tuple: "tuh-ple",
+  tuples: "tuh-ples",
+  regex: "reg-ex",
+  regexes: "reg-ex-es",
+};
+
+export interface PreprocessorOptions {
+  pronunciationOverrides?: Record<string, string>;
+  preservePhonemeTags?: boolean;
+}
 
 export class SpeechPreprocessor {
   /**
    * Preprocess and normalize text for speech synthesis.
+   * Pipeline:
+   * 1. Markdown stripping (preserving natural sentence structure)
+   * 2. Pronunciation overrides (phonetic replacements)
+   * 3. Math & Big-O formula normalization
+   * 4. Technical acronym normalization
+   * 5. Natural punctuation and cadence cleanup
    */
-  static process(rawText: string): string {
+  static process(rawText: string, options?: PreprocessorOptions): string {
     if (!rawText) return "";
 
     let text = rawText;
@@ -24,7 +61,18 @@ export class SpeechPreprocessor {
     text = text.replace(/^\s*[-*+]\s+/gm, ""); // Unordered list bullets
     text = text.replace(/^\s*\d+\.\s+/gm, ""); // Numbered lists
 
-    // 2. Common Big-O and mathematical formulas
+    // 2. Pronunciation Overrides (for specific technical terms)
+    const overrides = {
+      ...DEFAULT_PRONUNCIATION_OVERRIDES,
+      ...(options?.pronunciationOverrides || {}),
+    };
+
+    for (const [term, replacement] of Object.entries(overrides)) {
+      const regex = new RegExp(`\\b${term}\\b`, "gi");
+      text = text.replace(regex, replacement);
+    }
+
+    // 3. Formula Normalization: Common Big-O and mathematical formulas
     text = text.replace(/\bO\(1\)/gi, "O of 1");
     text = text.replace(/\bO\(n\s*\*\s*log\s*n\)/gi, "O of N log N");
     text = text.replace(/\bO\(n\s*log\s*n\)/gi, "O of N log N");
@@ -42,7 +90,7 @@ export class SpeechPreprocessor {
     text = text.replace(/\s*!=\s*/g, " not equal to ");
     text = text.replace(/\s*==\s*/g, " equals ");
 
-    // 3. Common computer science acronyms for clear articulation
+    // 4. Acronym Normalization: Common computer science acronyms for clear articulation
     text = text.replace(/\bAPI\b/g, "A-P-I");
     text = text.replace(/\bAPIs\b/g, "A-P-Is");
     text = text.replace(/\bURL\b/g, "U-R-L");
@@ -62,9 +110,15 @@ export class SpeechPreprocessor {
     text = text.replace(/\bGPU\b/g, "G-P-U");
     text = text.replace(/\bCPU\b/g, "C-P-U");
 
-    // 4. Clean up whitespace while strictly keeping punctuation intact
-    text = text.replace(/\s+/g, " ").trim();
+    // 5. Natural Punctuation & Cadence
+    // Clean up excessive whitespace while strictly preserving commas, periods, question marks, and colons
+    text = text.replace(/[ \t]+/g, " ");
+    text = text.replace(/\n{2,}/g, ". ");
+    text = text.replace(/\n/g, " ");
+    text = text.replace(/\s+([.,!?;:])/g, "$1"); // Ensure no floating spaces before punctuation
+    text = text.trim();
 
     return text;
   }
 }
+

@@ -65,6 +65,9 @@ export interface ClassroomSession {
   topic: string;
   script: string;
   voice_id?: string;
+  avatar_model?: string;
+  speech_speed?: number;
+  tts_provider?: string;
   status: SessionStatus;
   current_item_id?: string;
   current_sentence_index?: number;

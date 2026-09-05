@@ -143,6 +143,16 @@ export type ClassroomEvent =
       stoppedReason?: string;
     }
   | {
+      type: "CONFIG_UPDATE";
+      avatar_model?: string;
+      voice_id?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+      sequence: number;
+      stateVersion?: number;
+      driverLeaseVersion?: number;
+    }
+  | {
       // Broadcast by the lecturer when restarting an ended/paused session from scratch.
       // MUST bypass all sequence guards on the receiver side so stale lastSeqRef
       // values from the previous run never block item 0 from playing.

@@ -232,6 +232,27 @@ export class ElevenLabsProvider implements ITTSServiceProvider {
 // 3. Central TTSManager Gateway
 // ─────────────────────────────────────────────
 
+export const PROVIDER_BASELINE_SPEED: Record<TTSProviderId, number> = {
+  headtts: 1.0,
+  elevenlabs: 0.90, // Initial calibrated preset for academic cadence
+};
+
+/**
+ * Calculates effective TTS synthesis speed from user pacing preference.
+ * Keeps user pacing slider (e.g. 0.75x - 1.25x) proportional across providers.
+ */
+export function calculateEffectiveSpeed(
+  provider: TTSProviderId,
+  userPacing: number = 1.0
+): number {
+  const base = PROVIDER_BASELINE_SPEED[provider] ?? 1.0;
+  if (provider === "elevenlabs") {
+    // Proportional mapping around 0.90 baseline; clamps to ElevenLabs supported range [0.70, 1.20]
+    return Math.min(1.20, Math.max(0.70, Number((userPacing * base).toFixed(2))));
+  }
+  return Number((userPacing * base).toFixed(2));
+}
+
 export class TTSManager {
   private headTTS: HeadTTSProvider;
   private elevenLabs: ElevenLabsProvider;
@@ -249,8 +270,9 @@ export class TTSManager {
 
     // Step 1: Preprocess and normalize text
     const normalizedText = SpeechPreprocessor.process(rawText);
-    const speed = typeof options.speed === "number" && options.speed > 0 ? options.speed : 1.0;
     const provider: TTSProviderId = options.provider || "headtts";
+    const userPacing = typeof options.speed === "number" && options.speed > 0 ? options.speed : 1.0;
+    const speed = calculateEffectiveSpeed(provider, userPacing);
     const voiceId = options.voice || (provider === "elevenlabs" ? "21m00Tcm4TlvDq8ikWAM" : "af_bella");
     const modelId =
       options.modelId || (provider === "elevenlabs" ? "eleven_flash_v2_5" : "kokoro-82m-onnx");
@@ -320,8 +342,10 @@ export class TTSManager {
           "⚠️ [TTSManager] ElevenLabs synthesis failed. Executing pre-broadcast fallback to HeadTTS:",
           elevenErr instanceof Error ? elevenErr.message : elevenErr
         );
-        // Pre-broadcast fallback: seamlessly invoke HeadTTS
-        output = await this.headTTS.synthesize(normalizedText, "af_bella", speed, {
+        // Pre-broadcast fallback: seamlessly invoke HeadTTS with matching gender voice
+        const isLikelyMale = voiceId.startsWith("am_") || ["brian", "adam", "george", "liam", "eric", "daniel", "callum", "charlie"].some(name => voiceId.toLowerCase().includes(name));
+        const fallbackVoice = isLikelyMale ? "am_fenrir" : "af_bella";
+        output = await this.headTTS.synthesize(normalizedText, fallbackVoice, speed, {
           signal: options.signal,
         });
       }

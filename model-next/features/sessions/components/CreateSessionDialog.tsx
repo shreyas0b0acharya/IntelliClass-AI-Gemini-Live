@@ -122,9 +122,12 @@ function CreateSessionModalContent({
     setStatusStep("Initializing classroom session...");
 
     try {
+      const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
       const { session: sessionData } = await api.createCourseSession(courseId, {
         topic: topic.trim(),
         voice_id: voiceId,
+        avatar_model: avatarModel,
+        speech_speed: speed,
       });
 
       if (!sessionData) {

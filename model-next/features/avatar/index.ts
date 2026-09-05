@@ -69,7 +69,18 @@ export type {
   AvatarProps,
   AvatarNode,
   AvatarGLTFResult,
+  AvatarModelId,
+  AvatarModelInfo,
 } from "./types/avatar.types";
+export {
+  AVATAR_MODELS,
+  DEFAULT_AVATAR_MODEL,
+  getAvatarMetadata,
+  resolveAvatarModel,
+  validatePersonaPairing,
+} from "./services/avatarRegistry";
+export type { PersonaValidationResult } from "./services/avatarRegistry";
+
 export type {
   BehaviorState,
   BehaviorStore,

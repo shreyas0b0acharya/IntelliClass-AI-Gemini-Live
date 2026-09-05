@@ -193,6 +193,7 @@ export function useClassroom(sessionId: string) {
     voice: resolvedVoice.voiceId,
     provider: resolvedVoice.provider,
     modelId: resolvedVoice.modelId,
+    speed: session?.speech_speed ?? 1.0,
     onSpeechComplete: (_itemId) => {
       executingItemIdRef.current = null;
       // Only the active conductor advances — students follow strictly via broadcast
@@ -777,6 +778,23 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle("Lecture restarting. Please wait for the professor to begin.");
         syncStore().setCurrentSubtitle("Lecture restarting. Please wait for the professor to begin.");
       }
+      // ── CONFIG_UPDATE ──────────────────────────────────────────────
+      else if (event.type === "CONFIG_UPDATE") {
+        console.log("[Realtime] CONFIG_UPDATE received:", event);
+        setSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            avatar_model: event.avatar_model || prev.avatar_model,
+            voice_id: event.voice_id || prev.voice_id,
+            speech_speed: event.speech_speed ?? prev.speech_speed,
+            tts_provider: event.tts_provider || prev.tts_provider,
+          };
+        });
+        if (!isLecturerRef.current) {
+          toast.info("Lecturer updated avatar persona & audio settings.");
+        }
+      }
     },
     [session?.voice_id, speech, syncStore]
   );
@@ -1320,56 +1338,72 @@ export function useClassroom(sessionId: string) {
     }
   }, [syncStore]);
 
-  const updateSessionConfig = useCallback(
-    async (updates: { voiceId: string; avatarModel?: string; personaName?: string }) => {
-      if (!isLecturerRef.current || !sessionId) return;
-
-      if (sessionStatusRef.current !== "created" && sessionStatusRef.current !== "ended") {
-        toast.error("Voice and avatar model can only be changed in Standby or Ended states.");
+  // ── 10. Pre-Class Persona & Speech Configuration ───────────────────
+  const updatePersonaConfig = useCallback(
+    async (config: {
+      avatar_model?: string;
+      voice_id?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+    }) => {
+      if (!session) return;
+      if (sessionStatusRef.current === "running") {
+        toast.error("Please pause the lecture before modifying avatar persona & voice.");
         return;
       }
 
       try {
-        await api.updateSessionMeta(sessionId, {
-          voice_id: updates.voiceId,
-        });
+        const res = await api.updateSessionMeta(sessionId, config);
+        if (res.session) {
+          setSession((prev) => {
+            const merged = {
+              ...(prev || {}),
+              ...(res.session || {}),
+              avatar_model: config.avatar_model || res.session?.avatar_model || prev?.avatar_model,
+              voice_id: config.voice_id || res.session?.voice_id || prev?.voice_id,
+              speech_speed: config.speech_speed ?? res.session?.speech_speed ?? prev?.speech_speed,
+              tts_provider: config.tts_provider || res.session?.tts_provider || prev?.tts_provider,
+            } as ClassroomSession;
+            return merged;
+          });
+          sequenceRef.current++;
+          broadcastEventRef.current?.({
+            type: "CONFIG_UPDATE",
+            sequence: sequenceRef.current,
+            driverLeaseVersion: driverLeaseVersionRef.current,
+            ...config,
+          });
 
-        setSession((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            voice_id: updates.voiceId,
-            ...(updates.avatarModel ? { avatar_model: updates.avatarModel } : {}),
-          };
-        });
+          // Prefetch first few speech items with the new voice if provided
+          if (config.voice_id) {
+            const nextSpeech = itemsRef.current
+              .slice(currentIndexRef.current, currentIndexRef.current + 5)
+              .filter((i): i is LectureSpeechItem => i.type === "speech")
+              .map((i) => i.text);
+            if (nextSpeech.length > 0) {
+              speech.prefetch(nextSpeech, config.voice_id);
+            }
+          }
 
-        sequenceRef.current++;
-        broadcastEventRef.current?.({
-          type: "CONFIG_UPDATE",
-          sequence: sequenceRef.current,
-          voiceId: updates.voiceId,
-          avatarModel: updates.avatarModel,
-          personaName: updates.personaName,
-          driverLeaseVersion: driverLeaseVersionRef.current,
-        });
-
-        // Prefetch first few speech items with the new voice
-        const nextSpeech = itemsRef.current
-          .slice(currentIndexRef.current, currentIndexRef.current + 5)
-          .filter((i): i is LectureSpeechItem => i.type === "speech")
-          .map((i) => i.text);
-        if (nextSpeech.length > 0) {
-          speech.prefetch(nextSpeech, updates.voiceId);
+          toast.success("Avatar persona & speech settings updated");
         }
-
-        toast.success(`Updated AI Lecturer to ${updates.personaName || updates.voiceId}`);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to update session settings.";
+        const msg = err instanceof Error ? err.message : "Failed to update configuration";
         toast.error(msg);
         throw err;
       }
     },
-    [sessionId, speech]
+    [session, sessionId, speech]
+  );
+
+  const updateSessionConfig = useCallback(
+    async (updates: { voiceId: string; avatarModel?: string; personaName?: string }) => {
+      await updatePersonaConfig({
+        voice_id: updates.voiceId,
+        avatar_model: updates.avatarModel,
+      });
+    },
+    [updatePersonaConfig]
   );
 
   return {
@@ -1403,6 +1437,7 @@ export function useClassroom(sessionId: string) {
     restartSession,
     updateScript,
     updateSessionConfig,
+    updatePersonaConfig,
     admitParticipant,
     denyParticipant,
     kickParticipant,

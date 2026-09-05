@@ -71,3 +71,13 @@ export type AvatarGLTFResult = GLTF & {
 
   animations: THREE.AnimationClip[];
 };
+
+export type AvatarModelId = "men-avatarsdk" | "women-avatarsdk";
+
+export interface AvatarModelInfo {
+  id: AvatarModelId;
+  name: string;
+  gender: "male" | "female";
+  file: string;
+  description: string;
+}

@@ -36,25 +36,41 @@ export const FEMALE_MODEL_PRESETS = [
   "Prof. Evelyn",
 ];
 
-/**
- * Strictly available neural Kokoro voice models inside HeadTTS/voices
- */
-export const VOICE_OPTIONS = [
-  { id: "am_fenrir", name: "Fenrir (Male, Deep & Academic)", gender: "male" },
-  { id: "af_bella", name: "Bella (Female, Articulate & Engaging)", gender: "female" },
-];
+import type { VoiceOption, VoiceGender, TTSModelOption } from "@/features/classroom/types/speech";
+import {
+  TTS_MODELS,
+  HEADTTS_VOICE_OPTIONS,
+  ELEVENLABS_VOICE_OPTIONS,
+  ALL_DEFAULT_VOICE_OPTIONS,
+} from "@/features/classroom/constants/voices";
+
+export type { VoiceOption, VoiceGender, TTSModelOption };
+export { TTS_MODELS, HEADTTS_VOICE_OPTIONS, ELEVENLABS_VOICE_OPTIONS };
+export const VOICE_OPTIONS = HEADTTS_VOICE_OPTIONS;
+export const UNIFIED_VOICE_REGISTRY: VoiceOption[] = ALL_DEFAULT_VOICE_OPTIONS;
 
 /**
- * Curated ElevenLabs voice models optimized for lecture presentation
+ * Resolves voice metadata safely.
+ * If voice is not in known registry, preserves ID and marks gender as "unknown" (never guesses "male").
  */
-export const ELEVENLABS_VOICE_OPTIONS = [
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah (Female, Professional Lecturer)", gender: "female" },
-  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice (Female, Engaging Educator)", gender: "female" },
-  { id: "nPczCjzI2devNBz1zQrb", name: "Brian (Male, Deep & Academic)", gender: "male" },
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam (Male, Firm & Authoritative)", gender: "male" },
-  { id: "W7iR5kTNHozpIl2Jqq15", name: "Sia (Female, Indian Accent - E-Learning)", gender: "female" },
-  { id: "WtdmguUjA2Fwc81LJG87", name: "Ayaan (Male, Asian/Indian Accent)", gender: "male" },
-];
+export function getVoiceMetadata(voiceId?: string, customList?: VoiceOption[]): VoiceOption {
+  if (!voiceId) return HEADTTS_VOICE_OPTIONS[0];
+
+  const pool = customList && customList.length > 0 ? customList : UNIFIED_VOICE_REGISTRY;
+  const found = pool.find((v) => v.id === voiceId);
+  if (found) return found;
+
+  const isEleven = voiceId.length >= 18 || voiceId.startsWith("elevenlabs:");
+  const cleanId = voiceId.replace("elevenlabs:", "");
+
+  return {
+    id: cleanId,
+    name: `Custom Voice (${cleanId.slice(0, 6)}...)`,
+    provider: isEleven ? "elevenlabs" : "headtts",
+    gender: "unknown", // Unknown gender: never guess "male"
+    description: "Dynamically resolved voice",
+  };
+}
 
 const SETTINGS_STORAGE_KEY = "intelliclass_model_preferences";
 
