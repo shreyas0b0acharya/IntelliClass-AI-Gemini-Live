@@ -80,12 +80,12 @@ export function HeadTTSTestButton({
       onClick={handleToggle}
       disabled={isSynthesizing}
       variant={isPlaying ? "destructive" : "secondary"}
- className={`${className} inline-flex items-center justify-center `}
+      className={`${className} inline-flex items-center justify-center `}
     >
       {isSynthesizing ? (
         <>
           <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-          <span>Synthesizing HeadTTS Voice...</span>
+          <span>Synthesizing Voice & LipSync...</span>
         </>
       ) : (
         <>
@@ -94,7 +94,7 @@ export function HeadTTSTestButton({
           ) : (
             <Volume2 className="h-3.5 w-3.5 text-primary" />
           )}
-          <span>{isPlaying ? "Stop Preview" : "Test HeadTTS Voice & LipSync"}</span>
+          <span>{isPlaying ? "Stop Preview" : "Test Voice & LipSync"}</span>
         </>
       )}
     </Button>

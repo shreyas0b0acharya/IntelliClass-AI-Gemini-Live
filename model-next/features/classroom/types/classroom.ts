@@ -7,7 +7,8 @@
 // TypeScript will catch any missed call sites at `pnpm typecheck`.
 
 import type { LectureItem } from "./lecture-item";
-import type { HeadTTSData } from "@/features/avatar";
+import type { LipSyncData, HeadTTSData } from "@/features/avatar";
+import type { TTSProviderId } from "./speech";
 
 export type SessionStateStatus =
   | "created"
@@ -26,11 +27,13 @@ export type ClassroomEvent =
       driverLeaseVersion?: number;
       executionId?: string;
       itemId: string;
+      provider?: TTSProviderId;
+      modelId?: string;
       targetEpochMs: number;   // synchronized epoch when audio starts on ALL devices
       leadTimeMs: number;      // scheduling lead window used (for diagnostics/logging)
-      audioUrl: string;        // absolute path to the .wav served by /api/media/audio
+      audioUrl: string;        // absolute path to the audio served by /api/media/audio
       durationMs: number;      // expected audio duration for prefetch-next-item timing
-      lipSyncData: HeadTTSData; // viseme timestamps relative to audio start (ms)
+      lipSyncData: LipSyncData; // viseme timestamps relative to audio start (ms)
       text: string;            // subtitle text for this segment
       media?: {
         type: "image" | "video";

@@ -15,6 +15,9 @@ export const DEFAULT_MODEL_PREFERENCES: ModelPreferences = {
   speechSpeed: 1.0,
   speechPitch: 1.0,
   modelQuality: "high",
+  ttsProvider: "headtts",
+  elevenLabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
+  elevenLabsModelId: "eleven_flash_v2_5",
 };
 
 export const MALE_MODEL_PRESETS = [
@@ -39,6 +42,18 @@ export const FEMALE_MODEL_PRESETS = [
 export const VOICE_OPTIONS = [
   { id: "am_fenrir", name: "Fenrir (Male, Deep & Academic)", gender: "male" },
   { id: "af_bella", name: "Bella (Female, Articulate & Engaging)", gender: "female" },
+];
+
+/**
+ * Curated ElevenLabs voice models optimized for lecture presentation
+ */
+export const ELEVENLABS_VOICE_OPTIONS = [
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah (Female, Professional Lecturer)", gender: "female" },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice (Female, Engaging Educator)", gender: "female" },
+  { id: "nPczCjzI2devNBz1zQrb", name: "Brian (Male, Deep & Academic)", gender: "male" },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam (Male, Firm & Authoritative)", gender: "male" },
+  { id: "W7iR5kTNHozpIl2Jqq15", name: "Sia (Female, Indian Accent - E-Learning)", gender: "female" },
+  { id: "WtdmguUjA2Fwc81LJG87", name: "Ayaan (Male, Asian/Indian Accent)", gender: "male" },
 ];
 
 const SETTINGS_STORAGE_KEY = "intelliclass_model_preferences";

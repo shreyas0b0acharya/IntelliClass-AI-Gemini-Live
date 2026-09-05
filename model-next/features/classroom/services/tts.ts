@@ -3,6 +3,10 @@ import type { SpeechItem, TTSFetchOptions } from "../types/speech";
 export async function fetchSpeechTTS({
   text,
   voice = "af_bella",
+  provider = "headtts",
+  modelId,
+  speed = 1.0,
+  voiceSettings,
   requestId,
   signal,
 }: TTSFetchOptions): Promise<SpeechItem> {
@@ -12,6 +16,10 @@ export async function fetchSpeechTTS({
     body: JSON.stringify({
       text,
       voice,
+      provider,
+      modelId,
+      speed,
+      voiceSettings,
       requestId,
     }),
     signal,

@@ -1,14 +1,17 @@
 import * as THREE from "three";
 
-export interface HeadTTSData {
+export interface LipSyncData {
   visemes: string[];
   vtimes: number[];       // ms from audio start when this viseme begins
   vdurations: number[];   // ms each viseme lasts
   phonemes?: string[];
   words?: string[];
-  wtimes?: number[];
-  wdurations?: number[];
+  wtimes?: number[];      // ms from audio start when word begins
+  wdurations?: number[];  // ms each word lasts
 }
+
+// 100% Backward-Compatible Alias for existing HeadTTS usages
+export type HeadTTSData = LipSyncData;
 
 export interface LipSyncProps {
   head: THREE.SkinnedMesh | undefined;

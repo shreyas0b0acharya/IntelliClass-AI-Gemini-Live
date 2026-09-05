@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
@@ -27,6 +27,8 @@ import {
   type HeadTTSData,
 } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
+import { ELEVENLABS_VOICE_OPTIONS } from "@/features/settings/services/settings";
+import type { TTSProviderId } from "../types/speech";
 
 const LEAD_TIME_MS = 350;
 
@@ -34,6 +36,29 @@ export interface MediaItemDisplay {
   type: "image" | "video";
   url: string;
   label?: string;
+}
+
+export function resolveVoiceAndProvider(rawVoiceId?: string): {
+  voiceId: string;
+  provider: TTSProviderId;
+  modelId: string;
+} {
+  if (!rawVoiceId) {
+    return { voiceId: "af_bella", provider: "headtts", modelId: "kokoro-82m-onnx" };
+  }
+  if (rawVoiceId.startsWith("elevenlabs:")) {
+    return {
+      voiceId: rawVoiceId.replace("elevenlabs:", ""),
+      provider: "elevenlabs",
+      modelId: "eleven_flash_v2_5",
+    };
+  }
+  const isElevenLabs =
+    ELEVENLABS_VOICE_OPTIONS.some((v) => v.id === rawVoiceId) || rawVoiceId.length >= 18;
+  if (isElevenLabs) {
+    return { voiceId: rawVoiceId, provider: "elevenlabs", modelId: "eleven_flash_v2_5" };
+  }
+  return { voiceId: rawVoiceId, provider: "headtts", modelId: "kokoro-82m-onnx" };
 }
 
 export function useClassroom(sessionId: string) {
@@ -158,9 +183,16 @@ export function useClassroom(sessionId: string) {
     executeLectureItemRef.current?.(itemsRef.current[nextIdx]);
   }, [sessionId, syncStore]);
 
+  const resolvedVoice = useMemo(
+    () => resolveVoiceAndProvider(session?.voice_id),
+    [session?.voice_id]
+  );
+
   // ── 2. TTS & Speech Queue Hook ───────────────────────────────────────
   const speech = useSpeechQueue({
-    voice: session?.voice_id || "af_bella",
+    voice: resolvedVoice.voiceId,
+    provider: resolvedVoice.provider,
+    modelId: resolvedVoice.modelId,
     onSpeechComplete: (_itemId) => {
       executingItemIdRef.current = null;
       // Only the active conductor advances — students follow strictly via broadcast
@@ -286,14 +318,21 @@ export function useClassroom(sessionId: string) {
           .filter((i): i is LectureSpeechItem => i.type === "speech")
           .map((i) => i.text);
         if (nextItems.length > 0) {
-          speech.prefetch(nextItems, session?.voice_id || "af_bella");
+          speech.prefetch(
+            nextItems,
+            resolvedVoice.voiceId,
+            resolvedVoice.provider,
+            resolvedVoice.modelId
+          );
         }
 
         // Synthesize (uses cache if already prefetched)
         const speechResult = await speech.synthesizeItem(
           item.text,
           item.id,
-          session?.voice_id || "af_bella"
+          resolvedVoice.voiceId,
+          resolvedVoice.provider,
+          resolvedVoice.modelId
         );
 
         if (!speechResult || !speechResult.audioPath) {
@@ -336,6 +375,8 @@ export function useClassroom(sessionId: string) {
           driverLeaseVersion: driverLeaseVersionRef.current,
           executionId,
           itemId: item.id,
+          provider: speechResult.provider || resolvedVoice.provider,
+          modelId: speechResult.modelId || resolvedVoice.modelId,
           targetEpochMs,
           leadTimeMs: LEAD_TIME_MS,
           audioUrl: speechResult.audioPath,
@@ -515,14 +556,19 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle(event.text || "");
         syncStore().setCurrentSubtitle(event.text || "");
 
-        // Prefetch next items for student cache
-        if (foundIdx !== -1) {
+        // Conductor prefetch next items (students stream broadcasted cache)
+        if (isLecturerRef.current && foundIdx !== -1) {
           const nextItems = itemsRef.current
             .slice(foundIdx + 1, foundIdx + 4)
             .filter((i): i is LectureSpeechItem => i.type === "speech")
             .map((i) => i.text);
           if (nextItems.length > 0) {
-            speech.prefetch(nextItems, session?.voice_id || "af_bella");
+            speech.prefetch(
+              nextItems,
+              resolvedVoice.voiceId,
+              resolvedVoice.provider,
+              resolvedVoice.modelId
+            );
           }
         }
 
@@ -639,7 +685,13 @@ export function useClassroom(sessionId: string) {
             offsetMs: 0,
           });
         } else {
-          speech.playSpeech(event.answer, event.interruptionId, session?.voice_id || "af_bella");
+          speech.playSpeech(
+            event.answer,
+            event.interruptionId,
+            resolvedVoice.voiceId,
+            resolvedVoice.provider,
+            resolvedVoice.modelId
+          );
         }
       }
 
@@ -903,10 +955,18 @@ export function useClassroom(sessionId: string) {
             }
           }
 
-          // Prefetch initial speech items
-          const initialSpeechTexts = speechItems.slice(0, 6).map((i) => i.text);
-          if (initialSpeechTexts.length > 0) {
-            speechRef.current.prefetch(initialSpeechTexts, sessionData.voice_id || "af_bella");
+          // Prefetch initial speech items (Conductor only — students stream broadcasted cache)
+          if (isLecturerRef.current) {
+            const initialSpeechTexts = speechItems.slice(0, 6).map((i) => i.text);
+            if (initialSpeechTexts.length > 0) {
+              const vInfo = resolveVoiceAndProvider(sessionData.voice_id);
+              speechRef.current.prefetch(
+                initialSpeechTexts,
+                vInfo.voiceId,
+                vInfo.provider,
+                vInfo.modelId
+              );
+            }
           }
 
           // If session is already running when joining (late join):

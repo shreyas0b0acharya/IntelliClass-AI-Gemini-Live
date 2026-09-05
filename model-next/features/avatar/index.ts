@@ -84,6 +84,7 @@ export type {
   LipMorphData,
 } from "./types/behavior.types";
 export type {
+  LipSyncData,
   HeadTTSData,
   LipSyncProps,
 } from "./types/lipSync.types";
