@@ -3,6 +3,7 @@
 // Components
 export { Avatar } from "./components/Avatar";
 export { AvatarPreview } from "./components/AvatarPreview";
+export { LandingHeroAvatarStage } from "./components/LandingHeroAvatarStage";
 export { Experience } from "./components/Experience";
 export { AudioTest } from "./components/AudioTest";
 export { TTSPanel } from "./components/TTSPanel";
