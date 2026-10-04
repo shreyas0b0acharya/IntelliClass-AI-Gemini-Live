@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Users,
@@ -80,16 +80,15 @@ export function ParticipantsModal({
             </div>
 
             {isLecturer && waitingStudents.length > 0 && (
-              <AppButton
+              <Button
                 size="sm"
-                variant="primary"
-                shape="pill"
+                variant="default"
                 onClick={onAdmitAll}
-                className="px-3 h-8 text-xs font-semibold"
-                leftIcon={<UserCheck className="h-3.5 w-3.5" />}
+                className="px-3 h-8 text-xs font-semibold rounded-full inline-flex items-center gap-1.5"
               >
+                <UserCheck className="h-3.5 w-3.5" />
                 <span>Admit All ({waitingStudents.length})</span>
-              </AppButton>
+              </Button>
             )}
           </div>
 
@@ -136,28 +135,26 @@ export function ParticipantsModal({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <AppButton
+                      <Button
                         size="xs"
-                        variant="success"
-                        shape="pill"
+                        variant="default"
                         onClick={() => onAdmit?.(student.userId)}
-                        className="h-8 px-2.5 text-[11px] font-bold"
-                        leftIcon={<Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+                        className="h-8 px-2.5 text-[11px] font-bold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1"
                         title="Accept / Admit Student"
                       >
+                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                         <span>Accept</span>
-                      </AppButton>
-                      <AppButton
+                      </Button>
+                      <Button
                         size="xs"
                         variant="ghost"
-                        shape="pill"
                         onClick={() => onDeny?.(student.userId)}
-                        className="h-8 px-2 hover:bg-red-500/10 text-red-500 text-[11px] font-bold"
-                        leftIcon={<X className="h-3.5 w-3.5 stroke-[2.5]" />}
+                        className="h-8 px-2 hover:bg-red-500/10 text-red-500 text-[11px] font-bold rounded-full inline-flex items-center gap-1"
                         title="Decline Student"
                       >
+                        <X className="h-3.5 w-3.5 stroke-[2.5]" />
                         <span>Decline</span>
-                      </AppButton>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -233,9 +230,8 @@ export function ParticipantsModal({
                           </div>
                           {/* Live Presence Indicator */}
                           <span
-                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#1c1c1e] ${
-                              isOnline ? "bg-emerald-500" : "bg-neutral-400"
-                            }`}
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#1c1c1e] ${isOnline ? "bg-emerald-500" : "bg-neutral-400"
+                              }`}
                             title={isOnline ? "Online" : "Temporarily Offline"}
                           />
                         </div>
@@ -266,17 +262,16 @@ export function ParticipantsModal({
                         </span>
 
                         {isLecturer && student.userId !== currentUserId && (
-                          <AppButton
+                          <Button
                             size="xs"
                             variant="ghost"
-                            shape="rounded"
                             onClick={() => onKick?.(student.userId)}
-                            className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold"
-                            leftIcon={<UserMinus className="h-3 w-3" />}
+                            className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold rounded-xl inline-flex items-center gap-1"
                             title="Remove student from session"
                           >
+                            <UserMinus className="h-3 w-3" />
                             <span className="hidden sm:inline">Remove</span>
-                          </AppButton>
+                          </Button>
                         )}
                       </div>
                     </div>

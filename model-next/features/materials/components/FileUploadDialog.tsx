@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { api } from "@/lib/api";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -79,14 +79,13 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
         {trigger ? (
           trigger
         ) : (
-          <AppButton
+          <Button
             variant="outline"
-            shape="pill"
-            className="px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs"
-            leftIcon={<Upload className="h-4 w-4 text-[#0071e3]" />}
+            className="px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs rounded-full inline-flex items-center gap-1.5"
           >
+            <Upload className="h-4 w-4 text-[#0071e3]" />
             <span>Upload Syllabus PDF</span>
-          </AppButton>
+          </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-md rounded-3xl p-6 border border-black/10 dark:border-white/10 bg-white dark:bg-[#1c1c1e] shadow-2xl">
@@ -131,27 +130,30 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
         </div>
 
         <DialogFooter className="pt-2">
-          <AppButton
+          <Button
             type="button"
             variant="outline"
-            shape="pill"
             onClick={() => setOpen(false)}
             disabled={isUploading}
-            className="px-5 h-10 border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e]"
+            className="px-5 h-10 border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e] rounded-full"
           >
             <span>Cancel</span>
-          </AppButton>
-          <AppButton
+          </Button>
+          <Button
             onClick={handleUpload}
             disabled={isUploading || !file}
-            isLoading={isUploading}
-            loadingText="Uploading..."
-            variant="primary"
-            shape="pill"
-            className="px-5 h-10 text-xs font-medium"
+            variant="default"
+            className="px-5 h-10 text-xs font-medium rounded-full inline-flex items-center gap-1.5"
           >
-            <span>Upload &amp; Index</span>
-          </AppButton>
+            {isUploading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <span>Upload &amp; Index</span>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

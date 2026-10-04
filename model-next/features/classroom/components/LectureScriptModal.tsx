@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   BookOpen,
@@ -21,6 +21,7 @@ import {
   Edit3,
   List,
   Save,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -94,10 +95,9 @@ export function LectureScriptModal({
 
             <div className="flex items-center gap-2">
               {isLecturer && onSaveScript && (
-                <AppButton
+                <Button
                   variant="outline"
                   size="sm"
-                  shape="pill"
                   onClick={() => {
                     if (viewMode === "cards") {
                       setEditedScript(rawScript || items.map((i) => (i.type === "speech" ? i.text : `[${i.type.toUpperCase()}]`)).join(" "));
@@ -106,28 +106,27 @@ export function LectureScriptModal({
                       setViewMode("cards");
                     }
                   }}
-                  className="h-8 px-3 text-xs"
-                  leftIcon={viewMode === "cards" ? <Edit3 className="h-3.5 w-3.5 text-[#0071e3]" /> : <List className="h-3.5 w-3.5" />}
+                  className="h-8 px-3 text-xs rounded-full inline-flex items-center gap-1.5"
                 >
+                  {viewMode === "cards" ? <Edit3 className="h-3.5 w-3.5 text-[#0071e3]" /> : <List className="h-3.5 w-3.5" />}
                   <span>{viewMode === "cards" ? "Edit Script" : "Segment View"}</span>
-                </AppButton>
+                </Button>
               )}
 
               {isLecturer && (status === "created" || status === "paused") && onStartSession && (
-                <AppButton
+                <Button
                   size="sm"
-                  variant="success"
-                  shape="pill"
+                  variant="default"
                   onClick={() => {
                     onOpenChange(false);
                     onStartSession();
                   }}
                   disabled={items.length === 0}
-                  className="px-4 h-8 text-xs font-bold"
-                  leftIcon={<Play className="h-3.5 w-3.5" fill="currentColor" />}
+                  className="px-4 h-8 text-xs font-bold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5"
                 >
+                  <Play className="h-3.5 w-3.5" fill="currentColor" />
                   <span>{status === "paused" ? "Resume Class" : "Start Live Broadcast"}</span>
-                </AppButton>
+                </Button>
               )}
             </div>
           </div>
@@ -175,28 +174,33 @@ export function LectureScriptModal({
                 className="w-full rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border-black/10 dark:border-white/10 text-xs font-medium resize-none focus-visible:ring-1 focus-visible:ring-[#0071e3] p-4 leading-relaxed font-mono"
               />
               <div className="flex justify-end gap-2">
-                <AppButton
+                <Button
                   variant="outline"
                   size="sm"
-                  shape="pill"
                   onClick={() => setViewMode("cards")}
-                  className="h-8 px-4 text-xs"
+                  className="h-8 px-4 text-xs rounded-full"
                 >
                   <span>Cancel</span>
-                </AppButton>
-                <AppButton
+                </Button>
+                <Button
                   size="sm"
-                  variant="primary"
-                  shape="pill"
+                  variant="default"
                   onClick={handleSave}
                   disabled={isSaving}
-                  isLoading={isSaving}
-                  loadingText="Saving..."
-                  className="h-8 px-5 text-xs font-bold"
-                  leftIcon={!isSaving ? <Save className="h-3.5 w-3.5" /> : undefined}
+                  className="h-8 px-5 text-xs font-bold rounded-full inline-flex items-center gap-1.5"
                 >
-                  <span>Save Script</span>
-                </AppButton>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" />
+                      <span>Save Script</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           ) : items.length === 0 ? (
@@ -215,13 +219,12 @@ export function LectureScriptModal({
                 return (
                   <div
                     key={item.id}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isCurrent
+                    className={`p-4 rounded-2xl border transition-all ${isCurrent
                         ? "bg-[#0071e3]/10 border-[#0071e3]/40 ring-1 ring-[#0071e3]/40 shadow-sm"
                         : isCompleted
-                        ? "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 opacity-70"
-                        : "bg-white dark:bg-[#252528] border-black/5 dark:border-white/10"
-                    }`}
+                          ? "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 opacity-70"
+                          : "bg-white dark:bg-[#252528] border-black/5 dark:border-white/10"
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
@@ -247,11 +250,10 @@ export function LectureScriptModal({
                     </div>
 
                     <p
-                      className={`text-xs leading-relaxed font-medium ${
-                        isCurrent
+                      className={`text-xs leading-relaxed font-medium ${isCurrent
                           ? "text-foreground font-semibold"
                           : "text-muted-foreground"
-                      }`}
+                        }`}
                     >
                       {item.text}
                     </p>
@@ -298,11 +300,10 @@ export function LectureScriptModal({
                 return (
                   <div
                     key={item.id}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                      isCurrent
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${isCurrent
                         ? "bg-purple-500/15 border-purple-500/40 ring-1 ring-purple-500/40 shadow-sm"
                         : "bg-purple-500/5 dark:bg-purple-500/10 border-purple-500/20"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-12 h-10 rounded-xl overflow-hidden bg-black/10 shrink-0 border border-black/10 dark:border-white/10 flex items-center justify-center">

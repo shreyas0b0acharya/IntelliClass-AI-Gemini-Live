@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth";
-import { ArrowRight, Loader2, Sparkles, KeyRound } from "lucide-react";
-import { AppButton } from "@/components/app";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SessionCodeInputProps {
   className?: string;
@@ -53,21 +53,19 @@ export function SessionCodeInput({
         placeholder={placeholder}
         value={sessionCode}
         onChange={(e) => setSessionCode(e.target.value)}
-        className={`bg-transparent font-medium px-3.5 outline-none text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#86868b] text-xs sm:text-sm w-36 sm:w-48 ${
-          isLarge ? "w-48 sm:w-64" : ""
-        }`}
+        className={`bg-transparent font-medium px-3.5 outline-none text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#86868b] text-xs sm:text-sm w-36 sm:w-48 ${isLarge ? "w-48 sm:w-64" : ""
+          }`}
       />
-      <AppButton
+      <Button
         type="submit"
         disabled={!hasCode}
-        variant={hasCode ? "primary" : "secondary"}
+        variant={hasCode ? "default" : "secondary"}
         size="xs"
-        shape="pill"
-        className="h-8 px-4 font-medium text-xs shadow-xs"
-        rightIcon={hasCode ? <ArrowRight className="h-3 w-3" /> : undefined}
+        className="h-8 px-4 font-medium text-xs shadow-xs rounded-full"
       >
         <span>{buttonText}</span>
-      </AppButton>
+        {hasCode && <ArrowRight className="h-3 w-3" />}
+      </Button>
     </form>
   );
 }

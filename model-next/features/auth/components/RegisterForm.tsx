@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
-import { AppButton } from "@/components/app/AppButton";
+import { Button } from "@/components/ui/button";
 import {
   GraduationCap,
   BookOpen,
@@ -230,11 +230,10 @@ function RegisterFormContent() {
             <button
               type="button"
               onClick={() => setRole("student")}
-              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${
-                role === "student"
+              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${role === "student"
                   ? "bg-white dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-sm font-bold"
                   : "text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-              }`}
+                }`}
             >
               <BookOpen className="h-4 w-4" />
               <span>Student</span>
@@ -242,11 +241,10 @@ function RegisterFormContent() {
             <button
               type="button"
               onClick={() => setRole("lecturer")}
-              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${
-                role === "lecturer"
+              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${role === "lecturer"
                   ? "bg-white dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-sm font-bold"
                   : "text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-              }`}
+                }`}
             >
               <GraduationCap className="h-4 w-4" />
               <span>Faculty</span>
@@ -255,19 +253,21 @@ function RegisterFormContent() {
         </div>
 
         {/* Google SSO Button */}
-        <AppButton
+        <Button
           type="button"
           onClick={handleGoogleSignUp}
           disabled={isLoading || isGoogleLoading}
-          isLoading={isGoogleLoading}
           variant="outline"
           size="lg"
-          shape="pill"
-          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c]"
-          leftIcon={!isGoogleLoading && <GoogleIcon />}
+          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c] rounded-full"
         >
+          {isGoogleLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          ) : (
+            <GoogleIcon />
+          )}
           <span>Continue with Google as {role === "lecturer" ? "Faculty" : "Student"}</span>
-        </AppButton>
+        </Button>
 
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-4 2xl:my-5 flex items-center justify-center">
@@ -357,19 +357,25 @@ function RegisterFormContent() {
             </div>
           </div>
 
-          <AppButton
+          <Button
             type="submit"
             disabled={isLoading || isGoogleLoading}
-            isLoading={isLoading}
-            loadingText="Creating Account..."
-            variant="primary"
+            variant="default"
             size="lg"
-            shape="pill"
-            className="w-full mt-3"
-            rightIcon={<ArrowRight className="h-4 w-4" />}
+            className="w-full mt-3 rounded-full"
           >
-            <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
-          </AppButton>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>Create {role === "lecturer" ? "Faculty" : "Student"} Account</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
         </form>
 
         {/* Footer Link */}

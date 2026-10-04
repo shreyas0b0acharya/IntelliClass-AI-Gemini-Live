@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   Maximize2,
   X,
@@ -53,8 +53,8 @@ export function ProjectionBoard({
           isMinimized
             ? "w-44 sm:w-52"
             : isCompact
-            ? "w-68 sm:w-76 max-w-[calc(100vw-1.5rem)]"
-            : "w-72 sm:w-84 md:w-96",
+              ? "w-68 sm:w-76 max-w-[calc(100vw-1.5rem)]"
+              : "w-72 sm:w-84 md:w-96",
           "rounded-2xl sm:rounded-3xl overflow-hidden",
           "border border-black/10 dark:border-white/10",
           "bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-2xl shadow-2xl",
@@ -77,39 +77,36 @@ export function ProjectionBoard({
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            <AppButton
+            <Button
               variant="ghost"
               size="xs"
-              shape="pill"
               onClick={() => setIsMinimized(!isMinimized)}
-              className="h-6 px-2 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              className="h-6 px-2 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
               title={isMinimized ? "Expand Visual Board" : "Minimize to PIP"}
             >
               {isMinimized ? "Expand" : "Min"}
-            </AppButton>
+            </Button>
 
-            <AppButton
+            <Button
               variant="ghost"
               size="icon-xs"
-              shape="pill"
               onClick={() => setIsZoomed(true)}
-              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
               title="Full Screen Inspection"
             >
               <Maximize2 className="h-3.5 w-3.5" />
-            </AppButton>
+            </Button>
 
             {onClose && (
-              <AppButton
+              <Button
                 variant="ghost"
                 size="icon-xs"
-                shape="pill"
                 onClick={onClose}
-                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
                 title="Dismiss Visual"
               >
                 <X className="h-3.5 w-3.5" />
-              </AppButton>
+              </Button>
             )}
           </div>
         </div>
@@ -185,18 +182,17 @@ export function ProjectionBoard({
                 <span className="truncate max-w-lg">{media.label || "Projected Visual Diagram"}</span>
               </DialogTitle>
 
-              <AppButton
+              <Button
                 asChild
                 variant="outline"
                 size="sm"
-                shape="pill"
-                className="h-8 px-3 text-xs bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border-black/10 dark:border-white/15 text-foreground"
-                leftIcon={<ExternalLink className="h-3.5 w-3.5 text-[#0071e3]" />}
+                className="h-8 px-3 text-xs bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border-black/10 dark:border-white/15 text-foreground rounded-full"
               >
-                <a href={resolvedUrl} target="_blank" rel="noopener noreferrer">
+                <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
+                  <ExternalLink className="h-3.5 w-3.5 text-[#0071e3]" />
                   <span>Open Full Asset</span>
                 </a>
-              </AppButton>
+              </Button>
             </div>
 
             <div className="p-4 sm:p-6 flex-1 flex items-center justify-center overflow-hidden bg-black/95 rounded-b-3xl">

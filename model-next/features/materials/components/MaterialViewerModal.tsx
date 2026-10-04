@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   FileText,
   ExternalLink,
@@ -111,21 +111,19 @@ export function MaterialViewerModal({
                 <div className="flex items-center bg-black/5 dark:bg-white/10 p-0.5 rounded-xl text-xs font-semibold">
                   <button
                     onClick={() => setActiveTab("document")}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      activeTab === "document"
+                    className={`px-3 py-1 rounded-lg transition-all ${activeTab === "document"
                         ? "bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs"
                         : "text-[#86868b] hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     PDF Document
                   </button>
                   <button
                     onClick={() => setActiveTab("diagrams")}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${
-                      activeTab === "diagrams"
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${activeTab === "diagrams"
                         ? "bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs"
                         : "text-[#86868b] hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <ImageIcon className="h-3 w-3 text-[#0071e3]" />
                     <span>Visuals ({matchedDiagrams.length})</span>
@@ -135,31 +133,29 @@ export function MaterialViewerModal({
 
               {viewUrl && (
                 <>
-                  <AppButton
+                  <Button
                     asChild
                     variant="outline"
                     size="sm"
-                    shape="rounded"
-                    className="h-8 px-2.5 text-xs font-semibold hidden sm:flex"
-                    leftIcon={<Download className="h-3.5 w-3.5" />}
+                    className="h-8 px-2.5 text-xs font-semibold hidden sm:flex rounded-xl"
                   >
-                    <a href={viewUrl} target="_blank" rel="noopener noreferrer" download={file.file_name}>
+                    <a href={viewUrl} target="_blank" rel="noopener noreferrer" download={file.file_name} className="inline-flex items-center gap-1.5">
+                      <Download className="h-3.5 w-3.5" />
                       <span>Download</span>
                     </a>
-                  </AppButton>
+                  </Button>
 
-                  <AppButton
+                  <Button
                     asChild
                     size="sm"
-                    variant="primary"
-                    shape="rounded"
-                    className="h-8 px-3 text-xs font-bold"
-                    leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
+                    variant="default"
+                    className="h-8 px-3 text-xs font-bold rounded-xl"
                   >
-                    <a href={viewUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
+                      <ExternalLink className="h-3.5 w-3.5" />
                       <span>Open in Tab</span>
                     </a>
-                  </AppButton>
+                  </Button>
                 </>
               )}
             </div>
@@ -196,10 +192,9 @@ export function MaterialViewerModal({
                         {diag.label}
                       </span>
                       {onProjectToStage ? (
-                        <AppButton
+                        <Button
                           variant="ghost"
                           size="xs"
-                          shape="pill"
                           onClick={(e) => {
                             e.stopPropagation();
                             onProjectToStage({
@@ -209,11 +204,11 @@ export function MaterialViewerModal({
                             });
                             onOpenChange(false);
                           }}
-                          className="h-6 px-2 text-[10px] text-[#0071e3] hover:bg-[#0071e3]/10 font-bold shrink-0"
+                          className="h-6 px-2 text-[10px] text-[#0071e3] hover:bg-[#0071e3]/10 font-bold shrink-0 rounded-full"
                           title="Project directly to stage"
                         >
                           Project
-                        </AppButton>
+                        </Button>
                       ) : (
                         <Maximize2 className="h-3.5 w-3.5 text-[#86868b] group-hover:text-[#0071e3] shrink-0 ml-1" />
                       )}
@@ -248,10 +243,9 @@ export function MaterialViewerModal({
                   {selectedDiagram.label}
                 </DialogTitle>
                 {onProjectToStage && (
-                  <AppButton
-                    variant="primary"
+                  <Button
+                    variant="default"
                     size="sm"
-                    shape="pill"
                     onClick={() => {
                       onProjectToStage({
                         type: "image",
@@ -261,11 +255,11 @@ export function MaterialViewerModal({
                       setSelectedDiagram(null);
                       onOpenChange(false);
                     }}
-                    leftIcon={<Sparkles className="h-3.5 w-3.5" />}
-                    className="h-8 px-3 text-xs font-semibold shadow-xs"
+                    className="h-8 px-3 text-xs font-semibold shadow-xs rounded-full inline-flex items-center gap-1.5"
                   >
+                    <Sparkles className="h-3.5 w-3.5" />
                     <span>Project to Stage</span>
-                  </AppButton>
+                  </Button>
                 )}
               </div>
               <div className="p-6 flex items-center justify-center max-h-[70vh] overflow-hidden">

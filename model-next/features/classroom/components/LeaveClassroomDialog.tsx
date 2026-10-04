@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { LogOut, Radio, X } from "lucide-react";
 
 interface LeaveClassroomDialogProps {
@@ -52,45 +52,42 @@ export function LeaveClassroomDialog({
         {/* Action Buttons */}
         <div className="p-6 space-y-3">
           {/* Stop & Leave — destructive action */}
-          <AppButton
+          <Button
             onClick={onStopAndLeave}
             variant="destructive"
             size="lg"
-            shape="rounded"
-            className="w-full font-semibold"
-            leftIcon={<LogOut className="h-4 w-4" />}
+            className="w-full font-semibold rounded-xl inline-flex items-center justify-center gap-2"
           >
+            <LogOut className="h-4 w-4" />
             <span>{isLecturer && isLive ? "End Session & Leave" : "Leave Classroom"}</span>
-          </AppButton>
+          </Button>
 
           {/* Continue in Background — only if there's something running */}
           {isLive && (
-            <AppButton
+            <Button
               onClick={onContinueInBackground}
               variant="outline"
               size="lg"
-              shape="rounded"
-              className="w-full font-semibold border-2 justify-start px-4"
-              leftIcon={<Radio className="h-4 w-4 text-red-500" />}
+              className="w-full font-semibold border-2 justify-start px-4 rounded-xl inline-flex items-center gap-2"
             >
+              <Radio className="h-4 w-4 text-red-500 shrink-0" />
               <span>Continue in Background</span>
               <span className="ml-auto text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full">
                 LIVE
               </span>
-            </AppButton>
+            </Button>
           )}
 
           {/* Cancel */}
-          <AppButton
+          <Button
             onClick={() => onOpenChange(false)}
             variant="ghost"
             size="default"
-            shape="rounded"
-            className="w-full font-medium text-muted-foreground hover:text-foreground"
-            leftIcon={<X className="h-4 w-4" />}
+            className="w-full font-medium text-muted-foreground hover:text-foreground rounded-xl inline-flex items-center justify-center gap-2"
           >
+            <X className="h-4 w-4" />
             <span>Stay in Classroom</span>
-          </AppButton>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

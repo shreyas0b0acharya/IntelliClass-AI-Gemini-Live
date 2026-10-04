@@ -7,7 +7,7 @@ import { Sparkles, Presentation } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { ThemeToggle } from "./ThemeToggle";
 import { NavUser } from "./NavUser";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavbarProps {
@@ -15,7 +15,7 @@ interface NavbarProps {
   showLinks?: boolean;
 }
 
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => { };
 
 export function Navbar({ className = "", showLinks = true }: NavbarProps) {
   const pathname = usePathname();
@@ -55,22 +55,20 @@ export function Navbar({ className = "", showLinks = true }: NavbarProps) {
                 {mounted && isLecturer && (
                   <Link
                     href="/dashboard"
-                    className={`px-3 py-1.5 rounded-full transition-colors ${
-                      pathname === "/dashboard" || pathname.startsWith("/course/")
+                    className={`px-3 py-1.5 rounded-full transition-colors ${pathname === "/dashboard" || pathname.startsWith("/course/")
                         ? "bg-[#f5f5f7] dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold"
                         : "hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-                    }`}
+                      }`}
                   >
                     Faculty Studio
                   </Link>
                 )}
                 <Link
                   href="/showcase"
-                  className={`px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
-                    pathname === "/showcase"
+                  className={`px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${pathname === "/showcase"
                       ? "bg-[#f5f5f7] dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold"
                       : "hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-                  }`}
+                    }`}
                 >
                   <Presentation className="h-3.5 w-3.5 text-[#0071e3]" />
                   <span>Avatar Lab</span>
@@ -95,14 +93,14 @@ export function Navbar({ className = "", showLinks = true }: NavbarProps) {
                     placeholder="Enter session code..."
                     className="bg-transparent text-xs w-28 sm:w-32 outline-none font-medium text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6]"
                   />
-                  <AppButton
+                  <Button
                     type="submit"
                     variant="link"
                     size="xs"
                     className="text-[11px] font-bold uppercase tracking-wider text-[#0071e3] hover:text-[#0077ed] px-1 no-underline hover:no-underline"
                   >
                     Join
-                  </AppButton>
+                  </Button>
                 </form>
               )}
             </div>
@@ -122,24 +120,22 @@ export function Navbar({ className = "", showLinks = true }: NavbarProps) {
           ) : (
             !isAuthPage && (
               <div className="flex items-center gap-2">
-                <AppButton
+                <Button
                   variant="ghost"
                   size="sm"
-                  shape="pill"
                   asChild
-                  className="text-[13px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#f5f5f7] dark:hover:bg-[#1c1c1e]"
+                  className="rounded-full text-[13px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#f5f5f7] dark:hover:bg-[#1c1c1e]"
                 >
                   <Link href="/login">Sign In</Link>
-                </AppButton>
-                <AppButton
-                  variant="primary"
+                </Button>
+                <Button
+                  variant="default"
                   size="sm"
-                  shape="pill"
                   asChild
-                  className="text-[13px] font-semibold px-4 py-1.5 shadow-xs"
+                  className="rounded-full text-[13px] font-semibold px-4 py-1.5 shadow-xs"
                 >
                   <Link href="/register">Get Started</Link>
-                </AppButton>
+                </Button>
               </div>
             )
           )}

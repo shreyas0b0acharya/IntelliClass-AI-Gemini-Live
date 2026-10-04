@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar, SessionCodeInput } from "@/components/shared";
 import { useAuth } from "@/features/auth";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   ChevronRight,
@@ -202,18 +202,17 @@ export default function HomePage() {
 
         {/* Action Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-xl mx-auto mb-8">
-          <AppButton
+          <Button
             asChild
             size="lg"
-            variant="primary"
-            shape="pill"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs"
-            rightIcon={<ArrowRight className="h-4 w-4" />}
+            variant="default"
+            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs rounded-full"
           >
-            <Link href="/register">
+            <Link href="/register" className="inline-flex items-center justify-center gap-2">
               <span>Start as Lecturer</span>
+              <ArrowRight className="h-4 w-4" />
             </Link>
-          </AppButton>
+          </Button>
 
           {/* Student Join Code Box */}
           <SessionCodeInput
@@ -379,29 +378,27 @@ export default function HomePage() {
           Create custom AI-led sessions in seconds. Accessible on any modern web browser.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <AppButton
+          <Button
             asChild
             size="lg"
-            variant="primary"
-            shape="pill"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs"
-            rightIcon={<ArrowRight className="h-4 w-4" />}
+            variant="default"
+            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs rounded-full"
           >
-            <Link href="/register">
+            <Link href="/register" className="inline-flex items-center justify-center gap-2">
               <span>Create Lecturer Account</span>
+              <ArrowRight className="h-4 w-4" />
             </Link>
-          </AppButton>
-          <AppButton
+          </Button>
+          <Button
             asChild
             size="lg"
             variant="secondary"
-            shape="pill"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px]"
+            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] rounded-full"
           >
             <Link href="/login">
               <span>Sign In</span>
             </Link>
-          </AppButton>
+          </Button>
         </div>
       </section>
 

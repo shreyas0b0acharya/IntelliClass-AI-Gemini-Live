@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   Copy,
@@ -117,17 +117,16 @@ export function ClassroomHeader({
     <header className="h-14 sm:h-16 px-3 sm:px-5 shrink-0 flex items-center justify-between border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-2xl z-20 gap-2 sm:gap-3 w-full max-w-full overflow-hidden select-none">
       {/* ── Left: Course Navigation, Session Topic (Prominent), & Role Pill ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
-        <AppButton
+        <Button
           variant="outline"
           size="sm"
-          shape="pill"
           onClick={onLeaveClick}
-          className="h-8 sm:h-9 px-2 sm:px-2.5 text-xs font-semibold shrink-0 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none text-foreground"
-          leftIcon={<ChevronLeft className="h-4 w-4 text-[#0071e3]" />}
+          className="h-8 sm:h-9 px-2 sm:px-2.5 text-xs font-semibold shrink-0 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none text-foreground rounded-full inline-flex items-center gap-1.5"
           title="Return to Course Space"
         >
+          <ChevronLeft className="h-4 w-4 text-[#0071e3]" />
           <span className="hidden xl:inline">Course Space</span>
-        </AppButton>
+        </Button>
 
         <div className="flex flex-col min-w-0 flex-1 justify-center overflow-hidden">
           {/* Main Topic Title - gets full width */}
@@ -164,22 +163,21 @@ export function ClassroomHeader({
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
         {/* Participants Modal Button (Always accessible) */}
         {capabilities.canViewParticipants && (
-          <AppButton
+          <Button
             variant="outline"
             size="sm"
-            shape="pill"
             onClick={onOpenParticipants}
-            className="relative h-8 sm:h-9 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0"
+            className="relative h-8 sm:h-9 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0 rounded-full inline-flex items-center gap-1.5"
             title="Classroom Participants"
-            leftIcon={<Users className="h-3.5 w-3.5 text-[#0071e3]" />}
           >
+            <Users className="h-3.5 w-3.5 text-[#0071e3]" />
             <span className="font-mono text-xs font-bold text-foreground">
               {participantsCount}
             </span>
             {hasWaitingStudents && (
               <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse" />
             )}
-          </AppButton>
+          </Button>
         )}
 
         {/* Session Conductor (Primary Playback Controls) */}
@@ -189,25 +187,24 @@ export function ClassroomHeader({
           activeStudentCount={activeStudentCount}
           emptyRoomCountdown={emptyRoomCountdown}
           stoppedReason={stoppedReason}
-          onStart={onStartSession || (() => {})}
-          onPause={onPauseSession || (() => {})}
-          onEnd={onEndSession || (() => {})}
-          onRestart={onRestartSession || (() => {})}
+          onStart={onStartSession || (() => { })}
+          onPause={onPauseSession || (() => { })}
+          onEnd={onEndSession || (() => { })}
+          onRestart={onRestartSession || (() => { })}
           isCompact={isCompact}
         />
 
         {/* ── Secondary Overflow Menu (Apple HIG Horizontal Ellipsis) ── */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <AppButton
+            <Button
               variant="outline"
               size="icon-sm"
-              shape="pill"
               aria-label="More classroom actions"
-              className="h-8 sm:h-9 w-8 sm:w-9 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0"
+              className="h-8 sm:h-9 w-8 sm:w-9 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0 rounded-full"
             >
               <MoreHorizontal className="h-4 w-4" />
-            </AppButton>
+            </Button>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-68 sm:w-72 p-1.5 rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl space-y-0.5">
@@ -329,14 +326,12 @@ export function ClassroomHeader({
                     e.stopPropagation();
                     onToggleCaptions?.();
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    showCaptions ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
-                  }`}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showCaptions ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
+                    }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                      showCaptions ? "translate-x-4" : "translate-x-0"
-                    }`}
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${showCaptions ? "translate-x-4" : "translate-x-0"
+                      }`}
                   />
                 </button>
               </div>
@@ -367,14 +362,12 @@ export function ClassroomHeader({
                     e.stopPropagation();
                     onToggleProgressHUD?.();
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    showProgressHUD ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
-                  }`}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showProgressHUD ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
+                    }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                      showProgressHUD ? "translate-x-4" : "translate-x-0"
-                    }`}
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${showProgressHUD ? "translate-x-4" : "translate-x-0"
+                      }`}
                   />
                 </button>
               </div>

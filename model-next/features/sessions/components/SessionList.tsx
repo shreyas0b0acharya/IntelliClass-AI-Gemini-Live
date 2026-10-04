@@ -7,7 +7,7 @@ import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
 import { StatusBadge } from "@/components/shared";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -64,8 +64,6 @@ function SessionCard({
   const isLive = session.status === "running";
   const isPaused = session.status === "paused";
   const isEnded = session.status === "ended";
-  const canJoin = !isEnded;
-  const studentCanJoin = !isEnded;
 
   const formattedDate = new Date(session.created_at).toLocaleString("en-US", {
     month: "short",
@@ -79,8 +77,8 @@ function SessionCard({
     session.voice_id === "af_bella"
       ? "Prof. Bella (F)"
       : session.voice_id === "am_fenrir"
-      ? "Prof. Sharma (M)"
-      : session.voice_id || "Default Voice";
+        ? "Prof. Sharma (M)"
+        : session.voice_id || "Default Voice";
 
   const meetingCode = session.meeting_code || session.id.slice(0, 8);
 
@@ -92,24 +90,22 @@ function SessionCard({
 
   return (
     <div
-      className={`group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all shadow-xs ${
-        isLive
+      className={`group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all shadow-xs ${isLive
           ? "bg-emerald-500/[0.03] dark:bg-emerald-500/[0.06] border-emerald-500/30 hover:border-emerald-500/50"
           : isPaused
-          ? "bg-amber-500/[0.03] dark:bg-amber-500/[0.06] border-amber-500/30 hover:border-amber-500/50"
-          : "bg-[#f5f5f7] dark:bg-[#1c1c1e] border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15"
-      }`}
+            ? "bg-amber-500/[0.03] dark:bg-amber-500/[0.06] border-amber-500/30 hover:border-amber-500/50"
+            : "bg-[#f5f5f7] dark:bg-[#1c1c1e] border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15"
+        }`}
     >
       {/* Left: Icon + Info */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
         <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-            isLive
+          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isLive
               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
               : isPaused
-              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-              : "bg-black/5 dark:bg-white/10 text-[#0071e3]"
-          }`}
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "bg-black/5 dark:bg-white/10 text-[#0071e3]"
+            }`}
         >
           {isLive ? (
             <Radio className="h-5 w-5 animate-pulse" />
@@ -155,102 +151,100 @@ function SessionCard({
         {/* Horizontal Utility Toolbar */}
         <div className="flex items-center gap-1 bg-black/[0.03] dark:bg-white/[0.03] p-1 rounded-xl border border-black/5 dark:border-white/5">
           {/* Copy student link button */}
-          <AppButton
+          <Button
             variant="ghost"
             size="icon-xs"
-            shape="rounded"
             onClick={handleCopyLink}
-            className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+            className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-xl"
             title="Copy student join link"
           >
             <Copy className="h-3.5 w-3.5" />
-          </AppButton>
+          </Button>
 
           {/* Lecturer actions */}
           {isLecturer && (
             <>
-              <AppButton
+              <Button
                 variant="ghost"
                 size="icon-xs"
-                shape="rounded"
                 onClick={() => onEdit(session)}
-                className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+                className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-xl"
                 title="Edit session"
               >
                 <Pencil className="h-3.5 w-3.5" />
-              </AppButton>
-              <AppButton
+              </Button>
+              <Button
                 variant="ghost"
                 size="icon-xs"
-                shape="rounded"
                 onClick={() => onRestart(session)}
                 disabled={restarting === session.id}
-                isLoading={restarting === session.id}
-                className="h-8 w-8 text-[#86868b] hover:text-[#0071e3]"
+                className="h-8 w-8 text-[#86868b] hover:text-[#0071e3] rounded-xl"
                 title="Reset session"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </AppButton>
-              <AppButton
+                {restarting === session.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                )}
+              </Button>
+              <Button
                 variant="ghost"
                 size="icon-xs"
-                shape="rounded"
                 onClick={() => onDelete(session)}
-                className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10"
+                className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                 title="Delete session"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-              </AppButton>
+              </Button>
             </>
           )}
         </div>
 
         {/* Primary CTA Button (h-10 rounded-full) */}
         {isLecturer && (
-          <AppButton
+          <Button
             asChild
             size="sm"
-            variant={isLive ? "success" : "primary"}
-            shape="pill"
-            className="h-10 px-5 font-medium text-xs sm:text-sm"
-            rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+            variant="default"
+            className={`h-10 px-5 font-medium text-xs sm:text-sm rounded-full ${
+              isLive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+            }`}
           >
-            <Link href={`/classroom/${session.id}`}>
+            <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
               <span>{isLive ? "Broadcast" : "Open"}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          </AppButton>
+          </Button>
         )}
 
         {/* Student actions */}
         {!isLecturer && (
           <>
             {isLive ? (
-              <AppButton
+              <Button
                 asChild
                 size="sm"
-                variant="success"
-                shape="pill"
-                className="h-10 px-5 font-medium text-xs sm:text-sm"
-                leftIcon={<Radio className="h-3.5 w-3.5" />}
+                variant="default"
+                className="h-10 px-5 font-medium text-xs sm:text-sm rounded-full bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                <Link href={`/classroom/${session.id}`}>
+                <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
+                  <Radio className="h-3.5 w-3.5" />
                   <span>Join Live</span>
                 </Link>
-              </AppButton>
+              </Button>
             ) : !isEnded ? (
-              <AppButton
+              <Button
                 asChild
                 size="sm"
-                variant="primary"
-                shape="pill"
-                className="h-10 px-5 font-medium text-xs sm:text-sm"
-                leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
-                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+                variant="default"
+                className="h-10 px-5 font-medium text-xs sm:text-sm rounded-full"
               >
-                <Link href={`/classroom/${session.id}`}>
+                <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
+                  <Play className="h-3.5 w-3.5 fill-current" />
                   <span>Join Room</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
-              </AppButton>
+              </Button>
             ) : (
               <div className="flex items-center gap-1.5 text-[11px] text-[#86868b] font-medium px-3.5 h-9 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5">
                 <Lock className="h-3.5 w-3.5" />

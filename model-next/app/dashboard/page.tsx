@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses";
 import { SessionCodeInput, StatusBadge } from "@/components/shared";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Presentation,
@@ -57,7 +57,7 @@ export default function DashboardPage() {
                 allSessions.push({ ...s, courseTitle: course.title });
               });
             }
-          } catch {}
+          } catch { }
         })
       );
 
@@ -172,15 +172,14 @@ export default function DashboardPage() {
             <CreateCourseDialog
               onCreated={loadData}
               trigger={
-                <AppButton
-                  variant="primary"
-                  shape="pill"
+                <Button
+                  variant="default"
                   size="sm"
-                  className="px-4 h-10 font-medium text-xs shadow-xs"
-                  leftIcon={<Plus className="h-3.5 w-3.5" />}
+                  className="px-4 h-10 font-medium text-xs shadow-xs rounded-full"
                 >
+                  <Plus className="h-3.5 w-3.5" />
                   <span>New Course</span>
-                </AppButton>
+                </Button>
               }
             />
           )}
@@ -206,20 +205,18 @@ export default function DashboardPage() {
               return (
                 <div
                   key={session.id}
-                  className={`flex flex-col justify-between p-5 rounded-2xl border transition-all shadow-xs min-h-[230px] ${
-                    isLive
+                  className={`flex flex-col justify-between p-5 rounded-2xl border transition-all shadow-xs min-h-[230px] ${isLive
                       ? "bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border-emerald-500/30 hover:border-emerald-500/60 shadow-emerald-500/5"
                       : "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/30 hover:border-amber-500/60 shadow-amber-500/5"
-                  }`}
+                    }`}
                 >
                   {/* Top: Icon + Status */}
                   <div className="flex items-start justify-between gap-2">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        isLive
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isLive
                           ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                           : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                      }`}
+                        }`}
                     >
                       {isLive ? (
                         <Radio className="h-5 w-5 animate-pulse" />
@@ -246,19 +243,22 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Bottom Action (Standardized h-10 rounded-full) */}
-                  <AppButton
+                  <Button
                     size="sm"
                     asChild
-                    variant={isLive ? "success" : "primary"}
-                    shape="pill"
-                    className="w-full h-10 text-xs font-semibold shrink-0 shadow-xs"
-                    leftIcon={<Play className="h-3.5 w-3.5 fill-current" />}
-                    rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+                    variant="default"
+                    className={`w-full h-10 text-xs font-semibold shrink-0 shadow-xs rounded-full ${
+                      isLive
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : ""
+                    }`}
                   >
-                    <Link href={`/classroom/${session.id}`}>
+                    <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-2">
+                      <Play className="h-3.5 w-3.5 fill-current" />
                       <span>{isLive ? "Enter Live Studio" : "Resume Studio"}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
-                  </AppButton>
+                  </Button>
                 </div>
               );
             })}
@@ -301,15 +301,14 @@ export default function DashboardPage() {
               <CreateCourseDialog
                 onCreated={loadData}
                 trigger={
-                  <AppButton
-                    variant="primary"
-                    shape="pill"
+                  <Button
+                    variant="default"
                     size="sm"
-                    className="px-4 h-9 font-medium text-xs shadow-xs"
-                    leftIcon={<Plus className="h-3.5 w-3.5" />}
+                    className="px-4 h-9 font-medium text-xs shadow-xs rounded-full"
                   >
+                    <Plus className="h-3.5 w-3.5" />
                     <span>Create First Course</span>
-                  </AppButton>
+                  </Button>
                 }
               />
             )}
@@ -432,19 +431,18 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Bottom Action (Standardized h-10 rounded-full) */}
-                <AppButton
+                <Button
                   size="sm"
                   asChild
                   variant="secondary"
-                  shape="pill"
-                  className="w-full h-10 px-4 text-xs font-semibold shrink-0 shadow-xs"
-                  leftIcon={<Play className="h-3 w-3 fill-current" />}
-                  rightIcon={<ArrowRight className="h-3 w-3 opacity-70 group-hover:opacity-100" />}
+                  className="w-full h-10 px-4 text-xs font-semibold shrink-0 shadow-xs rounded-full"
                 >
-                  <Link href={`/classroom/${session.id}`}>
+                  <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-2">
+                    <Play className="h-3 w-3 fill-current" />
                     <span>Enter Studio</span>
+                    <ArrowRight className="h-3 w-3 opacity-70 group-hover:opacity-100" />
                   </Link>
-                </AppButton>
+                </Button>
               </div>
             ))}
           </div>

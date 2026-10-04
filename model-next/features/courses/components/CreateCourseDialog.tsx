@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, BookPlus } from "lucide-react";
+import { Plus, BookPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CreateCourseDialogProps {
@@ -63,14 +63,13 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
         {trigger ? (
           trigger
         ) : (
-          <AppButton
-            variant="primary"
-            shape="rounded"
-            className="font-semibold shadow-md"
-            leftIcon={<Plus className="h-4 w-4" />}
+          <Button
+            variant="default"
+            className="font-semibold shadow-md rounded-xl inline-flex items-center gap-1.5"
           >
+            <Plus className="h-4 w-4" />
             <span>Create New Course</span>
-          </AppButton>
+          </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-md rounded-3xl p-6">
@@ -115,26 +114,30 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
           </div>
 
           <DialogFooter className="pt-2">
-            <AppButton
+            <Button
               type="button"
               variant="outline"
-              shape="rounded"
               onClick={() => setOpen(false)}
               disabled={isLoading}
+              className="rounded-xl"
             >
               <span>Cancel</span>
-            </AppButton>
-            <AppButton
+            </Button>
+            <Button
               type="submit"
-              variant="primary"
-              shape="rounded"
+              variant="default"
               disabled={isLoading}
-              isLoading={isLoading}
-              loadingText="Creating..."
-              className="font-semibold"
+              className="font-semibold rounded-xl inline-flex items-center gap-1.5"
             >
-              <span>Create Course</span>
-            </AppButton>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <span>Create Course</span>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import type { ClassroomSession } from "@/lib/supabase/types";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Pencil, Save } from "lucide-react";
+import { Pencil, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditSessionDialogProps {
@@ -116,11 +116,10 @@ export function EditSessionDialog({
             >
               <label
                 htmlFor="edit-male"
-                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
-                  voiceGender === "male"
+                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "male"
                     ? "border-primary bg-primary/10"
                     : "border-border/60 hover:border-border bg-card/40"
-                }`}
+                  }`}
               >
                 <RadioGroupItem value="male" id="edit-male" />
                 <div>
@@ -130,11 +129,10 @@ export function EditSessionDialog({
               </label>
               <label
                 htmlFor="edit-female"
-                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
-                  voiceGender === "female"
+                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "female"
                     ? "border-primary bg-primary/10"
                     : "border-border/60 hover:border-border bg-card/40"
-                }`}
+                  }`}
               >
                 <RadioGroupItem value="female" id="edit-female" />
                 <div>
@@ -146,28 +144,33 @@ export function EditSessionDialog({
           </div>
 
           <DialogFooter className="pt-2 gap-2">
-            <AppButton
+            <Button
               type="button"
               variant="outline"
-              shape="rounded"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="flex-1"
+              className="flex-1 rounded-xl"
             >
               <span>Cancel</span>
-            </AppButton>
-            <AppButton
+            </Button>
+            <Button
               type="submit"
               disabled={saving || !topic.trim()}
-              isLoading={saving}
-              loadingText="Saving..."
-              variant="primary"
-              shape="rounded"
-              className="flex-1 font-semibold"
-              leftIcon={!saving ? <Save className="h-4 w-4" /> : undefined}
+              variant="default"
+              className="flex-1 font-semibold rounded-xl inline-flex items-center justify-center gap-2"
             >
-              <span>Save Changes</span>
-            </AppButton>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

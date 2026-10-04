@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import {
   Dialog,
@@ -23,8 +23,6 @@ import {
   ShieldCheck,
   Loader2,
   ShieldAlert,
-  LogOut,
-  ChevronRight,
   Lock,
   KeyRound,
   AlertCircle,
@@ -133,8 +131,7 @@ export function AccountProfileSettings() {
       // 1. Update role in database
       await api.updateProfile({ role: pendingRole });
       toast.success(
-        `Role successfully switched to ${
-          pendingRole === "lecturer" ? "Lecturer" : "Student"
+        `Role successfully switched to ${pendingRole === "lecturer" ? "Lecturer" : "Student"
         }! Signing out to refresh permissions...`
       );
 
@@ -155,29 +152,29 @@ export function AccountProfileSettings() {
 
   const formattedDate = profile?.created_at
     ? new Date(profile.created_at).toLocaleString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
     : user?.created_at
-    ? new Date(user.created_at).toLocaleString("en-US", {
+      ? new Date(user.created_at).toLocaleString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "Active Member";
+      : "Active Member";
 
   const initials = profile?.name
     ? profile.name
-        .split(" ")
-        .map((p) => p[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+      .split(" ")
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
     : "IC";
 
   return (
@@ -197,11 +194,10 @@ export function AccountProfileSettings() {
                   {profile?.name || "IntelliClass User"}
                 </h3>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${
-                    isLecturer
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${isLecturer
                       ? "bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20"
                       : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                  }`}
+                    }`}
                 >
                   {isLecturer ? "Lecturer" : "Student"}
                 </span>
@@ -247,18 +243,16 @@ export function AccountProfileSettings() {
             type="button"
             disabled={isSwitchingRole}
             onClick={() => handleOpenConfirm("lecturer")}
-            className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-              profile?.role === "lecturer"
+            className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${profile?.role === "lecturer"
                 ? "border-[#0071e3] bg-[#0071e3]/5 dark:bg-[#0071e3]/10 ring-1 ring-[#0071e3]/30 shadow-xs"
                 : "border-black/5 dark:border-white/10 bg-[#f5f5f7] dark:bg-[#2c2c2e] hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
-            }`}
+              }`}
           >
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                profile?.role === "lecturer"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${profile?.role === "lecturer"
                   ? "bg-[#0071e3] text-white shadow-xs"
                   : "bg-black/5 dark:bg-white/10 text-[#86868b]"
-              }`}
+                }`}
             >
               <Presentation className="h-4 w-4" />
             </div>
@@ -285,18 +279,16 @@ export function AccountProfileSettings() {
             type="button"
             disabled={isSwitchingRole}
             onClick={() => handleOpenConfirm("student")}
-            className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-              profile?.role === "student"
+            className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${profile?.role === "student"
                 ? "border-emerald-500 bg-emerald-500/5 dark:bg-emerald-500/10 ring-1 ring-emerald-500/30 shadow-xs"
                 : "border-black/5 dark:border-white/10 bg-[#f5f5f7] dark:bg-[#2c2c2e] hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
-            }`}
+              }`}
           >
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                profile?.role === "student"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${profile?.role === "student"
                   ? "bg-emerald-500 text-white shadow-xs"
                   : "bg-black/5 dark:bg-white/10 text-[#86868b]"
-              }`}
+                }`}
             >
               <BookOpen className="h-4 w-4" />
             </div>
@@ -334,20 +326,26 @@ export function AccountProfileSettings() {
           </div>
 
           {/* Quick Email Reset Button */}
-          <AppButton
+          <Button
             type="button"
             variant="outline"
             size="sm"
-            shape="pill"
             disabled={isSendingResetEmail || !user?.email}
-            isLoading={isSendingResetEmail}
-            loadingText="Sending Link..."
             onClick={handleSendResetEmail}
-            className="text-xs font-semibold shrink-0"
-            leftIcon={<Send className="h-3.5 w-3.5" />}
+            className="text-xs font-semibold shrink-0 rounded-full inline-flex items-center gap-1.5"
           >
-            <span>{emailResetSent ? "Resend Recovery Email" : "Email Reset Link"}</span>
-          </AppButton>
+            {isSendingResetEmail ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                <span>Sending Link...</span>
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5" />
+                <span>{emailResetSent ? "Resend Recovery Email" : "Email Reset Link"}</span>
+              </>
+            )}
+          </Button>
         </div>
 
         {emailResetSent && (
@@ -422,18 +420,22 @@ export function AccountProfileSettings() {
           </div>
 
           <div className="flex justify-end pt-1">
-            <AppButton
+            <Button
               type="submit"
-              variant="primary"
+              variant="default"
               size="sm"
-              shape="pill"
               disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-              isLoading={isUpdatingPassword}
-              loadingText="Updating..."
-              className="text-xs font-semibold px-4"
+              className="text-xs font-semibold px-4 rounded-full inline-flex items-center gap-1.5"
             >
-              <span>Save New Password</span>
-            </AppButton>
+              {isUpdatingPassword ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                <span>Save New Password</span>
+              )}
+            </Button>
           </div>
         </form>
       </div>
@@ -494,7 +496,7 @@ export function AccountProfileSettings() {
           </div>
 
           <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
-            <AppButton
+            <Button
               type="button"
               variant="outline"
               disabled={isSwitchingRole}
@@ -502,18 +504,23 @@ export function AccountProfileSettings() {
               className="w-full sm:w-auto text-xs"
             >
               Cancel
-            </AppButton>
-            <AppButton
+            </Button>
+            <Button
               type="button"
-              variant="primary"
+              variant="default"
               disabled={isSwitchingRole}
-              isLoading={isSwitchingRole}
-              loadingText="Switching..."
               onClick={handleConfirmRoleSwitch}
-              className="w-full sm:w-auto text-xs font-semibold"
+              className="w-full sm:w-auto text-xs font-semibold inline-flex items-center gap-1.5"
             >
-              Confirm & Sign Out
-            </AppButton>
+              {isSwitchingRole ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                  <span>Switching...</span>
+                </>
+              ) : (
+                <span>Confirm & Sign Out</span>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import type { HeadTTSData } from "@/features/avatar";
-import { Volume2, Square } from "lucide-react";
+import { Volume2, Square, Loader2 } from "lucide-react";
 import { unlockAudioContext } from "@/features/avatar";
 import { toast } from "sonner";
 
@@ -75,27 +75,29 @@ export function HeadTTSTestButton({
   };
 
   return (
-    <AppButton
+    <Button
       type="button"
       onClick={handleToggle}
       disabled={isSynthesizing}
-      isLoading={isSynthesizing}
-      loadingText="Synthesizing HeadTTS Voice..."
       variant={isPlaying ? "destructive" : "secondary"}
-      shape="pill"
-      className={className}
-      leftIcon={
-        !isSynthesizing ? (
-          isPlaying ? (
+      className={`${className} rounded-full inline-flex items-center justify-center gap-2`}
+    >
+      {isSynthesizing ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Synthesizing HeadTTS Voice...</span>
+        </>
+      ) : (
+        <>
+          {isPlaying ? (
             <Square className="h-3 w-3 fill-current" />
           ) : (
             <Volume2 className="h-3.5 w-3.5 text-[#0071e3]" />
-          )
-        ) : undefined
-      }
-    >
-      <span>{isPlaying ? "Stop Preview" : "Test HeadTTS Voice & LipSync"}</span>
-    </AppButton>
+          )}
+          <span>{isPlaying ? "Stop Preview" : "Test HeadTTS Voice & LipSync"}</span>
+        </>
+      )}
+    </Button>
   );
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { AppButton } from "@/components/app/AppButton";
+import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   Loader2,
@@ -159,32 +159,30 @@ function ForgotPasswordFormContent() {
             </div>
 
             <div className="flex flex-col gap-2.5 pt-2">
-              <AppButton
+              <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                shape="pill"
                 onClick={() => {
                   setIsSuccess(false);
                   setEmail("");
                 }}
-                className="w-full text-xs sm:text-sm"
+                className="w-full text-xs sm:text-sm rounded-full"
               >
                 <span>Try another email</span>
-              </AppButton>
+              </Button>
 
-              <AppButton
+              <Button
                 asChild
-                variant="primary"
+                variant="default"
                 size="lg"
-                shape="pill"
-                className="w-full text-xs sm:text-sm"
-                leftIcon={<ArrowLeft className="h-4 w-4" />}
+                className="w-full text-xs sm:text-sm rounded-full"
               >
-                <Link href="/login">
+                <Link href="/login" className="inline-flex items-center justify-center gap-2">
+                  <ArrowLeft className="h-4 w-4" />
                   <span>Back to Sign In</span>
                 </Link>
-              </AppButton>
+              </Button>
             </div>
           </div>
         ) : (
@@ -225,19 +223,25 @@ function ForgotPasswordFormContent() {
                 </p>
               </div>
 
-              <AppButton
+              <Button
                 type="submit"
                 disabled={isLoading}
-                isLoading={isLoading}
-                loadingText="Sending Recovery Link..."
-                variant="primary"
+                variant="default"
                 size="lg"
-                shape="pill"
-                className="w-full mt-3"
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                className="w-full mt-3 rounded-full"
               >
-                <span>Send Reset Link</span>
-              </AppButton>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Sending Recovery Link...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send Reset Link</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
             </form>
 
             {/* Footer Navigation Link */}

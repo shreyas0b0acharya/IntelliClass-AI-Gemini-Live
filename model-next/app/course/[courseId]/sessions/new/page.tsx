@@ -14,7 +14,7 @@ import type { Course, CourseFile, MediaAsset } from "@/lib/supabase/types";
 import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
 import { MaterialImageCarousel, MaterialViewerModal } from "@/features/materials";
 import { ThemeToggle } from "@/components/shared";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -311,18 +311,17 @@ export default function NewSessionPage({
       {/* ── Sticky Action Bar (Frosted Glass Header) ───────────────────────── */}
       <header className="sticky top-0 z-30 h-16 px-6 sm:px-8 flex items-center justify-between border-b border-black/5 dark:border-white/10 backdrop-blur-md bg-white/70 dark:bg-[#121212]/70 transition-all">
         <div className="flex items-center gap-4 min-w-0">
-          <AppButton
+          <Button
             asChild
             variant="ghost"
             size="sm"
-            shape="pill"
-            className="h-9 px-3 text-xs font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-            leftIcon={<ArrowLeft className="h-4 w-4" />}
+            className="rounded-full h-9 px-3 text-xs font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
           >
-            <Link href={`/course/${courseId}`}>
+            <Link href={`/course/${courseId}`} className="inline-flex items-center justify-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
               <span>{course?.title || "Course Space"}</span>
             </Link>
-          </AppButton>
+          </Button>
 
           <div className="h-4 w-px bg-black/10 dark:bg-white/15 hidden sm:block" />
 
@@ -338,30 +337,35 @@ export default function NewSessionPage({
 
         {/* Action Controls */}
         <div className="flex items-center gap-3">
-          <AppButton
+          <Button
             type="button"
             variant="secondary"
-            shape="pill"
             onClick={() => router.push(`/course/${courseId}`)}
             disabled={isSubmitting}
-            className="px-5 py-2.5 font-medium text-xs border-0"
+            className="rounded-full px-5 py-2.5 font-medium text-xs border-0"
           >
             <span>Cancel</span>
-          </AppButton>
+          </Button>
 
           {/* Primary CTA: Apple System Blue Pill */}
-          <AppButton
+          <Button
             onClick={handleSubmit}
             disabled={isSubmitting || !topic.trim()}
-            isLoading={isSubmitting}
-            loadingText="Preparing Lecture..."
-            variant="primary"
-            shape="pill"
-            className="px-6 py-2.5 font-medium shadow-xs text-xs"
-            leftIcon={!isSubmitting ? <Sparkles className="h-3.5 w-3.5" /> : undefined}
+            variant="default"
+            className="rounded-full px-6 py-2.5 font-medium shadow-xs text-xs"
           >
-            <span>Create &amp; Generate Lecture</span>
-          </AppButton>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                <span>Preparing Lecture...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Create &amp; Generate Lecture</span>
+              </>
+            )}
+          </Button>
 
           <ThemeToggle />
         </div>
@@ -472,11 +476,10 @@ export default function NewSessionPage({
                       return (
                         <div
                           key={file.id}
-                          className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border ${
-                            isSelected
+                          className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border ${isSelected
                               ? "bg-[#0071e3]/5 border-[#0071e3]/30"
                               : "border-black/5 dark:border-white/5"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
@@ -499,17 +502,16 @@ export default function NewSessionPage({
                               <span className="text-[10px] text-[#86868b] font-medium hidden sm:inline">
                                 {file.file_size ? `${(file.file_size / (1024 * 1024)).toFixed(1)} MB` : "Document"}
                               </span>
-                              <AppButton
+                              <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon-xs"
-                                shape="rounded"
                                 onClick={() => setSelectedViewFile(file)}
-                                className="h-7 w-7 text-[#86868b] hover:text-[#0071e3] hover:bg-[#0071e3]/10"
+                                className="h-7 w-7 text-[#86868b] hover:text-[#0071e3] hover:bg-[#0071e3]/10 rounded-md"
                                 title="View PDF Document"
                               >
                                 <Eye className="h-3.5 w-3.5" />
-                              </AppButton>
+                              </Button>
                             </div>
                           </div>
 

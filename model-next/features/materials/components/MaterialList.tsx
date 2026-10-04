@@ -5,7 +5,7 @@ import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Trash2, CheckCircle2, FileUp, Eye, Loader2 } from "lucide-react";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { MaterialImageCarousel } from "./MaterialImageCarousel";
 import { MaterialViewerModal } from "./MaterialViewerModal";
 import {
@@ -146,27 +146,25 @@ export function MaterialList({ courseId, isLecturer = false, refreshTrigger }: M
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <AppButton
+                  <Button
                     variant="outline"
                     size="sm"
-                    shape="rounded"
                     onClick={() => setSelectedViewFile(file)}
-                    className="h-8 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 hover:border-[#0071e3]/50"
-                    leftIcon={<Eye className="h-3.5 w-3.5 text-[#0071e3]" />}
+                    className="h-8 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 hover:border-[#0071e3]/50 rounded-xl inline-flex items-center gap-1.5"
                   >
+                    <Eye className="h-3.5 w-3.5 text-[#0071e3]" />
                     <span className="hidden sm:inline">View PDF</span>
-                  </AppButton>
+                  </Button>
 
                   {isLecturer && (
-                    <AppButton
+                    <Button
                       variant="ghost"
                       size="icon-sm"
-                      shape="rounded"
                       onClick={() => setDeleteTarget(file)}
-                      className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10"
+                      className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </AppButton>
+                    </Button>
                   )}
                 </div>
               </div>

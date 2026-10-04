@@ -3,8 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
-import { AppButton } from "@/components/app/AppButton";
+import { Button } from "@/components/ui/button";
 import {
   Loader2,
   ArrowRight,
@@ -17,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase/client";
 
 function ResetPasswordFormContent() {
   const searchParams = useSearchParams();
@@ -42,7 +42,7 @@ function ResetPasswordFormContent() {
       setErrorMessage("This password reset link is invalid or has expired.");
       toast.error("Password reset link expired");
     } else if (code) {
-      supabase.auth.exchangeCodeForSession(code).catch((err) => {
+      supabase.auth.exchangeCodeForSession(code).catch((err: unknown) => {
         console.warn("Direct code exchange warning:", err);
       });
     }
@@ -180,18 +180,17 @@ function ResetPasswordFormContent() {
               </p>
             </div>
 
-            <AppButton
+            <Button
               asChild
-              variant="primary"
+              variant="default"
               size="lg"
-              shape="pill"
-              className="w-full text-xs sm:text-sm"
-              rightIcon={<ArrowRight className="h-4 w-4" />}
+              className="w-full text-xs sm:text-sm rounded-full"
             >
-              <Link href="/login">
+              <Link href="/login" className="inline-flex items-center justify-center gap-2">
                 <span>Continue to Sign In</span>
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            </AppButton>
+            </Button>
           </div>
         ) : isExpired ? (
           /* Expired / Invalid Recovery Link State */
@@ -214,31 +213,29 @@ function ResetPasswordFormContent() {
             </div>
 
             <div className="flex flex-col gap-2.5 pt-2">
-              <AppButton
+              <Button
                 asChild
-                variant="primary"
+                variant="default"
                 size="lg"
-                shape="pill"
-                className="w-full text-xs sm:text-sm"
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                className="w-full text-xs sm:text-sm rounded-full"
               >
-                <Link href="/forgot-password">
+                <Link href="/forgot-password" className="inline-flex items-center justify-center gap-2">
                   <span>Request New Reset Link</span>
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
-              </AppButton>
+              </Button>
 
-              <AppButton
+              <Button
                 asChild
                 variant="outline"
                 size="lg"
-                shape="pill"
-                className="w-full text-xs sm:text-sm"
-                leftIcon={<ArrowLeft className="h-4 w-4" />}
+                className="w-full text-xs sm:text-sm rounded-full"
               >
-                <Link href="/login">
+                <Link href="/login" className="inline-flex items-center justify-center gap-2">
+                  <ArrowLeft className="h-4 w-4" />
                   <span>Return to Sign In</span>
                 </Link>
-              </AppButton>
+              </Button>
             </div>
           </div>
         ) : (
@@ -296,19 +293,25 @@ function ResetPasswordFormContent() {
                 </div>
               </div>
 
-              <AppButton
+              <Button
                 type="submit"
                 disabled={isLoading}
-                isLoading={isLoading}
-                loadingText="Updating Password..."
-                variant="primary"
+                variant="default"
                 size="lg"
-                shape="pill"
-                className="w-full mt-3"
-                rightIcon={<ArrowRight className="h-4 w-4" />}
+                className="w-full mt-3 rounded-full"
               >
-                <span>Update Password</span>
-              </AppButton>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Updating Password...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Update Password</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
             </form>
 
             <div className="mt-6 pt-5 border-t border-[#e5e5ea] dark:border-[#2c2c2e] text-center">

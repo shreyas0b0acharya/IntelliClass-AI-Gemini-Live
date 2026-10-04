@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Sparkles, Radio, Pause, Loader2, CheckCircle2 } from "lucide-react";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 
 interface SessionProgressHUDProps {
   status: string;
@@ -33,9 +33,8 @@ export function SessionProgressHUD({
 
   return (
     <div
-      className={`w-full max-w-2xl mx-auto ${
-        isShortLandscape ? "px-3 py-1 gap-1" : isCompact ? "px-3.5 py-1.5 gap-1.5" : "px-4 py-2 gap-1.5"
-      } bg-white/85 dark:bg-[#1c1c1e]/85 backdrop-blur-2xl rounded-2xl border border-black/10 dark:border-white/10 shadow-xl text-foreground flex flex-col transition-all select-none`}
+      className={`w-full max-w-2xl mx-auto ${isShortLandscape ? "px-3 py-1 gap-1" : isCompact ? "px-3.5 py-1.5 gap-1.5" : "px-4 py-2 gap-1.5"
+        } bg-white/85 dark:bg-[#1c1c1e]/85 backdrop-blur-2xl rounded-2xl border border-black/10 dark:border-white/10 shadow-xl text-foreground flex flex-col transition-all select-none`}
     >
       {/* Top Row: Activity Indicator & Script Button */}
       <div className="flex items-center justify-between gap-2 text-xs">
@@ -74,16 +73,15 @@ export function SessionProgressHUD({
 
         {/* View Script & Plan CTA (Role Gated: Only for Lecturers, Optionally Openable) */}
         {canEditCurriculum && (
-          <AppButton
+          <Button
             size="xs"
             variant="outline"
-            shape="pill"
             onClick={onOpenScript}
-            className="h-6 sm:h-7 px-2.5 text-[11px] font-semibold text-foreground bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 border-black/10 dark:border-white/15 shrink-0 shadow-none"
-            leftIcon={<BookOpen className="h-3 w-3 text-[#0071e3]" />}
+            className="h-6 sm:h-7 px-2.5 text-[11px] font-semibold text-foreground bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 border-black/10 dark:border-white/15 shrink-0 shadow-none rounded-full inline-flex items-center gap-1.5"
           >
+            <BookOpen className="h-3 w-3 text-[#0071e3]" />
             <span>{isCompact || isShortLandscape ? "Script" : "Curriculum Script"}</span>
-          </AppButton>
+          </Button>
         )}
       </div>
 

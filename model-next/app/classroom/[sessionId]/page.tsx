@@ -19,7 +19,7 @@ import {
 } from "@/features/classroom";
 import { AssetSyncModal } from "@/components/shared";
 import { assetStorage } from "@/features/avatar";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Clock,
@@ -279,18 +279,17 @@ export default function ClassroomPage({
                         </div>
                       </div>
 
-                      <AppButton
+                      <Button
                         size="sm"
-                        variant="primary"
-                        shape="rounded"
+                        variant="default"
                         onClick={() => {
                           setSelectedViewFile(file);
                         }}
-                        className="h-8 px-3 text-xs font-bold shrink-0"
-                        leftIcon={<Eye className="h-3.5 w-3.5" />}
+                        className="h-8 px-3 text-xs font-bold shrink-0 rounded-xl inline-flex items-center gap-1.5"
                       >
+                        <Eye className="h-3.5 w-3.5" />
                         <span>View PDF</span>
-                      </AppButton>
+                      </Button>
                     </div>
 
                     {/* Extracted Diagram Carousel with Instant 'Project to Stage' for Lecturer */}
@@ -383,24 +382,22 @@ export default function ClassroomPage({
               </p>
             </div>
             <div className="flex items-center gap-3 mt-2">
-              <AppButton
+              <Button
                 onClick={classroom.requestRejoin}
-                variant="primary"
-                shape="rounded"
+                variant="default"
                 size="sm"
-                className="px-5 h-9 font-semibold text-xs shadow-xs"
+                className="px-5 h-9 font-semibold text-xs shadow-xs rounded-xl"
               >
                 <span>Ask to Join Again</span>
-              </AppButton>
-              <AppButton
+              </Button>
+              <Button
                 variant="outline"
-                shape="rounded"
                 size="sm"
                 onClick={() => router.push(`/course/${courseId}`)}
-                className="px-4 h-9 font-semibold text-xs"
+                className="px-4 h-9 font-semibold text-xs rounded-xl"
               >
                 <span>Return to Course Space</span>
-              </AppButton>
+              </Button>
             </div>
           </div>
         )}
@@ -418,25 +415,23 @@ export default function ClassroomPage({
               </p>
             </div>
             <div className="flex items-center gap-3 mt-2">
-              <AppButton
+              <Button
                 onClick={classroom.restartSession}
-                variant="primary"
-                shape="rounded"
+                variant="default"
                 size="sm"
-                className="px-6 h-10 font-semibold text-xs shadow-lg gap-2"
+                className="px-6 h-10 font-semibold text-xs shadow-lg gap-2 rounded-xl inline-flex items-center"
               >
                 <Play className="h-3.5 w-3.5" />
                 <span>Restart Broadcast</span>
-              </AppButton>
-              <AppButton
+              </Button>
+              <Button
                 onClick={() => router.push(`/course/${courseId}`)}
                 variant="outline"
-                shape="rounded"
                 size="sm"
-                className="px-5 h-10 font-semibold text-xs"
+                className="px-5 h-10 font-semibold text-xs rounded-xl"
               >
                 <span>Return to Course</span>
-              </AppButton>
+              </Button>
             </div>
           </div>
         )}
@@ -453,15 +448,14 @@ export default function ClassroomPage({
                 The professor has ended this live broadcast. Redirecting to home...
               </p>
             </div>
-            <AppButton
+            <Button
               onClick={() => router.replace("/")}
-              variant="primary"
-              shape="rounded"
+              variant="default"
               size="sm"
-              className="mt-3 px-6 h-10 font-semibold text-xs shadow-lg"
+              className="mt-3 px-6 h-10 font-semibold text-xs shadow-lg rounded-xl"
             >
               <span>Return to Home</span>
-            </AppButton>
+            </Button>
           </div>
         )}
 

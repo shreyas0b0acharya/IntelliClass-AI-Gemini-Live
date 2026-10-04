@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
-import { AppButton } from "@/components/app/AppButton";
+import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   Loader2,
@@ -198,19 +198,21 @@ function LoginFormContent() {
         )}
 
         {/* Google SSO Button */}
-        <AppButton
+        <Button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={isLoading || isGoogleLoading}
-          isLoading={isGoogleLoading}
           variant="outline"
           size="lg"
-          shape="pill"
-          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c]"
-          leftIcon={!isGoogleLoading && <GoogleIcon />}
+          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c] rounded-full"
         >
+          {isGoogleLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          ) : (
+            <GoogleIcon />
+          )}
           <span>Continue with Google</span>
-        </AppButton>
+        </Button>
 
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-5 2xl:my-6 flex items-center justify-center">
@@ -286,19 +288,25 @@ function LoginFormContent() {
             </div>
           </div>
 
-          <AppButton
+          <Button
             type="submit"
             disabled={isLoading || isGoogleLoading}
-            isLoading={isLoading}
-            loadingText="Signing In..."
-            variant="primary"
+            variant="default"
             size="lg"
-            shape="pill"
-            className="w-full mt-3"
-            rightIcon={<ArrowRight className="h-4 w-4" />}
+            className="w-full mt-3 rounded-full"
           >
-            <span>Enter Academy</span>
-          </AppButton>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>Signing In...</span>
+              </>
+            ) : (
+              <>
+                <span>Enter Academy</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
         </form>
 
         {/* Footer Link */}

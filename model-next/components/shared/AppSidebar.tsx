@@ -35,7 +35,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { CreateCourseDialog } from "@/features/courses";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
@@ -113,9 +113,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Link
           href="/dashboard"
           onClick={handleLinkClick}
-          className={`flex items-center gap-2.5 rounded-xl transition-colors ${
-            isCollapsed ? "justify-center" : ""
-          }`}
+          className={`flex items-center gap-2.5 rounded-xl transition-colors ${isCollapsed ? "justify-center" : ""
+            }`}
         >
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 bg-[#0071e3] shadow-xs">
             <Sparkles className="h-4 w-4" />
@@ -193,15 +192,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <CreateCourseDialog
                 onCreated={() => setRefreshTrigger((prev) => prev + 1)}
                 trigger={
-                  <AppButton
+                  <Button
                     variant="ghost"
                     size="icon-xs"
-                    shape="square"
                     title="Add Course Space"
-                    className="h-6 w-6 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+                    className="h-6 w-6 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-md"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                  </AppButton>
+                  </Button>
                 }
               />
             )}

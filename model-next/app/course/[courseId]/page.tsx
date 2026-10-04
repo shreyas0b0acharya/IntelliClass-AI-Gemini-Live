@@ -7,7 +7,7 @@ import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { MaterialList, FileUploadDialog } from "@/features/materials";
 import { SessionList, CreateSessionDialog } from "@/features/sessions";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BookOpen, Presentation, FileText, Plus, Upload } from "lucide-react";
@@ -96,15 +96,15 @@ export default function CourseDetailPage({
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* ── 1. Top Navigation: Back to Dashboard Pill ──────────────────── */}
       <div className="flex items-center justify-between">
-        <AppButton
+        <Button
           variant="secondary"
-          shape="pill"
           size="xs"
           onClick={() => router.push("/dashboard")}
-          leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
+          className="rounded-full"
         >
+          <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Dashboard</span>
-        </AppButton>
+        </Button>
       </div>
 
       {/* ── 2. Elevated macOS Course Header Card ──────────────────────── */}
@@ -156,27 +156,25 @@ export default function CourseDetailPage({
                   courseId={courseId}
                   onUploaded={() => setMaterialRefresh((r) => r + 1)}
                   trigger={
-                    <AppButton
+                    <Button
                       variant="outline"
-                      shape="pill"
-                      className="px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs h-10"
-                      leftIcon={<Upload className="h-4 w-4 text-[#0071e3]" />}
+                      className="rounded-full px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs h-10"
                     >
+                      <Upload className="h-4 w-4 text-[#0071e3]" />
                       <span>Upload Syllabus PDF</span>
-                    </AppButton>
+                    </Button>
                   }
                 />
-                <AppButton
+                <Button
                   asChild
-                  variant="primary"
-                  shape="pill"
-                  className="px-5 py-2.5 font-medium text-xs sm:text-sm shadow-xs h-10"
-                  leftIcon={<Plus className="h-4 w-4" />}
+                  variant="default"
+                  className="rounded-full px-5 py-2.5 font-medium text-xs sm:text-sm shadow-xs h-10"
                 >
-                  <Link href={`/course/${courseId}/sessions/new`}>
+                  <Link href={`/course/${courseId}/sessions/new`} className="inline-flex items-center justify-center gap-2">
+                    <Plus className="h-4 w-4" />
                     <span>New AI Lecture</span>
                   </Link>
-                </AppButton>
+                </Button>
               </>
             )}
           </div>

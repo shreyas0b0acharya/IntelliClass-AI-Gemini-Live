@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Volume2, Volume1, VolumeX, Volume } from "lucide-react";
 import { setMasterVolume, getMasterVolume } from "@/features/avatar";
 import { Slider } from "@/components/ui/slider";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 
 interface VolumeControlProps {
   variant?: "card" | "menu";
@@ -123,18 +123,17 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <AppButton
+      <Button
         type="button"
         variant="ghost"
         size="icon-xs"
-        shape="pill"
         onClick={handleToggleMute}
-        className="h-6 w-6 text-foreground shrink-0 hover:bg-black/5 dark:hover:bg-white/10"
+        className="h-6 w-6 text-foreground shrink-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
         title={isMuted ? "Unmute Audio" : "Mute Audio"}
         aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
       >
         {getVolumeIcon()}
-      </AppButton>
+      </Button>
 
       <div className="w-20 sm:w-24">
         <Slider

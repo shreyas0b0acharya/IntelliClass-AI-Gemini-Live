@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   LogOut,
   Sparkles,
@@ -44,24 +44,23 @@ export function NavUser({
 
   const initials = profile?.name
     ? profile.name
-        .split(" ")
-        .map((p) => p[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+      .split(" ")
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
     : "";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <AppButton
+        <Button
           variant="secondary"
           size="icon-sm"
-          shape="pill"
-          className="border border-[#d2d2d7]/50 dark:border-[#424245]/50 text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold text-xs shadow-xs focus-visible:ring-2 focus-visible:ring-[#0071e3]/30 p-0"
+          className="rounded-full border border-[#d2d2d7]/50 dark:border-[#424245]/50 text-[#1d1d1f] dark:text-[#f5f5f7] font-semibold text-xs shadow-xs focus-visible:ring-2 focus-visible:ring-[#0071e3]/30 p-0"
         >
           {initials ? initials : <User className="h-4 w-4 text-[#86868b] dark:text-[#a1a1a6]" />}
-        </AppButton>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         className="w-56 rounded-2xl p-1.5 shadow-2xl border border-[#e5e5ea] dark:border-[#2c2c2e] bg-white dark:bg-[#1c1c1e]"
