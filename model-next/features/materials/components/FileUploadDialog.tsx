@@ -81,20 +81,20 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
         ) : (
           <Button
             variant="outline"
-            className="px-5 py-2.5 bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs rounded-full inline-flex items-center gap-1.5"
+ className=" inline-flex items-center "
           >
-            <Upload className="h-4 w-4 text-[#0071e3]" />
+            <Upload className="h-4 w-4 text-primary" />
             <span>Upload Syllabus PDF</span>
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md rounded-3xl p-6 border border-black/10 dark:border-white/10 bg-white dark:bg-[#1c1c1e] shadow-2xl">
-        <DialogHeader className="space-y-2">
-          <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#0071e3] mb-1">
+ <DialogContent className="max-w-md ">
+ <DialogHeader className="">
+          <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-primary mb-1">
             <FileUp className="h-5 w-5" />
           </div>
-          <DialogTitle className="text-xl font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Upload Syllabus Document</DialogTitle>
-          <DialogDescription className="text-xs text-[#86868b]">
+ <DialogTitle className="">Upload Syllabus Document</DialogTitle>
+ <DialogDescription className="">
             Upload course textbook or syllabus PDF. Content is automatically chunked and indexed for interactive AI teaching.
           </DialogDescription>
         </DialogHeader>
@@ -102,7 +102,7 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
         <div className="space-y-4 pt-2">
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-[#0071e3]/60 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-center"
+            className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-primary/60 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-center"
           >
             <input
               type="file"
@@ -112,30 +112,30 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
               className="hidden"
               disabled={isUploading}
             />
-            <Upload className="h-8 w-8 text-[#0071e3] mb-2" />
-            <p className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <Upload className="h-8 w-8 text-primary mb-2" />
+            <p className="text-xs font-bold text-foreground dark:text-foreground">
               {file ? file.name : "Click to browse or drop PDF file here"}
             </p>
-            <p className="text-[11px] text-[#86868b] mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : "PDF format up to 25MB"}
             </p>
           </div>
 
           {statusText && (
-            <div className="flex items-center gap-2 text-xs font-medium text-[#0071e3] animate-pulse px-1">
+            <div className="flex items-center gap-2 text-xs font-medium text-primary animate-pulse px-1">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span>{statusText}</span>
             </div>
           )}
         </div>
 
-        <DialogFooter className="pt-2">
+ <DialogFooter className="">
           <Button
             type="button"
             variant="outline"
             onClick={() => setOpen(false)}
             disabled={isUploading}
-            className="px-5 h-10 border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e] rounded-full"
+ className=" h-10 "
           >
             <span>Cancel</span>
           </Button>
@@ -143,7 +143,7 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
             onClick={handleUpload}
             disabled={isUploading || !file}
             variant="default"
-            className="px-5 h-10 text-xs font-medium rounded-full inline-flex items-center gap-1.5"
+ className=" h-10 inline-flex items-center "
           >
             {isUploading ? (
               <>

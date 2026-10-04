@@ -112,13 +112,13 @@ export function AudioTest({ currentAudioPath }: AudioTestProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-md border border-gray-200/50 w-80 text-xs">
+    <div className="flex flex-col gap-2 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-md border border-border/50 w-80 text-xs">
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-gray-800">Diagnostics: Web Audio Channel</span>
+        <span className="font-semibold text-foreground">Diagnostics: Web Audio Channel</span>
         <button
           type="button"
           onClick={() => setIsMinimized(!isMinimized)}
-          className="text-gray-500 hover:text-black font-mono cursor-pointer"
+          className="text-muted-foreground hover:text-black font-mono cursor-pointer"
         >
           {isMinimized ? "[+]" : "[-]"}
         </button>
@@ -127,13 +127,13 @@ export function AudioTest({ currentAudioPath }: AudioTestProps) {
       {!isMinimized && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase font-bold text-gray-500">Audio URL Source</label>
+            <label className="text-xs uppercase font-bold text-muted-foreground">Audio URL Source</label>
             <input
               type="text"
               value={activeUrl}
               onChange={(e) => setOverrideUrl(e.target.value)}
               placeholder="e.g. /audio/tts.wav"
-              className="px-2 py-1 border rounded text-xs bg-white text-gray-900 border-gray-300"
+              className="px-2 py-1 border rounded text-xs bg-white text-foreground border-border"
             />
           </div>
 
@@ -141,15 +141,15 @@ export function AudioTest({ currentAudioPath }: AudioTestProps) {
             type="button"
             onClick={handleAnalyze}
             disabled={!hasAudio || isAnalyzing}
-            className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white shadow hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+            className="rounded bg-primary px-3 py-1.5 font-medium text-white shadow hover:bg-primary disabled:opacity-50 cursor-pointer"
           >
             {isAnalyzing ? "Analyzing & Playing..." : "Analyze & Play Node"}
           </button>
 
           {statusMessage && (
             <div
-              className={`p-1.5 rounded text-[11px] font-mono break-all ${
-                isError ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+              className={`p-1.5 rounded text-xs font-mono break-all ${
+                isError ? "bg-destructive/10 text-destructive" : "bg-chart-2/10 text-chart-2"
               }`}
             >
               {statusMessage}

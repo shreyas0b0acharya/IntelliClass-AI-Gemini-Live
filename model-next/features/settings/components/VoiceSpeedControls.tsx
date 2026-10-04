@@ -40,19 +40,19 @@ export function VoiceSpeedControls({
     <div className="space-y-4">
       {/* Custom Radix Select for Voice Selection */}
       <div className="space-y-2">
-        <Label className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+ <Label className="">
           HeadTTS Voice Profile
         </Label>
         <Select value={voiceId} onValueChange={onVoiceChange} disabled={disabled}>
-          <SelectTrigger className="w-full h-11 px-4 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border-black/10 dark:border-white/10 text-sm font-medium text-[#1d1d1f] dark:text-[#f5f5f7] focus:ring-1 focus:ring-[#0071e3] cursor-pointer shadow-2xs">
+ <SelectTrigger className="w-full h-11 cursor-pointer ">
             <SelectValue placeholder="Select voice profile..." />
           </SelectTrigger>
-          <SelectContent className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl shadow-2xl p-1">
+ <SelectContent className="">
             {filteredVoices.map((v) => (
               <SelectItem
                 key={v.id}
                 value={v.id}
-                className="rounded-xl py-2.5 text-xs font-semibold cursor-pointer focus:bg-[#0071e3]/10 focus:text-[#0071e3]"
+ className=" cursor-pointer "
               >
                 {v.name}
               </SelectItem>
@@ -64,10 +64,10 @@ export function VoiceSpeedControls({
       {/* macOS Native Segmented Control for Speech Pace */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+ <Label className="">
             Speech Pace
           </Label>
-          <span className="font-mono text-xs font-semibold text-[#0071e3] bg-[#0071e3]/10 dark:bg-[#0071e3]/20 px-2 py-0.5 rounded-full">
+ <span className="font-mono text-primary bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-full">
             {speed.toFixed(2)}x
           </span>
         </div>
@@ -84,8 +84,8 @@ export function VoiceSpeedControls({
                 onClick={() => onSpeedChange(preset.value)}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer text-center ${
                   isSelected
-                    ? "bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs"
-                    : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+                    ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground dark:hover:text-white"
                 } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {preset.label}

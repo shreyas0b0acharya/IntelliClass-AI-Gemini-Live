@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import type { UserRole } from "@/lib/supabase/types";
 
+/* eslint-disable shadcn/no-raw-colors */
 function GoogleIcon() {
   return (
     <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -44,6 +45,7 @@ function GoogleIcon() {
     </svg>
   );
 }
+/* eslint-enable shadcn/no-raw-colors */
 
 function RegisterFormContent() {
   const searchParams = useSearchParams();
@@ -149,24 +151,24 @@ function RegisterFormContent() {
   };
 
   return (
-    <div className="w-full max-w-md lg:max-w-none mx-auto bg-white dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] rounded-3xl lg:rounded-[32px] shadow-[0_12px_48px_rgba(0,0,0,0.05)] dark:shadow-none grid grid-cols-1 lg:grid-cols-12 overflow-hidden transition-colors duration-200">
+    <div className="w-full max-w-md lg:max-w-none mx-auto bg-white dark:bg-card border border-border dark:border-border rounded-3xl lg:rounded-3xl shadow-xl dark:shadow-none grid grid-cols-1 lg:grid-cols-12 overflow-hidden transition-colors duration-200">
       {/* ── LEFT COLUMN: BRANDING & DESCRIPTIONS (2-COLUMN VIEW ONLY) ── */}
-      <div className="hidden lg:flex col-span-12 lg:col-span-6 bg-[#fafafa] dark:bg-[#161618] border-r border-[#e5e5ea] dark:border-[#2c2c2e] p-8 sm:p-10 lg:p-14 2xl:p-16 flex-col justify-between text-left transition-colors duration-200">
+      <div className="hidden lg:flex col-span-12 lg:col-span-6 bg-background dark:bg-card border-r border-border dark:border-border p-8 sm:p-10 lg:p-14 2xl:p-16 flex-col justify-between text-left transition-colors duration-200">
         <div>
-          <div className="w-12 h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center shadow-xs mb-6">
+          <div className="w-12 h-12 2xl:w-14 2xl:h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xs mb-6">
             {role === "lecturer" ? (
               <GraduationCap className="h-6 w-6 2xl:h-7 2xl:w-7" />
             ) : (
               <BookOpen className="h-6 w-6 2xl:h-7 2xl:w-7" />
             )}
           </div>
-          <span className="text-xs uppercase tracking-widest font-bold text-[#86868b] dark:text-[#86868b] block mb-2">
+          <span className="text-xs uppercase tracking-widest font-bold text-muted-foreground dark:text-muted-foreground block mb-2">
             IntelliClass AI &bull; {role === "lecturer" ? "Faculty Onboarding" : "Student Enrollment"}
           </span>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl 2xl:text-[42px] font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] mb-3 leading-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl 2xl:text-4xl font-bold tracking-tight text-foreground dark:text-foreground mb-3 leading-tight">
             Join IntelliClass
           </h1>
-          <p className="text-[15px] lg:text-[16px] 2xl:text-[17px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed mb-8 2xl:mb-10">
+          <p className="text-base lg:text-base 2xl:text-base text-muted-foreground dark:text-muted-foreground leading-relaxed mb-8 2xl:mb-10">
             {role === "lecturer"
               ? "Synthesize course textbooks into interactive lectures, manage courses, and review telemetry."
               : "Experience interactive 3D professor lectures, instant Q&A, and live synchronized slides."}
@@ -174,24 +176,24 @@ function RegisterFormContent() {
 
           {/* Feature Highlights */}
           <div className="space-y-4 2xl:space-y-5 pt-2">
-            <div className="flex items-center gap-3.5 text-[14px] 2xl:text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium">
-              <CheckCircle2 className="h-5 w-5 text-[#0071e3] shrink-0" />
+            <div className="flex items-center gap-3.5 text-sm 2xl:text-base text-foreground dark:text-foreground font-medium">
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
               <span>Full curriculum ingestion with Gemini RAG</span>
             </div>
-            <div className="flex items-center gap-3.5 text-[14px] 2xl:text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium">
-              <CheckCircle2 className="h-5 w-5 text-[#0071e3] shrink-0" />
+            <div className="flex items-center gap-3.5 text-sm 2xl:text-base text-foreground dark:text-foreground font-medium">
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
               <span>Sub-300ms neural speech synthesis</span>
             </div>
-            <div className="flex items-center gap-3.5 text-[14px] 2xl:text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium">
-              <CheckCircle2 className="h-5 w-5 text-[#0071e3] shrink-0" />
+            <div className="flex items-center gap-3.5 text-sm 2xl:text-base text-foreground dark:text-foreground font-medium">
+              <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
               <span>Direct classroom entry with session codes</span>
             </div>
           </div>
         </div>
 
         {/* Security Trust Footnote */}
-        <div className="pt-6 mt-10 2xl:mt-14 border-t border-[#e5e5ea] dark:border-[#2c2c2e] flex items-center gap-2.5 text-xs 2xl:text-[13px] text-[#86868b] dark:text-[#86868b]">
-          <ShieldCheck className="h-4.5 w-4.5 text-[#86868b] shrink-0" />
+        <div className="pt-6 mt-10 2xl:mt-14 border-t border-border dark:border-border flex items-center gap-2.5 text-xs 2xl:text-sm text-muted-foreground dark:text-muted-foreground">
+          <ShieldCheck className="h-4.5 w-4.5 text-muted-foreground shrink-0" />
           <span>Encrypted institutional authentication with Row-Level Security</span>
         </div>
       </div>
@@ -200,21 +202,21 @@ function RegisterFormContent() {
       <div className="col-span-12 lg:col-span-6 p-6 sm:p-10 lg:p-14 2xl:p-16 flex flex-col justify-center transition-colors duration-200">
         {/* Single Column Compact Header (Only visible on small / single-column screen) */}
         <div className="lg:hidden mb-5 text-center">
-          <div className="w-10 h-10 mx-auto rounded-2xl bg-[#0071e3] text-white flex items-center justify-center shadow-xs mb-2.5">
+          <div className="w-10 h-10 mx-auto rounded-2xl bg-primary text-white flex items-center justify-center shadow-xs mb-2.5">
             {role === "lecturer" ? (
               <GraduationCap className="h-5 w-5" />
             ) : (
               <BookOpen className="h-5 w-5" />
             )}
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <h1 className="text-xl font-bold tracking-tight text-foreground dark:text-foreground">
             Join IntelliClass
           </h1>
         </div>
 
         {/* Session Redirect Alert */}
         {redirectTo.startsWith("/session/") && (
-          <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[#0071e3] text-xs sm:text-sm font-semibold mb-4">
+          <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-xs sm:text-sm font-semibold mb-4">
             <Radio className="h-4 w-4 animate-pulse shrink-0" />
             <span>Create your account to automatically enter your scheduled lecture session.</span>
           </div>
@@ -222,16 +224,16 @@ function RegisterFormContent() {
 
         {/* Apple HIG Segmented Control (Full Width Role Selector) */}
         <div className="space-y-1.5 mb-3.5 text-left">
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <label className="block text-sm font-semibold text-foreground dark:text-foreground">
             I am joining as
           </label>
-          <div className="w-full h-12 p-1 rounded-xl bg-[#e5e5ea] dark:bg-[#2c2c2e] border border-[#d2d2d7]/50 dark:border-[#3a3a3c] grid grid-cols-2 gap-1 transition-colors duration-200">
+          <div className="w-full h-12 p-1 rounded-xl bg-muted dark:bg-muted border border-border/50 dark:border-border grid grid-cols-2 gap-1 transition-colors duration-200">
             <button
               type="button"
               onClick={() => setRole("student")}
-              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${role === "student"
-                  ? "bg-white dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-sm font-bold"
-                  : "text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+              className={`flex items-center justify-center gap-2 rounded-md font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${role === "student"
+                  ? "bg-white dark:bg-card text-foreground dark:text-foreground shadow-sm font-bold"
+                  : "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground"
                 }`}
             >
               <BookOpen className="h-4 w-4" />
@@ -240,9 +242,9 @@ function RegisterFormContent() {
             <button
               type="button"
               onClick={() => setRole("lecturer")}
-              className={`flex items-center justify-center gap-2 rounded-[9px] font-semibold text-xs sm:text-[13px] transition-all duration-200 cursor-pointer ${role === "lecturer"
-                  ? "bg-white dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-sm font-bold"
-                  : "text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+              className={`flex items-center justify-center gap-2 rounded-md font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${role === "lecturer"
+                  ? "bg-white dark:bg-card text-foreground dark:text-foreground shadow-sm font-bold"
+                  : "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground"
                 }`}
             >
               <GraduationCap className="h-4 w-4" />
@@ -258,7 +260,7 @@ function RegisterFormContent() {
           disabled={isLoading || isGoogleLoading}
           variant="outline"
           size="lg"
-          className="w-full text-[#1d1d1f] dark:text-[#f5f5f7] bg-white dark:bg-[#2c2c2e] border-[#d2d2d7]/80 dark:border-[#3a3a3c] rounded-full"
+ className="w-full "
         >
           {isGoogleLoading ? (
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />
@@ -271,10 +273,10 @@ function RegisterFormContent() {
         {/* Hairline Divider (Perfect Center) */}
         <div className="relative my-4 2xl:my-5 flex items-center justify-center">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-[#e5e5ea] dark:border-[#2c2c2e]" />
+            <div className="w-full border-t border-border dark:border-border" />
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-white dark:bg-[#1c1c1e] px-4 text-[11px] font-bold text-[#86868b] uppercase tracking-wider">
+            <span className="bg-white dark:bg-card px-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               or with email
             </span>
           </div>
@@ -282,7 +284,7 @@ function RegisterFormContent() {
 
         {/* Error Alert Banner */}
         {errorMessage && (
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs sm:text-[13px] font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive dark:text-destructive text-xs sm:text-sm font-medium mb-4 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
             <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
             <div className="flex-1 leading-snug">{errorMessage}</div>
           </div>
@@ -293,12 +295,12 @@ function RegisterFormContent() {
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="name"
-              className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]"
+              className="block text-sm font-semibold text-foreground dark:text-foreground"
             >
               Full name
             </label>
             <div className="relative">
-              <User className="absolute left-4 top-3.5 h-4 w-4 text-[#86868b] pointer-events-none" />
+              <User className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 id="name"
                 type="text"
@@ -307,7 +309,7 @@ function RegisterFormContent() {
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading || isGoogleLoading}
                 required
-                className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] outline-none transition-all duration-200"
+                className="w-full h-12 pl-11 pr-4 rounded-xl bg-muted dark:bg-muted border border-transparent focus:border-primary focus:bg-white dark:focus:bg-card focus:ring-2 focus:ring-ring/20 text-base text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground outline-none transition-all duration-200"
               />
             </div>
           </div>
@@ -315,12 +317,12 @@ function RegisterFormContent() {
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="reg-email"
-              className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]"
+              className="block text-sm font-semibold text-foreground dark:text-foreground"
             >
               Email address
             </label>
             <div className="relative">
-              <Mail className="absolute left-4 top-3.5 h-4 w-4 text-[#86868b] pointer-events-none" />
+              <Mail className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 id="reg-email"
                 type="email"
@@ -329,7 +331,7 @@ function RegisterFormContent() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading || isGoogleLoading}
                 required
-                className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] outline-none transition-all duration-200"
+                className="w-full h-12 pl-11 pr-4 rounded-xl bg-muted dark:bg-muted border border-transparent focus:border-primary focus:bg-white dark:focus:bg-card focus:ring-2 focus:ring-ring/20 text-base text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground outline-none transition-all duration-200"
               />
             </div>
           </div>
@@ -337,12 +339,12 @@ function RegisterFormContent() {
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="reg-password"
-              className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]"
+              className="block text-sm font-semibold text-foreground dark:text-foreground"
             >
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-4 top-3.5 h-4 w-4 text-[#86868b] pointer-events-none" />
+              <Lock className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 id="reg-password"
                 type="password"
@@ -351,7 +353,7 @@ function RegisterFormContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading || isGoogleLoading}
                 required
-                className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-[15px] text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] outline-none transition-all duration-200"
+                className="w-full h-12 pl-11 pr-4 rounded-xl bg-muted dark:bg-muted border border-transparent focus:border-primary focus:bg-white dark:focus:bg-card focus:ring-2 focus:ring-ring/20 text-base text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground outline-none transition-all duration-200"
               />
             </div>
           </div>
@@ -361,7 +363,7 @@ function RegisterFormContent() {
             disabled={isLoading || isGoogleLoading}
             variant="default"
             size="lg"
-            className="w-full mt-3 rounded-full"
+ className="w-full mt-3 "
           >
             {isLoading ? (
               <>
@@ -378,12 +380,12 @@ function RegisterFormContent() {
         </form>
 
         {/* Footer Link */}
-        <div className="mt-5 pt-4 border-t border-[#e5e5ea] dark:border-[#2c2c2e] text-center">
-          <p className="text-[13px] sm:text-[14px] text-[#86868b] dark:text-[#a1a1a6]">
+        <div className="mt-5 pt-4 border-t border-border dark:border-border text-center">
+          <p className="text-sm sm:text-sm text-muted-foreground dark:text-muted-foreground">
             Already have an account?{" "}
             <Link
               href={`/login${redirectTo !== "/dashboard" ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""}`}
-              className="font-semibold text-[#0071e3] hover:underline"
+              className="font-semibold text-primary hover:underline"
             >
               Sign In
             </Link>
@@ -398,8 +400,8 @@ export function RegisterForm() {
   return (
     <Suspense
       fallback={
-        <div className="w-full max-w-5xl h-96 p-10 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] flex items-center justify-center">
-          <Loader2 className="h-7 w-7 animate-spin text-[#0071e3]" />
+        <div className="w-full max-w-5xl h-96 p-10 rounded-3xl bg-white dark:bg-card border border-border dark:border-border flex items-center justify-center">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
       }
     >

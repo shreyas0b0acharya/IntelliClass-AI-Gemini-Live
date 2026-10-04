@@ -32,7 +32,7 @@ export default function SettingsPage() {
             asChild
             variant="ghost"
             size="xs"
-            className="rounded-full h-8 px-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white"
+ className=" h-8 "
           >
             <Link href={isLecturer ? "/dashboard" : "/"} className="inline-flex items-center justify-center gap-1.5">
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -42,18 +42,18 @@ export default function SettingsPage() {
 
           <div className="h-3.5 w-px bg-black/10 dark:bg-white/10" />
 
-          <Breadcrumb className="text-xs">
+ <Breadcrumb className="">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href={isLecturer ? "/dashboard" : "/"} className="hover:text-[#0071e3] transition-colors">
+                  <Link href={isLecturer ? "/dashboard" : "/"} className="hover:text-primary transition-colors">
                     {isLecturer ? "Faculty Studio" : "Home"}
                   </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+ <BreadcrumbPage className="">
                   Account &amp; Role Settings
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -67,31 +67,31 @@ export default function SettingsPage() {
             asChild
             variant="secondary"
             size="xs"
-            className="rounded-full h-8 px-3.5 text-xs font-medium"
+ className=" h-8 "
           >
             <Link href="/settings/avatar" className="inline-flex items-center justify-center gap-1.5">
-              <Bot className="h-3.5 w-3.5 text-[#0071e3]" />
+              <Bot className="h-3.5 w-3.5 text-primary" />
               <span>AI Avatar &amp; Voice Studio</span>
-              <ChevronRight className="h-3 w-3 text-[#86868b]" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
             </Link>
           </Button>
         )}
       </div>
 
       {/* ── Apple Inset Header Card ─────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6">
+      <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6">
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${isLecturer
-              ? "bg-[#0071e3]/10 dark:bg-[#0071e3]/20 text-[#0071e3]"
-              : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+              ? "bg-primary/10 dark:bg-primary/20 text-primary"
+              : "bg-chart-2/10 dark:bg-chart-2/20 text-chart-2 dark:text-chart-2"
             }`}>
             {isLecturer ? <User className="h-6 w-6" /> : <UserCheck className="h-6 w-6" />}
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-foreground">
               Account &amp; Profile Settings
             </h1>
-            <p className="text-xs text-[#86868b] mt-0.5 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Manage your personal identity, switch your account role between Lecturer and Student, or manage your data.
             </p>
           </div>

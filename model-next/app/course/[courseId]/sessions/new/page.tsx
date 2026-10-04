@@ -293,10 +293,10 @@ export default function NewSessionPage({
   if (loadingInitial) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
-        <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#0071e3] animate-spin">
+        <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-primary animate-spin">
           <Loader2 className="h-6 w-6" />
         </div>
-        <p className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Loading Lecture Studio...
         </p>
       </div>
@@ -306,15 +306,15 @@ export default function NewSessionPage({
   const selectedCount = Object.values(selectedFiles).filter((f) => f.selected).length;
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#000000] text-[#1d1d1f] dark:text-[#f5f5f7] flex flex-col">
+    <div className="min-h-screen bg-muted dark:bg-background text-foreground dark:text-foreground flex flex-col">
       {/* ── Sticky Action Bar (Frosted Glass Header) ───────────────────────── */}
-      <header className="sticky top-0 z-30 h-16 px-6 sm:px-8 flex items-center justify-between border-b border-black/5 dark:border-white/10 backdrop-blur-md bg-white/70 dark:bg-[#121212]/70 transition-all">
+      <header className="sticky top-0 z-30 h-16 px-6 sm:px-8 flex items-center justify-between border-b border-black/5 dark:border-white/10 backdrop-blur-md bg-white/70 dark:bg-background/70 transition-all">
         <div className="flex items-center gap-4 min-w-0">
           <Button
             asChild
             variant="ghost"
             size="sm"
-            className="rounded-full h-9 px-3 text-xs font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+ className=" h-9 "
           >
             <Link href={`/course/${courseId}`} className="inline-flex items-center justify-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -325,7 +325,7 @@ export default function NewSessionPage({
           <div className="h-4 w-px bg-black/10 dark:bg-white/15 hidden sm:block" />
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3]">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
             <h1 className="text-sm sm:text-base font-bold tracking-tight truncate">
@@ -341,7 +341,7 @@ export default function NewSessionPage({
             variant="secondary"
             onClick={() => router.push(`/course/${courseId}`)}
             disabled={isSubmitting}
-            className="rounded-full px-5 py-2.5 font-medium text-xs border-0"
+ className=""
           >
             <span>Cancel</span>
           </Button>
@@ -351,7 +351,7 @@ export default function NewSessionPage({
             onClick={handleSubmit}
             disabled={isSubmitting || !topic.trim()}
             variant="default"
-            className="rounded-full px-6 py-2.5 font-medium shadow-xs text-xs"
+ className=""
           >
             {isSubmitting ? (
               <>
@@ -374,11 +374,11 @@ export default function NewSessionPage({
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6">
         {/* Progress Alert during generation */}
         {isSubmitting && statusMessage && (
-          <div className="p-4 rounded-2xl bg-[#0071e3]/10 border border-[#0071e3]/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-            <Loader2 className="h-5 w-5 text-[#0071e3] animate-spin shrink-0" />
+          <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
             <div>
-              <p className="text-xs font-bold text-[#0071e3]">Generating Lecture Materials</p>
-              <p className="text-xs text-[#86868b]">{statusMessage}</p>
+              <p className="text-xs font-bold text-primary">Generating Lecture Materials</p>
+              <p className="text-xs text-muted-foreground">{statusMessage}</p>
             </div>
           </div>
         )}
@@ -389,47 +389,47 @@ export default function NewSessionPage({
              ═════════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-7 space-y-6">
             {/* Inset Card 1: Lecture Topic */}
-            <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
-              <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase mb-4">
+            <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">
                 Lecture Topic
               </h2>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="topic" className="text-xs font-semibold">
-                    Lesson Topic <span className="text-red-500">*</span>
+ <Label htmlFor="topic" className="">
+                    Lesson Topic <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="topic"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="e.g. Concurrency &amp; Multithreading in Java"
-                    className="h-11 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border-black/10 dark:border-white/10 text-sm font-medium focus-visible:ring-1 focus-visible:ring-[#0071e3]"
+ className="h-11 "
                   />
                 </div>
 
                 {/* Auto-generated Meeting Code Informational Badge */}
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5 text-xs text-[#86868b]">
-                  <ShieldCheck className="h-4 w-4 text-[#0071e3] shrink-0" />
-                  <p className="text-[11px] leading-relaxed">
-                    A unique, cryptographically secure student access code (<span className="font-mono text-[#0071e3] font-semibold">cls-xxxx-xxxx</span>) will be automatically assigned upon creation.
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-xs leading-relaxed">
+                    A unique, cryptographically secure student access code (<span className="font-mono text-primary font-semibold">cls-xxxx-xxxx</span>) will be automatically assigned upon creation.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Inset Card 2: Reference Materials & Syllabus Documents */}
-            <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
+            <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-                <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+                <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   Reference Materials &amp; Syllabus Documents
                 </h2>
-                <span className="text-[11px] font-semibold text-[#0071e3] bg-[#0071e3]/10 px-2.5 py-0.5 rounded-full">
+                <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
                   {selectedCount} Source{selectedCount !== 1 ? "s" : ""} Selected
                 </span>
               </div>
 
-              <p className="text-xs text-[#86868b] leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Choose existing syllabus materials or upload new textbook chapters. The AI Professor
                 uses these documents as grounded knowledge to generate structured slides and explanations.
               </p>
@@ -437,7 +437,7 @@ export default function NewSessionPage({
               {/* Direct Drag & Drop Upload Zone */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-[#0071e3]/60 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-center group"
+                className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/60 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-center group"
               >
                 <input
                   type="file"
@@ -447,17 +447,17 @@ export default function NewSessionPage({
                   className="hidden"
                   disabled={isUploadingMaterial}
                 />
-                <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 group-hover:bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3] mb-2 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 group-hover:bg-primary/10 flex items-center justify-center text-primary mb-2 transition-colors">
                   {isUploadingMaterial ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <Upload className="h-5 w-5" />
                   )}
                 </div>
-                <p className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <p className="text-xs font-semibold text-foreground dark:text-foreground">
                   {isUploadingMaterial ? uploadProgressText : "Drop new PDF document here or click to browse"}
                 </p>
-                <p className="text-[11px] text-[#86868b] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   PDF format up to 25MB • Automatically indexed for AI teaching
                 </p>
               </div>
@@ -465,7 +465,7 @@ export default function NewSessionPage({
               {/* Refined Materials List with interactive rows */}
               {courseFiles.length > 0 ? (
                 <div className="space-y-2 pt-2">
-                  <Label className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider block mb-2">
+ <Label className=" block mb-2">
                     Available Course Materials ({courseFiles.length})
                   </Label>
 
@@ -476,7 +476,7 @@ export default function NewSessionPage({
                         <div
                           key={file.id}
                           className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border ${isSelected
-                              ? "bg-[#0071e3]/5 border-[#0071e3]/30"
+                              ? "bg-primary/5 border-primary/30"
                               : "border-black/5 dark:border-white/5"
                             }`}
                         >
@@ -486,19 +486,19 @@ export default function NewSessionPage({
                                 id={`file-${file.id}`}
                                 checked={isSelected}
                                 onChange={() => toggleFileSelection(file.file_name)}
-                                className="rounded-md border-black/20 dark:border-white/20"
+ className=""
                               />
-                              <FileText className="h-4 w-4 text-[#0071e3] shrink-0" />
+                              <FileText className="h-4 w-4 text-primary shrink-0" />
                               <label
                                 htmlFor={`file-${file.id}`}
-                                className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate cursor-pointer"
+                                className="text-xs font-semibold text-foreground dark:text-foreground truncate cursor-pointer"
                               >
                                 {file.file_name}
                               </label>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] text-[#86868b] font-medium hidden sm:inline">
+                              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
                                 {file.file_size ? `${(file.file_size / (1024 * 1024)).toFixed(1)} MB` : "Document"}
                               </span>
                               <Button
@@ -506,7 +506,7 @@ export default function NewSessionPage({
                                 variant="ghost"
                                 size="icon-xs"
                                 onClick={() => setSelectedViewFile(file)}
-                                className="h-7 w-7 text-[#86868b] hover:text-[#0071e3] hover:bg-[#0071e3]/10 rounded-md"
+ className="h-7 w-7 "
                                 title="View PDF Document"
                               >
                                 <Eye className="h-3.5 w-3.5" />
@@ -517,7 +517,7 @@ export default function NewSessionPage({
                           {/* Pill-shaped page range inputs */}
                           {isSelected && (
                             <div className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center gap-3 text-xs pl-7">
-                              <span className="text-[11px] text-[#86868b] font-medium shrink-0">
+                              <span className="text-xs text-muted-foreground font-medium shrink-0">
                                 Page Range:
                               </span>
                               <div className="flex items-center gap-1.5">
@@ -529,9 +529,9 @@ export default function NewSessionPage({
                                   onChange={(e) =>
                                     updatePageRange(file.file_name, "startPage", e.target.value)
                                   }
-                                  className="bg-[#f5f5f7] dark:bg-[#2c2c2e] rounded-lg px-3 py-1.5 text-sm w-20 text-center border-transparent focus:border-[#0071e3] h-7 p-1"
+ className=" w-20 text-center h-7 "
                                 />
-                                <span className="text-[#86868b]">-</span>
+                                <span className="text-muted-foreground">-</span>
                                 <Input
                                   type="number"
                                   placeholder="End"
@@ -540,10 +540,10 @@ export default function NewSessionPage({
                                   onChange={(e) =>
                                     updatePageRange(file.file_name, "endPage", e.target.value)
                                   }
-                                  className="bg-[#f5f5f7] dark:bg-[#2c2c2e] rounded-lg px-3 py-1.5 text-sm w-20 text-center border-transparent focus:border-[#0071e3] h-7 p-1"
+ className=" w-20 text-center h-7 "
                                 />
                               </div>
-                              <span className="text-[10px] text-[#86868b]">(Leave blank for full book)</span>
+                              <span className="text-xs text-muted-foreground">(Leave blank for full book)</span>
                             </div>
                           )}
 
@@ -556,7 +556,7 @@ export default function NewSessionPage({
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 text-center">
-                  <p className="text-xs text-[#86868b]">
+                  <p className="text-xs text-muted-foreground">
                     No course documents found yet. Upload a syllabus or textbook chapter above to enhance AI teaching precision.
                   </p>
                 </div>
@@ -564,8 +564,8 @@ export default function NewSessionPage({
             </div>
 
             {/* Inset Card 3: Teaching Directives & Focus Area */}
-            <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
-              <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase mb-4">
+            <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">
                 Teaching Directives &amp; Focus Area (Optional)
               </h2>
 
@@ -574,7 +574,7 @@ export default function NewSessionPage({
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder="e.g. Emphasize synchronized blocks and deadlock avoidance. Include a real-world banking transaction example. Keep tone engaging and encouraging for undergraduates."
                 rows={3}
-                className="rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border-black/10 dark:border-white/10 text-xs font-medium resize-none focus-visible:ring-1 focus-visible:ring-[#0071e3] p-3.5"
+ className=" resize-none "
               />
             </div>
           </div>
@@ -585,12 +585,12 @@ export default function NewSessionPage({
              ═════════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-5 sticky top-20 space-y-6">
             {/* Section: Instructor Persona & Voice Controls */}
-            <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/5 p-6 shadow-xs space-y-5">
+            <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 shadow-xs space-y-5">
               <div className="space-y-0.5">
-                <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+                <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                   Instructor Persona &amp; Voice
                 </h2>
-                <p className="text-xs text-[#86868b]">
+                <p className="text-xs text-muted-foreground">
                   Select the 3D instructor model and HeadTTS neural voice profile for this lecture.
                 </p>
               </div>
@@ -614,17 +614,17 @@ export default function NewSessionPage({
             </div>
 
             {/* Section: 3D Viewport Preview (Exact Settings Style) */}
-            <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl border border-black/10 dark:border-white/10 shadow-xs p-6 space-y-4">
+            <div className="bg-white dark:bg-card rounded-3xl border border-black/10 dark:border-white/10 shadow-xs p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  <h3 className="text-sm font-bold text-foreground dark:text-foreground">
                     {gender === "male" ? "Prof. Arthur" : "Dr. Clara"}
                   </h3>
-                  <p className="text-[11px] text-[#86868b]">
+                  <p className="text-xs text-muted-foreground">
                     {gender === "male" ? "Male Avatar Mesh" : "Female Avatar Mesh"} &bull; Real-time 3D Viewport
                   </p>
                 </div>
-                <span className="text-[10px] font-semibold bg-[#0071e3]/10 text-[#0071e3] px-2.5 py-0.5 rounded-full border border-[#0071e3]/20">
+                <span className="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
                   ACTIVE
                 </span>
               </div>
@@ -651,7 +651,7 @@ export default function NewSessionPage({
                     setPreviewAudioPath(path);
                     setPreviewLipSyncData(data);
                   }}
-                  className="w-full rounded-full h-11 font-medium text-xs shadow-2xs cursor-pointer gap-2"
+ className="w-full h-11 cursor-pointer "
                 />
               </div>
             </div>

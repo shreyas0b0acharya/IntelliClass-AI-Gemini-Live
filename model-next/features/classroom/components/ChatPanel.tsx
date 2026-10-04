@@ -66,7 +66,7 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
           <MessageSquare className="h-4 w-4 text-primary" />
           Live Chat & Transcript
         </h3>
-        <span className="text-[10px] text-muted-foreground font-semibold px-2 py-0.5 rounded-full bg-muted/60">
+        <span className="text-xs text-muted-foreground font-semibold px-2 py-0.5 rounded-full bg-muted/60">
           {messages.length} notes
         </span>
       </div>
@@ -76,16 +76,16 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
         {loading ? (
           <div className="space-y-4 animate-pulse">
             <div className="flex flex-col gap-1 items-start">
-              <Skeleton className="h-3 w-28 rounded-md" />
-              <Skeleton className="h-16 w-3/4 rounded-2xl" />
+ <Skeleton className="h-3 w-28 " />
+ <Skeleton className="h-16 w-3/4 " />
             </div>
             <div className="flex flex-col gap-1 items-end">
-              <Skeleton className="h-3 w-16 rounded-md" />
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+ <Skeleton className="h-3 w-16 " />
+ <Skeleton className="h-12 w-2/3 " />
             </div>
             <div className="flex flex-col gap-1 items-start">
-              <Skeleton className="h-3 w-28 rounded-md" />
-              <Skeleton className="h-20 w-4/5 rounded-2xl" />
+ <Skeleton className="h-3 w-28 " />
+ <Skeleton className="h-20 w-4/5 " />
             </div>
           </div>
         ) : messages.length === 0 ? (
@@ -94,7 +94,7 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
               <MessageSquare className="h-5 w-5" />
             </div>
             <p className="text-xs font-bold text-foreground">Lecture stream initialized</p>
-            <p className="text-[11px] text-muted-foreground max-w-xs">
+            <p className="text-xs text-muted-foreground max-w-xs">
               Questions asked to Professor Sharma and AI answers will be transcribed here in real-time.
             </p>
           </div>
@@ -112,16 +112,16 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
               >
                 <div className="flex items-center gap-1.5 px-1 w-full justify-between">
                   {isAI ? (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1">
                       <Sparkles className="h-3 w-3" /> Professor Sharma
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                       <User className="h-3 w-3" /> {isMe ? "You" : "Student"}
                     </span>
                   )}
                   {msg.created_at && (
-                    <span className="text-[9px] text-muted-foreground/70 font-mono">
+                    <span className="text-xs text-muted-foreground/70 font-mono">
                       {new Date(msg.created_at).toLocaleString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -152,7 +152,7 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
 
       {/* Footer Notice */}
       <div className="p-3 bg-muted/20 border-t border-border/30 text-center">
-        <p className="text-[10px] text-muted-foreground font-medium">
+        <p className="text-xs text-muted-foreground font-medium">
           Ask questions below — Professor Sharma will pause and explain.
         </p>
       </div>

@@ -74,15 +74,15 @@ export function EditSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+ <DialogContent className="max-w-md overflow-hidden ">
         {/* Header */}
         <div className="bg-gradient-to-b from-muted/60 to-background p-6 border-b">
           <DialogHeader>
             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-2">
               <Pencil className="h-5 w-5" />
             </div>
-            <DialogTitle className="text-xl font-bold">Edit Session</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+ <DialogTitle className="">Edit Session</DialogTitle>
+ <DialogDescription className=" mt-0.5">
               Update the lecture topic and AI lecturer voice.
             </DialogDescription>
           </DialogHeader>
@@ -91,27 +91,27 @@ export function EditSessionDialog({
         {/* Body */}
         <form onSubmit={handleSave} className="p-6 space-y-5">
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+ <Label className="">
               Lecture Topic
             </Label>
             <Input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Introduction to Neural Networks"
-              className="h-11 rounded-xl bg-muted/50 border-0 focus-visible:ring-2 focus-visible:ring-primary/30"
+ className="h-11 "
               disabled={saving}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+ <Label className="">
               AI Lecturer Gender
             </Label>
             <RadioGroup
               value={voiceGender}
               onValueChange={setVoiceGender}
-              className="grid grid-cols-2 gap-3"
+ className="grid grid-cols-2 "
               disabled={saving}
             >
               <label
@@ -124,7 +124,7 @@ export function EditSessionDialog({
                 <RadioGroupItem value="male" id="edit-male" />
                 <div>
                   <div className="text-xs font-bold">Male</div>
-                  <div className="text-[10px] text-muted-foreground">Prof. Sharma</div>
+                  <div className="text-xs text-muted-foreground">Prof. Sharma</div>
                 </div>
               </label>
               <label
@@ -137,19 +137,19 @@ export function EditSessionDialog({
                 <RadioGroupItem value="female" id="edit-female" />
                 <div>
                   <div className="text-xs font-bold">Female</div>
-                  <div className="text-[10px] text-muted-foreground">Prof. Bella</div>
+                  <div className="text-xs text-muted-foreground">Prof. Bella</div>
                 </div>
               </label>
             </RadioGroup>
           </div>
 
-          <DialogFooter className="pt-2 gap-2">
+ <DialogFooter className="">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="flex-1 rounded-xl"
+ className="flex-1 "
             >
               <span>Cancel</span>
             </Button>
@@ -157,7 +157,7 @@ export function EditSessionDialog({
               type="submit"
               disabled={saving || !topic.trim()}
               variant="default"
-              className="flex-1 font-semibold rounded-xl inline-flex items-center justify-center gap-2"
+ className="flex-1 inline-flex items-center justify-center "
             >
               {saving ? (
                 <>

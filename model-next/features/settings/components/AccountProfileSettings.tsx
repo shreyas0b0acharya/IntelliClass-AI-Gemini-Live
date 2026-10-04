@@ -180,59 +180,59 @@ export function AccountProfileSettings() {
   return (
     <div className="space-y-6">
       {/* 1. Profile Info Card */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 shadow-xs space-y-6">
+      <div className="p-6 rounded-3xl bg-white dark:bg-card border border-black/10 dark:border-white/10 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Avatar Initials with Glassmorphism */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0071e3] to-[#54a0ff] text-white font-bold text-xl flex items-center justify-center shadow-md shadow-[#0071e3]/20 border border-white/20 shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-primary text-white font-bold text-xl flex items-center justify-center shadow-md shadow-primary/20 border border-white/20 shrink-0">
               {initials}
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <h3 className="text-lg font-bold tracking-tight text-foreground dark:text-foreground">
                   {profile?.name || "IntelliClass User"}
                 </h3>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${isLecturer
-                      ? "bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wider uppercase ${isLecturer
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "bg-chart-2/10 text-chart-2 dark:text-chart-2 border border-chart-2/20"
                     }`}
                 >
                   {isLecturer ? "Lecturer" : "Student"}
                 </span>
               </div>
-              <p className="text-xs text-[#86868b] flex items-center gap-1.5 mt-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
                 <Mail className="h-3.5 w-3.5" />
                 <span>{user?.email || "No email available"}</span>
               </p>
             </div>
           </div>
 
-          <div className="text-xs text-[#86868b] flex items-center gap-1.5 self-start sm:self-center bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5 self-start sm:self-center bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full">
             <Calendar className="h-3.5 w-3.5" />
             <span>Joined {formattedDate}</span>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-black/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#86868b]">
+        <div className="pt-4 border-t border-black/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <ShieldCheck className="h-4 w-4 text-chart-2" />
             <span>Authenticated via Supabase Auth & Session Tokens</span>
           </div>
-          <span className="font-mono text-[11px] text-[#86868b]/70 truncate max-w-xs">
+          <span className="font-mono text-xs text-muted-foreground/70 truncate max-w-xs">
             ID: {user?.id || "N/A"}
           </span>
         </div>
       </div>
 
       {/* 2. Interactive Role Switcher Section */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 shadow-xs space-y-4">
+      <div className="p-6 rounded-3xl bg-white dark:bg-card border border-black/10 dark:border-white/10 shadow-xs space-y-4">
         <div className="space-y-1">
-          <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <h4 className="text-sm font-bold text-foreground dark:text-foreground">
             Account Role & Experience Mode
           </h4>
-          <p className="text-xs text-[#86868b] leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Switch between Lecturer (orchestration, AI voice generation, class analytics) and Student (attending live sessions, interactive Q&A).
           </p>
         </div>
@@ -244,14 +244,14 @@ export function AccountProfileSettings() {
             disabled={isSwitchingRole}
             onClick={() => handleOpenConfirm("lecturer")}
             className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${profile?.role === "lecturer"
-                ? "border-[#0071e3] bg-[#0071e3]/5 dark:bg-[#0071e3]/10 ring-1 ring-[#0071e3]/30 shadow-xs"
-                : "border-black/5 dark:border-white/10 bg-[#f5f5f7] dark:bg-[#2c2c2e] hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
+                ? "border-primary bg-primary/5 dark:bg-primary/10 ring-1 ring-ring/30 shadow-xs"
+                : "border-black/5 dark:border-white/10 bg-muted dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
               }`}
           >
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${profile?.role === "lecturer"
-                  ? "bg-[#0071e3] text-white shadow-xs"
-                  : "bg-black/5 dark:bg-white/10 text-[#86868b]"
+                  ? "bg-primary text-white shadow-xs"
+                  : "bg-black/5 dark:bg-white/10 text-muted-foreground"
                 }`}
             >
               <Presentation className="h-4 w-4" />
@@ -259,16 +259,16 @@ export function AccountProfileSettings() {
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <span className="text-xs font-bold text-foreground dark:text-foreground">
                   Lecturer Mode
                 </span>
                 {profile?.role === "lecturer" && (
-                  <span className="text-[10px] font-semibold text-[#0071e3] flex items-center gap-1">
+                  <span className="text-xs font-semibold text-primary flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Active
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#86868b] leading-snug">
+              <p className="text-xs text-muted-foreground leading-snug">
                 Manage course curricula, generate 3D lectures, test HeadTTS lip sync, and launch classrooms.
               </p>
             </div>
@@ -280,14 +280,14 @@ export function AccountProfileSettings() {
             disabled={isSwitchingRole}
             onClick={() => handleOpenConfirm("student")}
             className={`relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${profile?.role === "student"
-                ? "border-emerald-500 bg-emerald-500/5 dark:bg-emerald-500/10 ring-1 ring-emerald-500/30 shadow-xs"
-                : "border-black/5 dark:border-white/10 bg-[#f5f5f7] dark:bg-[#2c2c2e] hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
+                ? "border-chart-2 bg-chart-2/5 dark:bg-chart-2/10 ring-1 ring-chart-2/30 shadow-xs"
+                : "border-black/5 dark:border-white/10 bg-muted dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100"
               }`}
           >
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${profile?.role === "student"
-                  ? "bg-emerald-500 text-white shadow-xs"
-                  : "bg-black/5 dark:bg-white/10 text-[#86868b]"
+                  ? "bg-chart-2 text-white shadow-xs"
+                  : "bg-black/5 dark:bg-white/10 text-muted-foreground"
                 }`}
             >
               <BookOpen className="h-4 w-4" />
@@ -295,16 +295,16 @@ export function AccountProfileSettings() {
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <span className="text-xs font-bold text-foreground dark:text-foreground">
                   Student Mode
                 </span>
                 {profile?.role === "student" && (
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <span className="text-xs font-semibold text-chart-2 dark:text-chart-2 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Active
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#86868b] leading-snug">
+              <p className="text-xs text-muted-foreground leading-snug">
                 Join live 3D classrooms via session PINs, read lesson transcripts, and engage in real-time.
               </p>
             </div>
@@ -313,14 +313,14 @@ export function AccountProfileSettings() {
       </div>
 
       {/* 3. Password & Security Management Card */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 shadow-xs space-y-6">
+      <div className="p-6 rounded-3xl bg-white dark:bg-card border border-black/10 dark:border-white/10 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="space-y-1">
-            <h4 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[#0071e3]" />
+            <h4 className="text-sm font-bold text-foreground dark:text-foreground flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
               <span>Password &amp; Security</span>
             </h4>
-            <p className="text-xs text-[#86868b] leading-relaxed max-w-xl">
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
               Change your password directly or send a secure reset link to your registered email address ({user?.email || "N/A"}).
             </p>
           </div>
@@ -332,7 +332,7 @@ export function AccountProfileSettings() {
             size="sm"
             disabled={isSendingResetEmail || !user?.email}
             onClick={handleSendResetEmail}
-            className="text-xs font-semibold shrink-0 rounded-full inline-flex items-center gap-1.5"
+ className=" shrink-0 inline-flex items-center "
           >
             {isSendingResetEmail ? (
               <>
@@ -349,7 +349,7 @@ export function AccountProfileSettings() {
         </div>
 
         {emailResetSent && (
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2.5 animate-in fade-in duration-200">
+          <div className="p-3.5 rounded-2xl bg-chart-2/10 border border-chart-2/20 text-chart-2 dark:text-chart-2 text-xs flex items-center gap-2.5 animate-in fade-in duration-200">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>Password reset instructions have been sent to <strong>{user?.email}</strong>. Check your inbox to proceed.</span>
           </div>
@@ -357,19 +357,19 @@ export function AccountProfileSettings() {
 
         {/* Direct Password Update Form */}
         <form onSubmit={handleUpdatePasswordDirect} action="#" className="space-y-4 pt-2 border-t border-black/5 dark:border-white/5">
-          <div className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <div className="text-xs font-semibold text-foreground dark:text-foreground">
             Update Password Directly
           </div>
 
           {passwordError && (
-            <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] dark:text-[#ff453a] text-xs font-medium animate-in fade-in duration-200 text-left">
+            <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive dark:text-destructive text-xs font-medium animate-in fade-in duration-200 text-left">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{passwordError}</span>
             </div>
           )}
 
           {passwordSuccess && (
-            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium animate-in fade-in duration-200 text-left">
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-chart-2/10 border border-chart-2/20 text-chart-2 dark:text-chart-2 text-xs font-medium animate-in fade-in duration-200 text-left">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>{passwordSuccess}</span>
             </div>
@@ -379,12 +379,12 @@ export function AccountProfileSettings() {
             <div className="space-y-1.5 text-left">
               <label
                 htmlFor="settings-new-password"
-                className="block text-[12px] font-semibold text-[#86868b]"
+                className="block text-xs font-semibold text-muted-foreground"
               >
                 New Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-[#86868b] pointer-events-none" />
+                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   id="settings-new-password"
                   type="password"
@@ -392,7 +392,7 @@ export function AccountProfileSettings() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   disabled={isUpdatingPassword}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-xs text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] outline-none transition-all duration-200"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-muted dark:bg-muted border border-transparent focus:border-primary focus:bg-white dark:focus:bg-card focus:ring-2 focus:ring-ring/20 text-xs text-foreground dark:text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200"
                 />
               </div>
             </div>
@@ -400,12 +400,12 @@ export function AccountProfileSettings() {
             <div className="space-y-1.5 text-left">
               <label
                 htmlFor="settings-confirm-password"
-                className="block text-[12px] font-semibold text-[#86868b]"
+                className="block text-xs font-semibold text-muted-foreground"
               >
                 Confirm Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-[#86868b] pointer-events-none" />
+                <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   id="settings-confirm-password"
                   type="password"
@@ -413,7 +413,7 @@ export function AccountProfileSettings() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isUpdatingPassword}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-transparent focus:border-[#0071e3] focus:bg-white dark:focus:bg-[#1c1c1e] focus:ring-2 focus:ring-[#0071e3]/20 text-xs text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] outline-none transition-all duration-200"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl bg-muted dark:bg-muted border border-transparent focus:border-primary focus:bg-white dark:focus:bg-card focus:ring-2 focus:ring-ring/20 text-xs text-foreground dark:text-foreground placeholder:text-muted-foreground outline-none transition-all duration-200"
                 />
               </div>
             </div>
@@ -425,7 +425,7 @@ export function AccountProfileSettings() {
               variant="default"
               size="sm"
               disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-              className="text-xs font-semibold px-4 rounded-full inline-flex items-center gap-1.5"
+ className=" inline-flex items-center "
             >
               {isUpdatingPassword ? (
                 <>
@@ -441,14 +441,14 @@ export function AccountProfileSettings() {
       </div>
 
       {/* 4. Danger Zone Card */}
-      <div className="p-6 rounded-3xl bg-red-500/[0.03] dark:bg-red-500/[0.06] border border-red-500/15 shadow-xs space-y-4">
+      <div className="p-6 rounded-3xl bg-destructive/[0.03] dark:bg-destructive/[0.06] border border-destructive/15 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h4 className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+            <h4 className="text-sm font-bold text-destructive dark:text-destructive flex items-center gap-2">
               <ShieldAlert className="h-4 w-4" />
               <span>Account Danger Zone</span>
             </h4>
-            <p className="text-xs text-[#86868b] leading-relaxed max-w-xl">
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
               Permanently delete your profile and account associations. This action wipes your course data and cannot be undone.
             </p>
           </div>
@@ -466,42 +466,42 @@ export function AccountProfileSettings() {
           }
         }}
       >
-        <DialogContent className="max-w-md rounded-3xl p-6 border border-black/10 dark:border-white/10 bg-white dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-[#f5f5f7] shadow-2xl">
-          <DialogHeader className="space-y-3 text-left">
-            <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 flex items-center justify-center text-[#0071e3]">
+ <DialogContent className="max-w-md ">
+ <DialogHeader className=" text-left">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary">
               <Sparkles className="h-6 w-6" />
             </div>
 
-            <DialogTitle className="text-lg font-bold tracking-tight">
+ <DialogTitle className="">
               Switch Account Role to{" "}
               {pendingRole === "lecturer" ? "Lecturer" : "Student"}?
             </DialogTitle>
 
-            <DialogDescription className="text-xs text-[#86868b] leading-relaxed">
+ <DialogDescription className="">
               Changing your account persona will update your workspace navigation and access rights. For security and session integrity, you will be smoothly signed out to refresh all security tokens.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3.5 rounded-2xl bg-[#f5f5f7] dark:bg-[#2c2c2e] space-y-2 text-xs text-[#1d1d1f] dark:text-[#f5f5f7] my-2">
+          <div className="p-3.5 rounded-2xl bg-muted dark:bg-muted space-y-2 text-xs text-foreground dark:text-foreground my-2">
             <div className="flex items-center justify-between font-semibold">
-              <span className="text-[#86868b]">Current Role:</span>
+              <span className="text-muted-foreground">Current Role:</span>
               <span className="capitalize">{profile?.role || "Student"}</span>
             </div>
             <div className="flex items-center justify-between font-semibold">
-              <span className="text-[#86868b]">New Selected Role:</span>
-              <span className="capitalize text-[#0071e3]">
+              <span className="text-muted-foreground">New Selected Role:</span>
+              <span className="capitalize text-primary">
                 {pendingRole || "Lecturer"}
               </span>
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+ <DialogFooter className="flex flex-col-reverse sm:flex-row ">
             <Button
               type="button"
               variant="outline"
               disabled={isSwitchingRole}
               onClick={() => setPendingRole(null)}
-              className="w-full sm:w-auto text-xs"
+ className="w-full sm:w-auto "
             >
               Cancel
             </Button>
@@ -510,7 +510,7 @@ export function AccountProfileSettings() {
               variant="default"
               disabled={isSwitchingRole}
               onClick={handleConfirmRoleSwitch}
-              className="w-full sm:w-auto text-xs font-semibold inline-flex items-center gap-1.5"
+ className="w-full sm:w-auto inline-flex items-center "
             >
               {isSwitchingRole ? (
                 <>

@@ -60,7 +60,7 @@ export function CourseList() {
             placeholder="Search courses and subjects..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-11 rounded-2xl bg-card/80 border-border/60"
+ className=" h-11 "
           />
         </div>
 
@@ -72,10 +72,10 @@ export function CourseList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <div key={i} className="p-6 rounded-3xl border border-border/40 bg-card/40 space-y-4">
-              <Skeleton className="h-10 w-10 rounded-2xl" />
-              <Skeleton className="h-6 w-3/4 rounded-xl" />
-              <Skeleton className="h-4 w-full rounded-lg" />
-              <Skeleton className="h-10 w-full rounded-xl mt-4" />
+ <Skeleton className="h-10 w-10 " />
+ <Skeleton className="h-6 w-3/4 " />
+ <Skeleton className="h-4 w-full " />
+ <Skeleton className="h-10 w-full mt-4" />
             </div>
           ))}
         </div>

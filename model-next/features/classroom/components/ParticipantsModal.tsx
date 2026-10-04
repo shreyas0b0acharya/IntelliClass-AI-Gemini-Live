@@ -61,19 +61,19 @@ export function ParticipantsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl shadow-2xl">
+ <DialogContent className="sm:max-w-md overflow-hidden ">
         {/* Header */}
-        <DialogHeader className="p-6 pb-4 border-b border-black/5 dark:border-white/10">
+ <DialogHeader className="">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3]">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <Users className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold tracking-tight">
+ <DialogTitle className="">
                   Classroom People
                 </DialogTitle>
-                <p className="text-[11px] text-[#86868b] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {participants.length} Participant{participants.length !== 1 ? "s" : ""}
                 </p>
               </div>
@@ -84,7 +84,7 @@ export function ParticipantsModal({
                 size="sm"
                 variant="default"
                 onClick={onAdmitAll}
-                className="px-3 h-8 text-xs font-semibold rounded-full inline-flex items-center gap-1.5"
+ className=" h-8 inline-flex items-center "
               >
                 <UserCheck className="h-3.5 w-3.5" />
                 <span>Admit All ({waitingStudents.length})</span>
@@ -94,12 +94,12 @@ export function ParticipantsModal({
 
           {/* Search bar */}
           <div className="relative mt-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#86868b]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search participants by name..."
-              className="h-9 pl-9 pr-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border-black/5 dark:border-white/10 text-xs"
+ className="h-9 "
             />
           </div>
         </DialogHeader>
@@ -110,7 +110,7 @@ export function ParticipantsModal({
           {isLecturer && waitingStudents.length > 0 && (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-xs font-bold text-chart-4 uppercase tracking-wider flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   Waiting to Join ({waitingStudents.length})
                 </span>
@@ -120,17 +120,17 @@ export function ParticipantsModal({
                 {waitingStudents.map((student) => (
                   <div
                     key={student.userId}
-                    className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3"
+                    className="p-3 rounded-2xl bg-chart-4/10 border border-chart-4/20 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-chart-4/20 text-chart-4 dark:text-chart-4 font-bold text-xs flex items-center justify-center shrink-0">
                         {(student.name || "S")[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+                        <p className="text-xs font-bold text-foreground dark:text-foreground truncate">
                           {student.name}
                         </p>
-                        <p className="text-[10px] text-[#86868b]">Wants to join broadcast</p>
+                        <p className="text-xs text-muted-foreground">Wants to join broadcast</p>
                       </div>
                     </div>
 
@@ -139,20 +139,20 @@ export function ParticipantsModal({
                         size="xs"
                         variant="default"
                         onClick={() => onAdmit?.(student.userId)}
-                        className="h-8 px-2.5 text-[11px] font-bold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1"
+ className="h-8 inline-flex items-center "
                         title="Accept / Admit Student"
                       >
-                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                        <Check className="h-3.5 w-3.5 stroke-2" />
                         <span>Accept</span>
                       </Button>
                       <Button
                         size="xs"
                         variant="ghost"
                         onClick={() => onDeny?.(student.userId)}
-                        className="h-8 px-2 hover:bg-red-500/10 text-red-500 text-[11px] font-bold rounded-full inline-flex items-center gap-1"
+ className="h-8 inline-flex items-center "
                         title="Decline Student"
                       >
-                        <X className="h-3.5 w-3.5 stroke-[2.5]" />
+                        <X className="h-3.5 w-3.5 stroke-2" />
                         <span>Decline</span>
                       </Button>
                     </div>
@@ -164,7 +164,7 @@ export function ParticipantsModal({
 
           {/* Host / Faculty Section */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-[#86868b] uppercase tracking-wider block">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
               Host / Faculty ({lecturers.length})
             </span>
 
@@ -176,23 +176,23 @@ export function ParticipantsModal({
                     className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-[#0071e3] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="w-8 h-8 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
                         {(lecturer.name || "L")[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+                          <p className="text-xs font-bold text-foreground dark:text-foreground truncate">
                             {lecturer.name}
                           </p>
                           {lecturer.userId === currentUserId && (
-                            <span className="text-[9px] font-semibold text-[#86868b]">(You)</span>
+                            <span className="text-xs font-semibold text-muted-foreground">(You)</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-[#86868b]">Classroom Broadcaster</p>
+                        <p className="text-xs text-muted-foreground">Classroom Broadcaster</p>
                       </div>
                     </div>
 
-                    <span className="text-[10px] font-bold text-[#0071e3] bg-[#0071e3]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
                       <ShieldCheck className="h-3 w-3" />
                       Host
                     </span>
@@ -201,7 +201,7 @@ export function ParticipantsModal({
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] text-center">
-                <p className="text-xs text-[#86868b]">Faculty is operating in autonomous broadcast mode.</p>
+                <p className="text-xs text-muted-foreground">Faculty is operating in autonomous broadcast mode.</p>
               </div>
             )}
           </div>
@@ -209,7 +209,7 @@ export function ParticipantsModal({
           {/* Admitted Students Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-[#86868b] uppercase tracking-wider">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 Students in Classroom ({admittedStudents.length})
               </span>
             </div>
@@ -225,38 +225,38 @@ export function ParticipantsModal({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-chart-2/15 text-chart-2 dark:text-chart-2 font-bold text-xs flex items-center justify-center shrink-0">
                             {(student.name || "S")[0].toUpperCase()}
                           </div>
                           {/* Live Presence Indicator */}
                           <span
-                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#1c1c1e] ${isOnline ? "bg-emerald-500" : "bg-neutral-400"
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-border ${isOnline ? "bg-chart-2" : "bg-muted-foreground"
                               }`}
                             title={isOnline ? "Online" : "Temporarily Offline"}
                           />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+                            <p className="text-xs font-semibold text-foreground dark:text-foreground truncate">
                               {student.name}
                             </p>
                             {student.userId === currentUserId && (
-                              <span className="text-[9px] font-semibold text-[#86868b]">(You)</span>
+                              <span className="text-xs font-semibold text-muted-foreground">(You)</span>
                             )}
                             {student.connectionCount && student.connectionCount > 1 ? (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">
                                 {student.connectionCount} tabs
                               </span>
                             ) : null}
                           </div>
-                          <p className="text-[10px] text-[#86868b]">
+                          <p className="text-xs text-muted-foreground">
                             {isOnline ? "Connected" : "Reconnecting"} • Joined {student.joinedAt ? new Date(student.joinedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "just now"}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-xs font-semibold text-chart-2 dark:text-chart-2 bg-chart-2/10 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <GraduationCap className="h-3 w-3" />
                           Admitted
                         </span>
@@ -266,7 +266,7 @@ export function ParticipantsModal({
                             size="xs"
                             variant="ghost"
                             onClick={() => onKick?.(student.userId)}
-                            className="h-7 px-2 text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 font-semibold rounded-xl inline-flex items-center gap-1"
+ className="h-7 inline-flex items-center "
                             title="Remove student from session"
                           >
                             <UserMinus className="h-3 w-3" />
@@ -280,7 +280,7 @@ export function ParticipantsModal({
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 text-center">
-                <p className="text-xs text-[#86868b]">
+                <p className="text-xs text-muted-foreground">
                   {waitingStudents.length > 0 ? "Students are waiting for admission above." : "No students currently connected to this lecture."}
                 </p>
               </div>

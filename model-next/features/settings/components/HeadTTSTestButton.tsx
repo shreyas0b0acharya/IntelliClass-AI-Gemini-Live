@@ -24,7 +24,7 @@ export function HeadTTSTestButton({
   isPlaying,
   onPlayStateChange,
   onDataReceived,
-  className = "w-full h-11 font-medium text-xs shadow-2xs",
+ className = "w-full h-11 ",
 }: HeadTTSTestButtonProps) {
   const [isSynthesizing, setIsSynthesizing] = useState(false);
 
@@ -80,7 +80,7 @@ export function HeadTTSTestButton({
       onClick={handleToggle}
       disabled={isSynthesizing}
       variant={isPlaying ? "destructive" : "secondary"}
-      className={`${className} rounded-full inline-flex items-center justify-center gap-2`}
+ className={`${className} inline-flex items-center justify-center `}
     >
       {isSynthesizing ? (
         <>
@@ -92,7 +92,7 @@ export function HeadTTSTestButton({
           {isPlaying ? (
             <Square className="h-3 w-3 fill-current" />
           ) : (
-            <Volume2 className="h-3.5 w-3.5 text-[#0071e3]" />
+            <Volume2 className="h-3.5 w-3.5 text-primary" />
           )}
           <span>{isPlaying ? "Stop Preview" : "Test HeadTTS Voice & LipSync"}</span>
         </>

@@ -142,7 +142,7 @@ export default function ClassroomPage({
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary animate-spin">
           <Loader2 className="h-6 w-6" />
         </div>
-        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Initializing Real-time Classroom...
         </p>
       </div>
@@ -238,14 +238,14 @@ export default function ClassroomPage({
 
       {/* Course Materials Browser Modal */}
       <Dialog open={showMaterialsModal} onOpenChange={setShowMaterialsModal}>
-        <DialogContent className="sm:max-w-xl rounded-3xl p-6 border border-border/40 bg-card/95 backdrop-blur-2xl shadow-2xl space-y-4">
+ <DialogContent className="sm:max-w-xl ">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <div className="w-10 h-10 rounded-2xl bg-chart-2/10 flex items-center justify-center text-chart-2">
                 <FileText className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold">Course Syllabus Materials</DialogTitle>
+ <DialogTitle className="">Course Syllabus Materials</DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Browse and view textbooks and reference PDFs for this course
                 </p>
@@ -264,16 +264,16 @@ export default function ClassroomPage({
                 return (
                   <div
                     key={file.id}
-                    className="p-3 rounded-2xl border border-border/40 bg-background/50 hover:border-[#0071e3]/40 transition-all flex flex-col gap-2"
+                    className="p-3 rounded-2xl border border-border/40 bg-background/50 hover:border-primary/40 transition-all flex flex-col gap-2"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-chart-2/10 flex items-center justify-center text-chart-2 shrink-0">
                           <FileText className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold truncate text-foreground">{file.file_name}</p>
-                          <span className="text-[10px] text-muted-foreground">{sizeMb} MB</span>
+                          <span className="text-xs text-muted-foreground">{sizeMb} MB</span>
                         </div>
                       </div>
 
@@ -283,7 +283,7 @@ export default function ClassroomPage({
                         onClick={() => {
                           setSelectedViewFile(file);
                         }}
-                        className="h-8 px-3 text-xs font-bold shrink-0 rounded-xl inline-flex items-center gap-1.5"
+ className="h-8 shrink-0 inline-flex items-center "
                       >
                         <Eye className="h-3.5 w-3.5" />
                         <span>View PDF</span>
@@ -352,7 +352,7 @@ export default function ClassroomPage({
         {/* Student Waiting Room State (Google Meet Knocking) */}
         {!isLecturer && classroom.myAdmissionStatus === "waiting" && (
           <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center animate-pulse">
+            <div className="w-16 h-16 rounded-3xl bg-chart-4/10 text-chart-4 flex items-center justify-center animate-pulse">
               <Clock className="h-8 w-8" />
             </div>
             <div className="space-y-1">
@@ -361,7 +361,7 @@ export default function ClassroomPage({
                 The lecturer has been notified. You&apos;ll be admitted to the live lecture as soon as the professor accepts your request.
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-chart-4/10 text-chart-4 dark:text-chart-4 text-xs font-semibold">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Waiting for lecturer approval...
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function ClassroomPage({
         {/* Student Denied / Removed State */}
         {!isLecturer && classroom.myAdmissionStatus === "denied" && (
           <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-red-500/10 text-red-500 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-3xl bg-destructive/10 text-destructive flex items-center justify-center">
               <AlertTriangle className="h-8 w-8" />
             </div>
             <div className="space-y-1">
@@ -384,7 +384,7 @@ export default function ClassroomPage({
                 onClick={classroom.requestRejoin}
                 variant="default"
                 size="sm"
-                className="px-5 h-9 font-semibold text-xs shadow-xs rounded-xl"
+ className=" h-9 "
               >
                 <span>Ask to Join Again</span>
               </Button>
@@ -392,7 +392,7 @@ export default function ClassroomPage({
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/course/${courseId}`)}
-                className="px-4 h-9 font-semibold text-xs rounded-xl"
+ className=" h-9 "
               >
                 <span>Return to Course Space</span>
               </Button>
@@ -403,7 +403,7 @@ export default function ClassroomPage({
         {/* Lecturer Session Ended — Recovery Overlay */}
         {isLecturer && classroom.sessionStatus === "ended" && (
           <div className="absolute inset-0 z-40 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-5">
-            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-3xl bg-chart-4/10 text-chart-4 flex items-center justify-center">
               <RotateCcw className="h-8 w-8" />
             </div>
             <div className="space-y-1.5">
@@ -417,7 +417,7 @@ export default function ClassroomPage({
                 onClick={classroom.restartSession}
                 variant="default"
                 size="sm"
-                className="px-6 h-10 font-semibold text-xs shadow-lg gap-2 rounded-xl inline-flex items-center"
+ className=" h-10 inline-flex items-center"
               >
                 <Play className="h-3.5 w-3.5" />
                 <span>Restart Broadcast</span>
@@ -426,7 +426,7 @@ export default function ClassroomPage({
                 onClick={() => router.push(`/course/${courseId}`)}
                 variant="outline"
                 size="sm"
-                className="px-5 h-10 font-semibold text-xs rounded-xl"
+ className=" h-10 "
               >
                 <span>Return to Course</span>
               </Button>
@@ -437,7 +437,7 @@ export default function ClassroomPage({
         {/* Student Session Ended Forced Exit State */}
         {!isLecturer && classroom.sessionStatus === "ended" && (
           <div className="absolute inset-0 z-40 bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center">
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center">
               <BookOpen className="h-8 w-8" />
             </div>
             <div className="space-y-1.5">
@@ -450,7 +450,7 @@ export default function ClassroomPage({
               onClick={() => router.replace("/")}
               variant="default"
               size="sm"
-              className="mt-3 px-6 h-10 font-semibold text-xs shadow-lg rounded-xl"
+ className="mt-3 h-10 "
             >
               <span>Return to Home</span>
             </Button>

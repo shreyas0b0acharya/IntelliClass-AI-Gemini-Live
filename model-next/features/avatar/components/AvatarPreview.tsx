@@ -49,10 +49,10 @@ function LightweightStudioScene({
   return (
     <>
       {/* 3-point studio lighting */}
-      <ambientLight intensity={0.9} color="#e8e8ed" />
-      <directionalLight position={[3, 4, 2]} intensity={1.8} color="#ffffff" />
-      <directionalLight position={[-2, 3, -1]} intensity={0.6} color="#b0c4ff" />
-      <directionalLight position={[0, -1, 3]} intensity={0.3} color="#ffd6a5" />
+      <ambientLight intensity={0.9} color={0xe8e8ed} />
+      <directionalLight position={[3, 4, 2]} intensity={1.8} color={0xffffff} />
+      <directionalLight position={[-2, 3, -1]} intensity={0.6} color={0xb0c4ff} />
+      <directionalLight position={[0, -1, 3]} intensity={0.3} color={0xffd6a5} />
 
       <OrbitControls
         enableZoom={false}
@@ -126,13 +126,13 @@ export function AvatarPreview({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-gradient-to-b from-[#1c1c1f] to-[#121214] shadow-xs ${className}`}
+      className={`relative overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-gradient-to-b from-card to-background shadow-xs ${className}`}
     >
       {/* Context-lost overlay */}
       {contextLost && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-[#121316]/90 backdrop-blur-sm">
-          <AlertTriangle className="h-6 w-6 text-amber-400" />
-          <span className="text-[11px] font-medium text-neutral-400">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/90 backdrop-blur-sm">
+          <AlertTriangle className="h-6 w-6 text-chart-4" />
+          <span className="text-xs font-medium text-muted-foreground">
             GPU context lost — reload the page to restore.
           </span>
         </div>
@@ -141,9 +141,9 @@ export function AvatarPreview({
       {mounted ? (
         <Suspense
           fallback={
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#121316]">
-              <Loader2 className="h-6 w-6 animate-spin text-[#0071e3]" />
-              <span className="text-[11px] font-medium text-neutral-400">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">
                 Rendering 3D Studio...
               </span>
             </div>
@@ -181,21 +181,21 @@ export function AvatarPreview({
           </Canvas>
         </Suspense>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#121316]">
-          <Loader2 className="h-6 w-6 animate-spin text-[#0071e3]" />
-          <span className="text-[11px] font-medium text-neutral-400">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="text-xs font-medium text-muted-foreground">
             Preparing 3D Viewport...
           </span>
         </div>
       )}
 
       {/* Badge Overlay */}
-      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 dark:bg-black/70 backdrop-blur-md text-[10px] font-semibold text-white pointer-events-none border border-white/10">
-        <Sparkles className="h-3 w-3 text-[#0071e3]" />
+      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 dark:bg-black/70 backdrop-blur-md text-xs font-semibold text-white pointer-events-none border border-white/10">
+        <Sparkles className="h-3 w-3 text-primary" />
         <span>3D Studio Preview</span>
       </div>
 
-      <div className="absolute bottom-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-[9px] font-mono text-white/70 pointer-events-none border border-white/5">
+      <div className="absolute bottom-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-xs font-mono text-white/70 pointer-events-none border border-white/5">
         Drag to rotate
       </div>
     </div>

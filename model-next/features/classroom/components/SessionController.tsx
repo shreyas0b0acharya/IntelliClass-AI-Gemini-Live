@@ -50,10 +50,10 @@ export function SessionController({
       <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
         {/* Active Broadcast Status Badge (Apple HIG Capsule) */}
         <div
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide border shadow-xs ${status === "running"
-              ? "bg-red-500/10 border-red-500/25 text-[#ff3b30] dark:text-[#ff453a]"
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide border shadow-xs ${status === "running"
+              ? "bg-destructive/10 border-destructive/25 text-destructive dark:text-destructive"
               : status === "paused"
-                ? "bg-amber-500/10 border-amber-500/25 text-[#ff9500] dark:text-[#ff9f0a]"
+                ? "bg-chart-4/10 border-chart-4/25 text-chart-4 dark:text-chart-4"
                 : status === "ended"
                   ? "bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10 text-muted-foreground"
                   : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground"
@@ -61,9 +61,9 @@ export function SessionController({
         >
           <div
             className={`w-2 h-2 rounded-full ${status === "running"
-                ? "bg-[#ff3b30] animate-pulse"
+                ? "bg-destructive animate-pulse"
                 : status === "paused"
-                  ? "bg-[#ff9500]"
+                  ? "bg-chart-4"
                   : "bg-muted-foreground/40"
               }`}
           />
@@ -89,7 +89,7 @@ export function SessionController({
     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
       {/* 30s Empty Room Timeout Warning Pill */}
       {emptyRoomCountdown !== null && status === "running" && (
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 animate-pulse">
+        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs sm:text-xs font-semibold bg-chart-4/15 border border-chart-4/30 text-chart-4 dark:text-chart-4 animate-pulse">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           <span>{isCompact ? `${emptyRoomCountdown}s` : `Auto-stop in ${emptyRoomCountdown}s`}</span>
         </div>
@@ -102,7 +102,7 @@ export function SessionController({
           disabled={actionLoading !== null}
           variant="default"
           size="sm"
-          className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-[#34c759] hover:bg-[#30b34e] text-white shadow-xs shrink-0 rounded-full inline-flex items-center gap-1.5"
+ className="h-8 sm:h-9 shrink-0 inline-flex items-center "
         >
           {actionLoading === "start" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -128,7 +128,7 @@ export function SessionController({
           disabled={actionLoading !== null}
           variant="secondary"
           size="sm"
-          className="h-8 sm:h-9 px-3 sm:px-4 text-xs font-semibold bg-[#ff9500] hover:bg-[#e08500] text-white shadow-xs shrink-0 rounded-full inline-flex items-center gap-1.5"
+ className="h-8 sm:h-9 shrink-0 inline-flex items-center "
         >
           {actionLoading === "pause" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -146,7 +146,7 @@ export function SessionController({
           disabled={actionLoading !== null}
           variant="destructive"
           size="sm"
-          className="h-8 sm:h-9 px-3 text-xs font-semibold bg-[#ff3b30] hover:bg-[#e0342a] text-white shadow-xs shrink-0 rounded-full inline-flex items-center gap-1.5"
+ className="h-8 sm:h-9 shrink-0 inline-flex items-center "
         >
           {actionLoading === "end" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />

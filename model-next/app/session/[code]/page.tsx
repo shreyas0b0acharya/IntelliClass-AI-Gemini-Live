@@ -181,7 +181,7 @@ export default function SessionPreJoinPage({
               asChild
               variant="default"
               size="lg"
-              className="h-11 font-semibold rounded-xl"
+ className="h-11 "
             >
               <Link href="/" className="inline-flex items-center justify-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
@@ -232,8 +232,8 @@ export default function SessionPreJoinPage({
                 {session.voice_id === "af_bella" ? "👩‍🏫" : "👨‍🏫"}
                 {isLive && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500" />
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-destructive" />
                   </span>
                 )}
               </div>
@@ -248,9 +248,9 @@ export default function SessionPreJoinPage({
               {/* Status Badge */}
               <div
                 className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLive
-                  ? "bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse"
+                  ? "bg-destructive/15 text-destructive border border-destructive/30 animate-pulse"
                   : session.status === "paused"
-                    ? "bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                    ? "bg-chart-4/15 text-chart-4 border border-chart-4/30"
                     : session.status === "ended"
                       ? "bg-muted text-muted-foreground border border-border/40"
                       : "bg-primary/10 text-primary border border-primary/20"
@@ -277,8 +277,8 @@ export default function SessionPreJoinPage({
                 size="sm"
                 onClick={handleTestAudio}
                 disabled={isTestingAudio}
-                className={`h-10 px-4 text-xs font-semibold rounded-full ${
-                  audioTested ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : ""
+ className={`h-10 ${
+ audioTested ? " " : ""
                 }`}
               >
                 {isTestingAudio ? (
@@ -289,7 +289,7 @@ export default function SessionPreJoinPage({
                 ) : (
                   <>
                     {audioTested ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <CheckCircle2 className="h-4 w-4 text-chart-2" />
                     ) : (
                       <Volume2 className="h-4 w-4 text-primary" />
                     )}
@@ -303,7 +303,7 @@ export default function SessionPreJoinPage({
           {/* Right Join Action Card */}
           <div className="md:col-span-5 space-y-6 flex flex-col justify-center">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
                 <Users className="h-3 w-3" /> Ready to Join
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
@@ -315,7 +315,7 @@ export default function SessionPreJoinPage({
             </div>
 
             <div className="p-4 rounded-2xl bg-muted/40 border border-border/50 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                 Session Info
               </span>
               <div className="flex items-center justify-between text-xs font-semibold">
@@ -324,7 +324,7 @@ export default function SessionPreJoinPage({
               </div>
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">Live Q&amp;A:</span>
-                <span className="text-emerald-500">Enabled</span>
+                <span className="text-chart-2">Enabled</span>
               </div>
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-muted-foreground">Subtitles &amp; Slides:</span>
@@ -337,8 +337,8 @@ export default function SessionPreJoinPage({
                 onClick={handleJoinClassroom}
                 variant="default"
                 size="lg"
-                className={`w-full h-12 font-bold text-base shadow-lg rounded-xl ${
-                  isLive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+ className={`w-full h-12 ${
+ isLive ? " " : ""
                 }`}
               >
                 <Play className="h-5 w-5 fill-current" />
@@ -346,13 +346,13 @@ export default function SessionPreJoinPage({
                 <ArrowRight className="h-4 w-4" />
               </Button>
 
-              <p className="text-[11px] text-center text-[#86868b] font-medium">
+              <p className="text-xs text-center text-muted-foreground font-medium">
                 {isLive
                   ? "🔴 The lecture is currently in progress."
                   : "✨ The session room is open. Join now to enter the waiting room and be ready when the instructor begins."}
               </p>
 
-              <p className="text-[11px] text-center text-muted-foreground">
+              <p className="text-xs text-center text-muted-foreground">
                 No app installation required &bull; 100% browser powered
               </p>
             </div>

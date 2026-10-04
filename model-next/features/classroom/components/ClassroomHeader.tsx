@@ -114,17 +114,17 @@ export function ClassroomHeader({
   const personaName = isDrClara ? "Dr. Clara" : "Prof. Arthur";
 
   return (
-    <header className="h-14 sm:h-16 px-3 sm:px-5 shrink-0 flex items-center justify-between border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-2xl z-20 gap-2 sm:gap-3 w-full max-w-full overflow-hidden select-none">
+    <header className="h-14 sm:h-16 px-3 sm:px-5 shrink-0 flex items-center justify-between border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-card/80 backdrop-blur-2xl z-20 gap-2 sm:gap-3 w-full max-w-full overflow-hidden select-none">
       {/* ── Left: Course Navigation, Session Topic (Prominent), & Role Pill ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
         <Button
           variant="outline"
           size="sm"
           onClick={onLeaveClick}
-          className="h-8 sm:h-9 px-2 sm:px-2.5 text-xs font-semibold shrink-0 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none text-foreground rounded-full inline-flex items-center gap-1.5"
+ className="h-8 sm:h-9 shrink-0 inline-flex items-center "
           title="Return to Course Space"
         >
-          <ChevronLeft className="h-4 w-4 text-[#0071e3]" />
+          <ChevronLeft className="h-4 w-4 text-primary" />
           <span className="hidden xl:inline">Course Space</span>
         </Button>
 
@@ -138,14 +138,14 @@ export function ClassroomHeader({
           </h1>
 
           {/* Secondary Subtitle Row: Role badge and persona details */}
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium truncate leading-tight mt-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium truncate leading-tight mt-0.5">
             {isLecturer ? (
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-primary dark:text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full shrink-0">
                 <ShieldCheck className="h-2.5 w-2.5" />
                 <span>Faculty</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-chart-2 dark:text-chart-2 bg-chart-2/10 border border-chart-2/20 px-2 py-0.5 rounded-full shrink-0">
                 <GraduationCap className="h-2.5 w-2.5" />
                 <span>Student</span>
               </span>
@@ -167,15 +167,15 @@ export function ClassroomHeader({
             variant="outline"
             size="sm"
             onClick={onOpenParticipants}
-            className="relative h-8 sm:h-9 px-2.5 text-xs font-semibold border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0 rounded-full inline-flex items-center gap-1.5"
+ className="relative h-8 sm:h-9 shrink-0 inline-flex items-center "
             title="Classroom Participants"
           >
-            <Users className="h-3.5 w-3.5 text-[#0071e3]" />
-            <span className="font-mono text-xs font-bold text-foreground">
+            <Users className="h-3.5 w-3.5 text-primary" />
+ <span className="font-mono font-bold text-foreground">
               {participantsCount}
             </span>
             {hasWaitingStudents && (
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-chart-4 ring-2 ring-background animate-pulse" />
             )}
           </Button>
         )}
@@ -201,35 +201,35 @@ export function ClassroomHeader({
               variant="outline"
               size="icon-sm"
               aria-label="More classroom actions"
-              className="h-8 sm:h-9 w-8 sm:w-9 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 shadow-none shrink-0 rounded-full"
+ className="h-8 sm:h-9 w-8 sm:w-9 shrink-0 "
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-68 sm:w-72 p-1.5 rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl space-y-0.5">
-            <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 px-2.5 py-1">
+ <DropdownMenuContent align="end" className="w-68 sm:w-72 ">
+ <DropdownMenuLabel className="">
               Classroom Tools
             </DropdownMenuLabel>
 
             {/* Course Materials */}
             {capabilities.canViewMaterials && (
-              <DropdownMenuItem onClick={onOpenMaterials} className="gap-2.5 py-2 cursor-pointer rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                <FileText className="h-4 w-4 text-emerald-500 shrink-0" />
+ <DropdownMenuItem onClick={onOpenMaterials} className=" cursor-pointer ">
+                <FileText className="h-4 w-4 text-chart-2 shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-xs text-foreground">Course Materials</span>
-                  <span className="text-[10px] text-muted-foreground">View textbooks & PDF documents</span>
+                  <span className="text-xs text-muted-foreground">View textbooks & PDF documents</span>
                 </div>
               </DropdownMenuItem>
             )}
 
             {/* Curriculum Script (Lecturer only) */}
             {capabilities.canEditCurriculum && (
-              <DropdownMenuItem onClick={onOpenScript} className="gap-2.5 py-2 cursor-pointer rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                <BookOpen className="h-4 w-4 text-[#0071e3] shrink-0" />
+ <DropdownMenuItem onClick={onOpenScript} className=" cursor-pointer ">
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-xs text-foreground">Curriculum Script</span>
-                  <span className="text-[10px] text-muted-foreground">{scriptItemCount} lecture segments</span>
+                  <span className="text-xs text-muted-foreground">{scriptItemCount} lecture segments</span>
                 </div>
               </DropdownMenuItem>
             )}
@@ -237,28 +237,28 @@ export function ClassroomHeader({
             {/* Session Links & Sharing */}
             {capabilities.canShareSession && (
               <>
-                <DropdownMenuSeparator className="my-1 bg-black/5 dark:bg-white/10" />
-                <DropdownMenuItem onClick={handleCopyCode} className="gap-2.5 py-2 cursor-pointer rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+ <DropdownMenuSeparator className="my-1 " />
+ <DropdownMenuItem onClick={handleCopyCode} className=" cursor-pointer ">
                   {copiedCode ? (
-                    <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <Check className="h-4 w-4 text-chart-2 shrink-0" />
                   ) : (
-                    <Copy className="h-4 w-4 text-[#0071e3] shrink-0" />
+                    <Copy className="h-4 w-4 text-primary shrink-0" />
                   )}
                   <div className="flex flex-col min-w-0">
                     <span className="font-semibold text-xs text-foreground">Copy Meeting Code</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{meetingCode}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{meetingCode}</span>
                   </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={handleCopyLink} className="gap-2.5 py-2 cursor-pointer rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+ <DropdownMenuItem onClick={handleCopyLink} className=" cursor-pointer ">
                   {copiedLink ? (
-                    <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <Check className="h-4 w-4 text-chart-2 shrink-0" />
                   ) : (
-                    <Link2 className="h-4 w-4 text-[#0071e3] shrink-0" />
+                    <Link2 className="h-4 w-4 text-primary shrink-0" />
                   )}
                   <div className="flex flex-col min-w-0">
                     <span className="font-semibold text-xs text-foreground">Copy Direct Invite Link</span>
-                    <span className="text-[10px] text-muted-foreground">Share invite link with students</span>
+                    <span className="text-xs text-muted-foreground">Share invite link with students</span>
                   </div>
                 </DropdownMenuItem>
               </>
@@ -267,25 +267,25 @@ export function ClassroomHeader({
             {/* Lecturer Session Actions */}
             {isLecturer && (
               <>
-                <DropdownMenuSeparator className="my-1 bg-black/5 dark:bg-white/10" />
+ <DropdownMenuSeparator className="my-1 " />
                 {(sessionStatus === "ended" || sessionStatus === "paused") && onRestartSession && (
-                  <DropdownMenuItem onClick={onRestartSession} className="gap-2.5 py-2 cursor-pointer rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                    <RotateCcw className="h-4 w-4 text-[#0071e3] shrink-0" />
+ <DropdownMenuItem onClick={onRestartSession} className=" cursor-pointer ">
+                    <RotateCcw className="h-4 w-4 text-primary shrink-0" />
                     <div className="flex flex-col min-w-0">
                       <span className="font-semibold text-xs text-foreground">Restart Broadcast</span>
-                      <span className="text-[10px] text-muted-foreground">Rewind to start of lecture</span>
+                      <span className="text-xs text-muted-foreground">Rewind to start of lecture</span>
                     </div>
                   </DropdownMenuItem>
                 )}
                 {sessionStatus !== "created" && sessionStatus !== "ended" && onEndSession && (
                   <DropdownMenuItem
                     onClick={onEndSession}
-                    className="gap-2.5 py-2 cursor-pointer rounded-xl text-[#ff3b30] focus:text-[#ff3b30] focus:bg-red-500/10 dark:focus:bg-red-500/15"
+ className=" cursor-pointer "
                   >
                     <Square className="h-4 w-4 fill-current shrink-0" />
                     <div className="flex flex-col min-w-0">
                       <span className="font-semibold text-xs">End Broadcast</span>
-                      <span className="text-[10px] text-red-500/80">Conclude session for everyone</span>
+                      <span className="text-xs text-destructive/80">Conclude session for everyone</span>
                     </div>
                   </DropdownMenuItem>
                 )}
@@ -293,8 +293,8 @@ export function ClassroomHeader({
             )}
 
             {/* ── All Settings & Preferences Unified in One Section ── */}
-            <DropdownMenuSeparator className="my-1 bg-black/5 dark:bg-white/10" />
-            <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 px-2.5 py-1">
+ <DropdownMenuSeparator className="my-1 " />
+ <DropdownMenuLabel className="">
               Classroom Settings
             </DropdownMenuLabel>
 
@@ -308,10 +308,10 @@ export function ClassroomHeader({
                 onClick={onToggleCaptions}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Captions className="h-4 w-4 text-[#0071e3] shrink-0" />
+                  <Captions className="h-4 w-4 text-primary shrink-0" />
                   <div className="flex flex-col min-w-0">
                     <span className="font-semibold text-xs text-foreground">Live Captions</span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {showCaptions ? "Speech subtitles enabled" : "Subtitles turned off"}
                     </span>
                   </div>
@@ -326,7 +326,7 @@ export function ClassroomHeader({
                     e.stopPropagation();
                     onToggleCaptions?.();
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showCaptions ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showCaptions ? "bg-chart-2" : "bg-black/20 dark:bg-white/20"
                     }`}
                 >
                   <span
@@ -344,10 +344,10 @@ export function ClassroomHeader({
                 onClick={onToggleProgressHUD}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Activity className="h-4 w-4 text-[#0071e3] shrink-0" />
+                  <Activity className="h-4 w-4 text-primary shrink-0" />
                   <div className="flex flex-col min-w-0">
                     <span className="font-semibold text-xs text-foreground">Progress HUD</span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {showProgressHUD ? "Stage progress bar visible" : "Stage progress bar hidden"}
                     </span>
                   </div>
@@ -362,7 +362,7 @@ export function ClassroomHeader({
                     e.stopPropagation();
                     onToggleProgressHUD?.();
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showProgressHUD ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${showProgressHUD ? "bg-chart-2" : "bg-black/20 dark:bg-white/20"
                     }`}
                 >
                   <span
@@ -379,10 +379,10 @@ export function ClassroomHeader({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+                <Sparkles className="h-4 w-4 text-chart-4 shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-xs text-foreground">Appearance</span>
-                  <span className="text-[10px] text-muted-foreground">Light, dark, or system</span>
+                  <span className="text-xs text-muted-foreground">Light, dark, or system</span>
                 </div>
               </div>
               <ThemeToggle variant="segmented" />

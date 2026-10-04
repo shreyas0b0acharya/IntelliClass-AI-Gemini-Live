@@ -28,11 +28,11 @@ export default function CourseLayout({
 
   if (isLoading || !profile || !isLecturer) {
     return (
-      <div className="h-screen w-screen bg-white dark:bg-[#000000] flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#0071e3] animate-spin">
+      <div className="h-screen w-screen bg-white dark:bg-background flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-primary animate-spin">
           <Loader2 className="h-5 w-5" />
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#86868b] animate-pulse">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground animate-pulse">
           Loading Course Space...
         </p>
       </div>
@@ -45,11 +45,11 @@ export default function CourseLayout({
         <AppSidebar />
         <SidebarInset>
           {/* Sticky macOS Studio Header */}
-          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-[#121212]/70 px-5 sm:px-6 backdrop-blur-md transition-colors duration-200">
+          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-background/70 px-5 sm:px-6 backdrop-blur-md transition-colors duration-200">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <Separator orientation="vertical" className="h-4 mx-1.5 bg-black/10 dark:bg-white/10" />
-              <span className="text-[13px] sm:text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
+              <Separator orientation="vertical" className="h-4 mx-1.5" />
+              <span className="text-sm sm:text-sm font-semibold text-foreground dark:text-foreground tracking-tight">
                 Course Space
               </span>
             </div>

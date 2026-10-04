@@ -31,19 +31,19 @@ interface FeatureCardProps {
 function FeatureCard({ icon, tag, title, description, className = "" }: FeatureCardProps) {
   return (
     <div
-      className={`group relative p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] hover:border-[#d2d2d7] dark:hover:border-[#3a3a3c] transition-all duration-300 flex flex-col justify-between shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-none ${className}`}
+      className={`group relative p-8 sm:p-10 rounded-3xl bg-white dark:bg-card border border-border dark:border-border hover:border-border dark:hover:border-border transition-all duration-300 flex flex-col justify-between shadow-xs dark:shadow-none ${className}`}
     >
       <div>
-        <div className="w-12 h-12 rounded-2xl bg-[#f5f5f7] dark:bg-[#2c2c2e] border border-[#e5e5ea] dark:border-[#3a3a3c] flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] mb-6 transition-transform group-hover:scale-105">
+        <div className="w-12 h-12 rounded-2xl bg-muted dark:bg-muted border border-border dark:border-border flex items-center justify-center text-muted-foreground dark:text-muted-foreground mb-6 transition-transform group-hover:scale-105">
           {icon}
         </div>
-        <span className="text-[11px] uppercase tracking-widest font-bold text-[#86868b] dark:text-[#86868b] block mb-2">
+        <span className="text-xs uppercase tracking-widest font-bold text-muted-foreground dark:text-muted-foreground block mb-2">
           {tag}
         </span>
-        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] mb-3">
+        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-foreground mb-3">
           {title}
         </h3>
-        <p className="text-[15px] sm:text-[16px] leading-relaxed text-[#86868b] dark:text-[#a1a1a6]">
+        <p className="text-base sm:text-base leading-relaxed text-muted-foreground dark:text-muted-foreground">
           {description}
         </p>
       </div>
@@ -123,22 +123,22 @@ export default function HomePage() {
   // ── A. LOGGED-IN STUDENT VIEW: CLEAN MINIMAL JOIN SCREEN ────────────────
   if (!isLoading && user && !isLecturer) {
     return (
-      <div className="min-h-screen w-full bg-[#f5f5f7] dark:bg-black text-[#1d1d1f] dark:text-[#f5f5f7] flex flex-col antialiased selection:bg-[#0071e3] selection:text-white transition-colors duration-300">
+      <div className="min-h-screen w-full bg-muted dark:bg-black text-foreground dark:text-foreground flex flex-col antialiased selection:bg-primary selection:text-white transition-colors duration-300">
         <Navbar showLinks={false} />
 
         <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-          <div className="w-full max-w-md mx-auto text-center space-y-8 animate-in fade-in zoom-in-95 duration-300 bg-white dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] rounded-3xl p-8 sm:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-none">
+          <div className="w-full max-w-md mx-auto text-center space-y-8 animate-in fade-in zoom-in-95 duration-300 bg-white dark:bg-card border border-border dark:border-border rounded-3xl p-8 sm:p-10 shadow-sm dark:shadow-none">
             {/* Header Icon */}
-            <div className="w-14 h-14 rounded-2xl bg-[#0071e3] text-white flex items-center justify-center shadow-xs mx-auto mb-2">
+            <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xs mx-auto mb-2">
               <KeyRound className="h-7 w-7" />
             </div>
 
             {/* Heading */}
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground dark:text-foreground">
                 Join Live Class
               </h1>
-              <p className="text-[15px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+              <p className="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
                 {profile?.name ? `Welcome, ${profile.name}. ` : ""}
                 Enter the session code provided by your professor.
               </p>
@@ -156,19 +156,19 @@ export default function HomePage() {
             </div>
 
             {/* Sub-actions */}
-            <div className="pt-6 border-t border-[#e5e5ea] dark:border-[#2c2c2e] flex flex-col items-center gap-3 text-xs text-[#86868b] dark:text-[#a1a1a6]">
+            <div className="pt-6 border-t border-border dark:border-border flex flex-col items-center gap-3 text-xs text-muted-foreground dark:text-muted-foreground">
               <Link
                 href="/showcase"
-                className="hover:text-[#0071e3] dark:hover:text-[#0071e3] flex items-center gap-1.5 transition-colors font-medium"
+                className="hover:text-primary dark:hover:text-primary flex items-center gap-1.5 transition-colors font-medium"
               >
-                <Presentation className="h-3.5 w-3.5 text-[#0071e3]" />
+                <Presentation className="h-3.5 w-3.5 text-primary" />
                 Test 3D Avatar &amp; Audio Lab
               </Link>
             </div>
           </div>
         </main>
 
-        <footer className="py-5 border-t border-[#e5e5ea] dark:border-[#2c2c2e] text-center text-xs text-[#86868b]">
+        <footer className="py-5 border-t border-border dark:border-border text-center text-xs text-muted-foreground">
           IntelliClass AI &bull; Student Portal
         </footer>
       </div>
@@ -177,26 +177,26 @@ export default function HomePage() {
 
   // ── B. GUEST VISITOR VIEW: APPLE HIG LANDING PAGE ───────────────────────
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-black text-[#1d1d1f] dark:text-[#f5f5f7] selection:bg-[#0071e3] selection:text-white antialiased transition-colors duration-300">
+    <div className="min-h-screen w-full bg-white dark:bg-black text-foreground dark:text-foreground selection:bg-primary selection:text-white antialiased transition-colors duration-300">
       {/* ── 1. UNIFIED APPLE FROSTED NAVBAR ──────────────────────────────────── */}
       <Navbar />
 
       {/* ── 2. HERO SECTION ─────────────────────────────────────────────────── */}
       <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 px-4 sm:px-6 text-center max-w-5xl mx-auto">
         {/* Apple Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7] text-[12px] font-semibold tracking-tight mb-8">
-          <span className="w-2 h-2 rounded-full bg-[#0071e3]" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-muted dark:bg-card border border-border dark:border-border text-foreground dark:text-foreground text-xs font-semibold tracking-tight mb-8">
+          <span className="w-2 h-2 rounded-full bg-primary" />
           Autonomous AI Classroom System
         </div>
 
         {/* Apple Massive Headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[76px] font-bold tracking-[-0.03em] leading-[1.06] text-[#1d1d1f] dark:text-[#f5f5f7] mb-6">
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-7xl font-bold tracking-tight leading-tight text-foreground dark:text-foreground mb-6">
           The AI classroom.<br className="hidden sm:inline" />
           Teaches like a professor.
         </h1>
 
         {/* Subhead (17px Apple Body standard) */}
-        <p className="text-[17px] sm:text-[20px] leading-relaxed text-[#86868b] dark:text-[#a1a1a6] max-w-2xl mx-auto mb-10 font-normal">
+        <p className="text-base sm:text-xl leading-relaxed text-muted-foreground dark:text-muted-foreground max-w-2xl mx-auto mb-10 font-normal">
           IntelliClass transforms course textbooks into live, interactive 3D lectures with an expressive biomechanical avatar, neural speech, and instant Q&amp;A.
         </p>
 
@@ -206,7 +206,7 @@ export default function HomePage() {
             asChild
             size="lg"
             variant="default"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs rounded-full"
+ className="w-full sm:w-auto "
           >
             <Link href="/register" className="inline-flex items-center justify-center gap-2">
               <span>Start as Lecturer</span>
@@ -222,10 +222,10 @@ export default function HomePage() {
         </div>
 
         {/* Monochromatic Link */}
-        <div className="flex items-center justify-center gap-6 text-[15px]">
+        <div className="flex items-center justify-center gap-6 text-base">
           <Link
             href="/showcase"
-            className="text-[#0071e3] hover:underline flex items-center gap-1 font-medium group"
+            className="text-primary hover:underline flex items-center gap-1 font-medium group"
           >
             Explore 3D Avatar Lab in real time
             <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
@@ -233,13 +233,13 @@ export default function HomePage() {
         </div>
 
         {/* Key Metrics Ribbon */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 mt-16 border-t border-[#e5e5ea] dark:border-[#2c2c2e] max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 mt-16 border-t border-border dark:border-border max-w-4xl mx-auto">
           {HIGHLIGHTS.map((item) => (
             <div key={item.label} className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground dark:text-foreground">
                 {item.value}
               </div>
-              <div className="text-xs sm:text-[13px] text-[#86868b] dark:text-[#a1a1a6] mt-1 font-medium">
+              <div className="text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground mt-1 font-medium">
                 {item.label}
               </div>
             </div>
@@ -248,16 +248,16 @@ export default function HomePage() {
       </section>
 
       {/* ── 3. FEATURES BENTO GRID ──────────────────────────────────────────── */}
-      <section id="features" className="py-24 bg-[#f5f5f7] dark:bg-[#161617] border-y border-[#e5e5ea] dark:border-[#2c2c2e] transition-colors">
+      <section id="features" className="py-24 bg-muted dark:bg-card border-y border-border dark:border-border transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-[12px] uppercase tracking-widest font-bold text-[#86868b] dark:text-[#a1a1a6] block mb-2">
+            <span className="text-xs uppercase tracking-widest font-bold text-muted-foreground dark:text-muted-foreground block mb-2">
               Capabilities
             </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground dark:text-foreground">
               Engineered for natural pedagogy.
             </h2>
-            <p className="text-[17px] text-[#86868b] dark:text-[#a1a1a6] mt-4 leading-relaxed">
+            <p className="text-base text-muted-foreground dark:text-muted-foreground mt-4 leading-relaxed">
               Every system is built to mimic the nuances of human lecturing — from gesture timing to contextual student interruption.
             </p>
           </div>
@@ -311,13 +311,13 @@ export default function HomePage() {
       {/* ── 4. HOW IT WORKS ─────────────────────────────────────────────────── */}
       <section id="how-it-works" className="py-24 md:py-32 px-4 sm:px-6 max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-20">
-          <span className="text-[12px] uppercase tracking-widest font-bold text-[#86868b] dark:text-[#a1a1a6] block mb-2">
+          <span className="text-xs uppercase tracking-widest font-bold text-muted-foreground dark:text-muted-foreground block mb-2">
             Workflow
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground dark:text-foreground">
             From syllabus to broadcast.
           </h2>
-          <p className="text-[17px] text-[#86868b] dark:text-[#a1a1a6] mt-4">
+          <p className="text-base text-muted-foreground dark:text-muted-foreground mt-4">
             A three-step pipeline designed for university faculty and students.
           </p>
         </div>
@@ -326,16 +326,16 @@ export default function HomePage() {
           {STEPS.map((step) => (
             <div
               key={step.step}
-              className="p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#1c1c1e] border border-[#e5e5ea] dark:border-[#2c2c2e] shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-none flex flex-col justify-between"
+              className="p-8 sm:p-10 rounded-3xl bg-white dark:bg-card border border-border dark:border-border shadow-xs dark:shadow-none flex flex-col justify-between"
             >
               <div>
-                <div className="text-4xl font-bold tracking-tight text-[#0071e3] mb-6">
+                <div className="text-4xl font-bold tracking-tight text-primary mb-6">
                   {step.step}
                 </div>
-                <h3 className="text-xl font-bold text-[#1d1d1f] dark:text-[#f5f5f7] mb-3">
+                <h3 className="text-xl font-bold text-foreground dark:text-foreground mb-3">
                   {step.title}
                 </h3>
-                <p className="text-[15px] sm:text-[16px] leading-relaxed text-[#86868b] dark:text-[#a1a1a6]">
+                <p className="text-base sm:text-base leading-relaxed text-muted-foreground dark:text-muted-foreground">
                   {step.description}
                 </p>
               </div>
@@ -345,23 +345,23 @@ export default function HomePage() {
       </section>
 
       {/* ── 5. PRIVACY & SECURITY BANNER ────────────────────────────────────── */}
-      <section className="py-16 bg-[#f5f5f7] dark:bg-[#1c1c1e] border-y border-[#e5e5ea] dark:border-[#2c2c2e] transition-colors">
+      <section className="py-16 bg-muted dark:bg-card border-y border-border dark:border-border transition-colors">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-          <div className="w-14 h-14 rounded-2xl bg-white dark:bg-[#2c2c2e] border border-[#e5e5ea] dark:border-[#3a3a3c] flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] shrink-0 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-white dark:bg-muted border border-border dark:border-border flex items-center justify-center text-muted-foreground dark:text-muted-foreground shrink-0 shadow-xs">
             <ShieldCheck className="h-7 w-7" />
           </div>
           <div className="space-y-1 flex-1">
-            <h4 className="text-lg font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <h4 className="text-lg font-bold text-foreground dark:text-foreground">
               Enterprise Institutional Security
             </h4>
-            <p className="text-sm text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+            <p className="text-sm text-muted-foreground dark:text-muted-foreground leading-relaxed">
               Course documents and generated teaching data remain strictly protected under encrypted database row-level security.
             </p>
           </div>
           <div className="shrink-0">
             <Link
               href="/register"
-              className="text-xs font-semibold text-[#0071e3] hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
               Learn more <ChevronRight className="h-3.5 w-3.5" />
             </Link>
@@ -371,10 +371,10 @@ export default function HomePage() {
 
       {/* ── 6. BOTTOM CALL TO ACTION ────────────────────────────────────────── */}
       <section className="py-24 md:py-32 text-center px-4 sm:px-6 max-w-4xl mx-auto">
-        <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7] mb-6">
+        <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground dark:text-foreground mb-6">
           Ready to elevate your lectures?
         </h2>
-        <p className="text-[17px] sm:text-[19px] text-[#86868b] dark:text-[#a1a1a6] max-w-xl mx-auto mb-10 leading-relaxed">
+        <p className="text-base sm:text-lg text-muted-foreground dark:text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed">
           Create custom AI-led sessions in seconds. Accessible on any modern web browser.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -382,7 +382,7 @@ export default function HomePage() {
             asChild
             size="lg"
             variant="default"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] shadow-xs rounded-full"
+ className="w-full sm:w-auto "
           >
             <Link href="/register" className="inline-flex items-center justify-center gap-2">
               <span>Create Lecturer Account</span>
@@ -393,7 +393,7 @@ export default function HomePage() {
             asChild
             size="lg"
             variant="secondary"
-            className="w-full sm:w-auto px-7 text-[15px] sm:text-[16px] rounded-full"
+ className="w-full sm:w-auto "
           >
             <Link href="/login">
               <span>Sign In</span>
@@ -403,19 +403,19 @@ export default function HomePage() {
       </section>
 
       {/* ── 7. APPLE MINIMALIST FOOTER ──────────────────────────────────────── */}
-      <footer className="py-10 border-t border-[#e5e5ea] dark:border-[#2c2c2e] bg-white dark:bg-black text-xs text-[#86868b] dark:text-[#86868b] transition-colors">
+      <footer className="py-10 border-t border-border dark:border-border bg-white dark:bg-black text-xs text-muted-foreground dark:text-muted-foreground transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <div className="font-semibold text-foreground dark:text-foreground">
             IntelliClass AI
           </div>
           <div>
             Copyright &copy; {new Date().getFullYear()} IntelliClass. University Final Year Capstone Project.
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/showcase" className="hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
+            <Link href="/showcase" className="hover:text-foreground dark:hover:text-foreground transition-colors">
               Avatar Lab
             </Link>
-            <Link href="/dashboard" className="hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
+            <Link href="/dashboard" className="hover:text-foreground dark:hover:text-foreground transition-colors">
               Dashboard
             </Link>
           </div>

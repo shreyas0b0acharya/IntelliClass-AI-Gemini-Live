@@ -51,10 +51,10 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
   };
 
   const getVolumeIcon = () => {
-    if (isMuted || volume === 0) return <VolumeX className="h-4 w-4 text-red-500" />;
-    if (volume < 35) return <Volume className="h-4 w-4 text-[#0071e3]" />;
-    if (volume < 70) return <Volume1 className="h-4 w-4 text-[#0071e3]" />;
-    return <Volume2 className="h-4 w-4 text-[#0071e3]" />;
+    if (isMuted || volume === 0) return <VolumeX className="h-4 w-4 text-destructive" />;
+    if (volume < 35) return <Volume className="h-4 w-4 text-primary" />;
+    if (volume < 70) return <Volume1 className="h-4 w-4 text-primary" />;
+    return <Volume2 className="h-4 w-4 text-primary" />;
   };
 
   // ── Menu Variant: Pure Apple HIG Dropdown Item Structure ──────────────────
@@ -81,7 +81,7 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
               <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                 Audio Volume
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-xs text-muted-foreground truncate">
                 {isMuted ? "Audio muted • tap to restore" : "Master avatar voice"}
               </span>
             </div>
@@ -90,7 +90,7 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
           <button
             type="button"
             onClick={handleToggleMute}
-            className="shrink-0 font-mono text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+            className="shrink-0 font-mono text-xs font-semibold px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
             title={isMuted ? "Click to unmute" : "Click to mute"}
           >
             {isMuted ? "Muted" : `${volume}%`}
@@ -119,7 +119,7 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
   // ── Card Variant: Compact horizontal Apple pill for header bars ───────────
   return (
     <div
-      className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-[#1c1c1e]/60 backdrop-blur-xl shadow-xs text-xs font-semibold select-none"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/60 dark:bg-card/60 backdrop-blur-xl shadow-xs text-xs font-semibold select-none"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
@@ -128,7 +128,7 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
         variant="ghost"
         size="icon-xs"
         onClick={handleToggleMute}
-        className="h-6 w-6 text-foreground shrink-0 hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
+        className="h-6 w-6 shrink-0"
         title={isMuted ? "Unmute Audio" : "Mute Audio"}
         aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
       >
@@ -150,7 +150,7 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
         />
       </div>
 
-      <span className="font-mono text-[10px] text-muted-foreground w-7 text-right">
+      <span className="font-mono text-xs text-muted-foreground w-7 text-right">
         {isMuted ? "0%" : `${volume}%`}
       </span>
     </div>

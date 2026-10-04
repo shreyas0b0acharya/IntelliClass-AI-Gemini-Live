@@ -49,17 +49,17 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
     return (
       <div
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-neutral-900/90 hover:bg-neutral-900 border border-white/15 backdrop-blur-xl text-white shadow-2xl cursor-pointer transition-all hover:scale-105"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-card/90 hover:bg-card border border-white/15 backdrop-blur-xl text-white shadow-2xl cursor-pointer transition-all hover:scale-105"
       >
         <div className="relative flex items-center justify-center">
-          <Loader2 className="h-4 w-4 animate-spin text-[#0071e3]" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold">Preparing IntelliClass</span>
-            <span className="text-[11px] text-white/60">{progress.overallPercentage}%</span>
+            <span className="text-xs text-white/60">{progress.overallPercentage}%</span>
           </div>
-          <span className="text-[10px] text-white/50 truncate max-w-[140px]">
+          <span className="text-xs text-white/50 truncate max-w-[140px]">
             {progress.currentAssetName || "Syncing assets..."}
           </span>
         </div>
@@ -71,11 +71,11 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
   // ── Full Glassmorphic Modal ───────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#1c1c1e]/95 border border-white/15 shadow-2xl p-6 sm:p-7 text-white backdrop-blur-2xl flex flex-col space-y-5">
+      <div className="relative w-full max-w-md rounded-3xl bg-card/95 border border-white/15 shadow-2xl p-6 sm:p-7 text-white backdrop-blur-2xl flex flex-col space-y-5">
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-[#0071e3]/20 border border-[#0071e3]/40 flex items-center justify-center text-[#0071e3]">
+            <div className="w-9 h-9 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary">
               <HardDriveDownload className="h-4 w-4" />
             </div>
             <div>
@@ -97,7 +97,7 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
         <div className="space-y-2 bg-white/[0.04] p-4 rounded-2xl border border-white/5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-white/80">Overall Progress</span>
-            <span className="font-bold text-[#0071e3] text-sm">
+            <span className="font-bold text-primary text-sm">
               {progress.overallPercentage}%
             </span>
           </div>
@@ -106,11 +106,11 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
           <div className="relative w-full h-2 rounded-full bg-white/10 overflow-hidden">
             <div
               style={{ "--progress-bar-width": `${progress.overallPercentage}%` } as React.CSSProperties}
-              className="h-full w-[var(--progress-bar-width)] bg-gradient-to-r from-[#0071e3] to-[#4facfe] rounded-full transition-all duration-300"
+              className="h-full w-[var(--progress-bar-width)] bg-gradient-to-r from-primary to-primary rounded-full transition-all duration-300"
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-white/50 pt-1">
+          <div className="flex items-center justify-between text-xs text-white/50 pt-1">
             <span>
               {formatBytes(progress.downloadedBytes)} / {formatBytes(progress.totalBytes)}
             </span>
@@ -130,7 +130,7 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
               <span className="truncate max-w-[240px]">
                 {progress.currentAssetName}
               </span>
-              <span className="text-[11px] font-medium text-white/90">
+              <span className="text-xs font-medium text-white/90">
                 {progress.currentAssetPercentage}%
               </span>
             </div>
@@ -145,7 +145,7 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
 
         {/* Itemized Phased Priority Checklist */}
         <div className="space-y-2 pt-1 border-t border-white/10">
-          <div className="text-[11px] font-semibold text-white/50 uppercase tracking-wider">
+          <div className="text-xs font-semibold text-white/50 uppercase tracking-wider">
             Package Components
           </div>
 
@@ -154,11 +154,11 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
             <div className="flex items-center justify-between py-1 px-2.5 rounded-xl bg-white/[0.02]">
               <span className="text-white/80">P0: 3D Avatar & Stage Backdrop</span>
               {progress.isP0Ready ? (
-                <span className="flex items-center gap-1 text-emerald-400 font-medium text-[11px]">
+                <span className="flex items-center gap-1 text-chart-2 font-medium text-xs">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Ready
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-[#0071e3] text-[11px]">
+                <span className="flex items-center gap-1 text-primary text-xs">
                   <Loader2 className="h-3 w-3 animate-spin" /> Syncing
                 </span>
               )}
@@ -168,11 +168,11 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
             <div className="flex items-center justify-between py-1 px-2.5 rounded-xl bg-white/[0.02]">
               <span className="text-white/80">P1: 3D Auditorium Mesh</span>
               {progress.overallPercentage >= 85 ? (
-                <span className="flex items-center gap-1 text-emerald-400 font-medium text-[11px]">
+                <span className="flex items-center gap-1 text-chart-2 font-medium text-xs">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Ready
                 </span>
               ) : (
-                <span className="text-white/40 text-[11px]">Pending</span>
+                <span className="text-white/40 text-xs">Pending</span>
               )}
             </div>
 
@@ -180,11 +180,11 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
             <div className="flex items-center justify-between py-1 px-2.5 rounded-xl bg-white/[0.02]">
               <span className="text-white/80">P2: Studio Environment Lighting</span>
               {progress.isComplete ? (
-                <span className="flex items-center gap-1 text-emerald-400 font-medium text-[11px]">
+                <span className="flex items-center gap-1 text-chart-2 font-medium text-xs">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Ready
                 </span>
               ) : (
-                <span className="text-white/40 text-[11px]">Pending</span>
+                <span className="text-white/40 text-xs">Pending</span>
               )}
             </div>
           </div>
@@ -192,7 +192,7 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
 
         {/* Live Audio Streaming Notification */}
         {isPaused && (
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-chart-4/10 border border-chart-4/20 text-chart-4 text-xs">
             <Sparkles className="h-3.5 w-3.5 shrink-0" />
             <span>Paused for live lecture audio. Resuming automatically...</span>
           </div>

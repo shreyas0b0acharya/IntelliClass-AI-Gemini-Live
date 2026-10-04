@@ -78,7 +78,7 @@ export function StageOverlay({
       ) : isThinking ? (
         /* Subtle Floating Thinking Pill for Students (Zero script clutter) */
         <div className="w-full flex justify-center px-1 sm:px-4 pointer-events-none animate-in fade-in-0 duration-200">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/85 dark:bg-[#1c1c1e]/85 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-lg text-xs font-semibold text-purple-600 dark:text-purple-400 animate-pulse">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/85 dark:bg-card/85 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-lg text-xs font-semibold text-chart-5 dark:text-chart-5 animate-pulse">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             <span>AI addressing question...</span>
           </div>
@@ -103,7 +103,7 @@ export function StageOverlay({
       <div
         className={cn(
           "w-full flex flex-col items-center gap-2 pointer-events-none transition-all",
-          isShortLandscape ? "pb-1" : "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          isShortLandscape ? "pb-1" : "pb-2"
         )}
       >
         {/* Subtitles Overlay (Optionally togglable for both roles) */}

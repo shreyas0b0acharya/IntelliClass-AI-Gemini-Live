@@ -130,7 +130,7 @@ export default function AvatarSettingsPage() {
             asChild
             variant="ghost"
             size="xs"
-            className="h-8 px-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-full"
+ className="h-8 "
           >
             <Link href="/dashboard" className="inline-flex items-center gap-1.5">
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -140,11 +140,11 @@ export default function AvatarSettingsPage() {
 
           <div className="h-3.5 w-px bg-black/10 dark:bg-white/10" />
 
-          <Breadcrumb className="text-xs">
+ <Breadcrumb className="">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="/dashboard" className="hover:text-[#0071e3] transition-colors">
+                  <Link href="/dashboard" className="hover:text-primary transition-colors">
                     Faculty Studio
                   </Link>
                 </BreadcrumbLink>
@@ -152,14 +152,14 @@ export default function AvatarSettingsPage() {
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="/settings" className="hover:text-[#0071e3] transition-colors">
+                  <Link href="/settings" className="hover:text-primary transition-colors">
                     Settings
                   </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-[#0071e3]">
+ <BreadcrumbPage className="">
                   AI Avatar &amp; Voice
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -169,16 +169,16 @@ export default function AvatarSettingsPage() {
       </div>
 
       {/* ── Apple Inset Header Card ─────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6">
+      <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 dark:bg-[#0071e3]/20 flex items-center justify-center text-[#0071e3] shrink-0 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary shrink-0 shadow-xs">
             <Sliders className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-foreground">
               AI Avatar &amp; Voice Studio
             </h1>
-            <p className="text-xs text-[#86868b] mt-0.5 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Configure default 3D instructor models, Kokoro neural voices, speech pace, and real-time lip sync preview.
             </p>
           </div>
@@ -189,12 +189,12 @@ export default function AvatarSettingsPage() {
         {/* ── Left Column: Inset Grouped Settings Cards ─────────────── */}
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Default Avatar Persona & Gender */}
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-3.5">
+          <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-3.5">
             <div className="space-y-0.5">
-              <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Default Avatar Persona &amp; Gender
               </h2>
-              <p className="text-xs text-[#86868b]">
+              <p className="text-xs text-muted-foreground">
                 Select the primary 3D instructor persona to automatically select when creating a new lecture.
               </p>
             </div>
@@ -211,12 +211,12 @@ export default function AvatarSettingsPage() {
           </div>
 
           {/* Section 2: Default Model Names & Presets */}
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-5">
+          <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-5">
             <div className="space-y-0.5">
-              <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 Default Model Names &amp; Presets
               </h2>
-              <p className="text-xs text-[#86868b]">
+              <p className="text-xs text-muted-foreground">
                 Specify default display names and titles for male and female 3D instructor models.
               </p>
             </div>
@@ -245,12 +245,12 @@ export default function AvatarSettingsPage() {
           </div>
 
           {/* Section 3: HeadTTS Voice & Audio Configuration */}
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-4">
+          <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-4">
             <div className="space-y-0.5">
-              <h2 className="text-[11px] font-semibold tracking-wider text-[#86868b] uppercase">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 HeadTTS Voice &amp; Audio Configuration
               </h2>
-              <p className="text-xs text-[#86868b]">
+              <p className="text-xs text-muted-foreground">
                 Select local Kokoro neural voice profiles and speech pace delivered by HeadTTS.
               </p>
             </div>
@@ -271,17 +271,17 @@ export default function AvatarSettingsPage() {
         {/* ── Right Column: 3D Viewport Preview & Actions ────────────── */}
         <div className="lg:col-span-5 space-y-6">
           {/* Section 4: 3D Viewport Preview */}
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-4">
+          <div className="bg-white dark:bg-card rounded-3xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <h3 className="text-sm font-bold text-foreground dark:text-foreground">
                   {currentModelName || "3D Instructor Avatar"}
                 </h3>
-                <p className="text-[11px] text-[#86868b]">
+                <p className="text-xs text-muted-foreground">
                   {defaultGender === "male" ? "Male Avatar Mesh" : "Female Avatar Mesh"} &bull; Real-time 3D Viewport
                 </p>
               </div>
-              <span className="text-[10px] font-semibold bg-[#0071e3]/10 text-[#0071e3] px-2.5 py-0.5 rounded-full border border-[#0071e3]/20">
+              <span className="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
                 ACTIVE
               </span>
             </div>
@@ -308,19 +308,19 @@ export default function AvatarSettingsPage() {
                   setAudioPath(path);
                   setLipSyncData(data);
                 }}
-                className="w-full rounded-full h-11 font-semibold text-xs shadow-xs cursor-pointer gap-2"
+ className="w-full h-11 cursor-pointer "
               />
             </div>
           </div>
 
           {/* Action Controls: Save & Reset */}
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-3">
+          <div className="bg-white dark:bg-card rounded-3xl border border-black/5 dark:border-white/10 shadow-xs p-6 space-y-3">
             <Button
               onClick={handleSave}
               disabled={isSaving}
               variant="default"
-              className={`w-full h-11 font-semibold text-xs sm:text-sm shadow-xs border-0 rounded-full ${
-                isSaved ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+ className={`w-full h-11 ${
+ isSaved ? " " : ""
               }`}
             >
               {isSaving ? (
@@ -331,7 +331,7 @@ export default function AvatarSettingsPage() {
               ) : (
                 <>
                   {isSaved ? (
-                    <Check className="h-4 w-4 stroke-[2.5]" />
+                    <Check className="h-4 w-4 stroke-2" />
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
@@ -343,7 +343,7 @@ export default function AvatarSettingsPage() {
             <Button
               variant="secondary"
               onClick={handleReset}
-              className="w-full h-10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white font-medium text-xs border-0 shadow-none rounded-full inline-flex items-center gap-1.5 justify-center"
+ className="w-full h-10 inline-flex items-center justify-center"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset to System Defaults</span>

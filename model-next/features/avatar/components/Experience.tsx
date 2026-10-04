@@ -102,10 +102,10 @@ export function Experience({
       />
 
       {/* Studio portrait lighting: 3-point illumination + frontal eye catchlight across all tiers */}
-      <ambientLight intensity={0.9} color="#ffffff" />
-      <directionalLight position={[2, 4, 3]} intensity={1.5} color="#ffffff" />
-      <directionalLight position={[-2, 2, 2]} intensity={0.7} color="#dbe5ff" />
-      <directionalLight position={[0, 1.5, 3]} intensity={0.4} color="#ffffff" />
+      <ambientLight intensity={0.9} color={0xffffff} />
+      <directionalLight position={[2, 4, 3]} intensity={1.5} color={0xffffff} />
+      <directionalLight position={[-2, 2, 2]} intensity={0.7} color={0xdbe5ff} />
+      <directionalLight position={[0, 1.5, 3]} intensity={0.4} color={0xffffff} />
 
       {/* Subtle HDR environment fill for high tier */}
       {capabilities.enableEnvironmentMap && (

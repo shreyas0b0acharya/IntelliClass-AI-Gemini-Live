@@ -57,15 +57,15 @@ export function ProjectionBoard({
               : "w-72 sm:w-84 md:w-96",
           "rounded-2xl sm:rounded-3xl overflow-hidden",
           "border border-black/10 dark:border-white/10",
-          "bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-2xl shadow-2xl",
+          "bg-white/90 dark:bg-card/90 backdrop-blur-2xl shadow-2xl",
           "text-foreground select-none"
         )}
       >
         {/* Board Header */}
         <div className="p-2.5 sm:p-3 px-3 sm:px-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between bg-black/[0.02] dark:bg-white/[0.02] gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-chart-2/10 border border-chart-2/20 text-chart-2 dark:text-chart-2 text-xs font-bold uppercase tracking-wider shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-chart-2 animate-pulse" />
               <span>Slide</span>
             </div>
             <span
@@ -81,7 +81,7 @@ export function ProjectionBoard({
               variant="ghost"
               size="xs"
               onClick={() => setIsMinimized(!isMinimized)}
-              className="h-6 px-2 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
+ className="h-6 "
               title={isMinimized ? "Expand Visual Board" : "Minimize to PIP"}
             >
               {isMinimized ? "Expand" : "Min"}
@@ -91,7 +91,7 @@ export function ProjectionBoard({
               variant="ghost"
               size="icon-xs"
               onClick={() => setIsZoomed(true)}
-              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
+ className="h-6 w-6 "
               title="Full Screen Inspection"
             >
               <Maximize2 className="h-3.5 w-3.5" />
@@ -102,7 +102,7 @@ export function ProjectionBoard({
                 variant="ghost"
                 size="icon-xs"
                 onClick={onClose}
-                className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 rounded-full"
+ className="h-6 w-6 "
                 title="Dismiss Visual"
               >
                 <X className="h-3.5 w-3.5" />
@@ -142,8 +142,8 @@ export function ProjectionBoard({
 
             {/* Hover expand hint */}
             <div className="absolute inset-0 bg-black/20 dark:bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-xl pointer-events-none">
-              <span className="px-3 py-1.5 rounded-full bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-md text-xs font-semibold text-foreground flex items-center gap-1.5 shadow-lg border border-black/10 dark:border-white/10">
-                <Maximize2 className="h-3.5 w-3.5 text-[#0071e3]" /> Click to Inspect
+              <span className="px-3 py-1.5 rounded-full bg-white/90 dark:bg-card/90 backdrop-blur-md text-xs font-semibold text-foreground flex items-center gap-1.5 shadow-lg border border-black/10 dark:border-white/10">
+                <Maximize2 className="h-3.5 w-3.5 text-primary" /> Click to Inspect
               </span>
             </div>
           </div>
@@ -163,10 +163,10 @@ export function ProjectionBoard({
               />
             </div>
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-[11px] font-semibold text-foreground truncate">
+              <span className="text-xs font-semibold text-foreground truncate">
                 {media.label || "Slide"}
               </span>
-              <span className="text-[9px] text-[#0071e3] font-medium">Click to expand</span>
+              <span className="text-xs text-primary font-medium">Click to expand</span>
             </div>
           </div>
         )}
@@ -175,10 +175,10 @@ export function ProjectionBoard({
       {/* Lightbox Full Zoom Modal */}
       {isZoomed && (
         <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
-          <DialogContent className="max-w-4xl max-h-[92vh] rounded-3xl p-0 overflow-hidden border border-black/10 dark:border-white/15 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-3xl shadow-2xl flex flex-col text-foreground">
+ <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden flex flex-col ">
             <div className="p-4 px-6 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-              <DialogTitle className="text-sm font-bold flex items-center gap-2">
-                <ImageIcon className="h-4 w-4 text-[#0071e3]" />
+ <DialogTitle className=" flex items-center ">
+                <ImageIcon className="h-4 w-4 text-primary" />
                 <span className="truncate max-w-lg">{media.label || "Projected Visual Diagram"}</span>
               </DialogTitle>
 
@@ -186,10 +186,10 @@ export function ProjectionBoard({
                 asChild
                 variant="outline"
                 size="sm"
-                className="h-8 px-3 text-xs bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border-black/10 dark:border-white/15 text-foreground rounded-full"
+ className="h-8 "
               >
                 <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
-                  <ExternalLink className="h-3.5 w-3.5 text-[#0071e3]" />
+                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
                   <span>Open Full Asset</span>
                 </a>
               </Button>

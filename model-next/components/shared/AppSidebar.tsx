@@ -109,19 +109,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Brand Header */}
-      <SidebarHeader className="border-b border-black/5 dark:border-white/10 px-3 py-3">
+ <SidebarHeader className="">
         <Link
           href="/dashboard"
           onClick={handleLinkClick}
           className={`flex items-center gap-2.5 rounded-xl transition-colors ${isCollapsed ? "justify-center" : ""
             }`}
         >
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 bg-[#0071e3] shadow-xs">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 bg-primary shadow-xs">
             <Sparkles className="h-4 w-4" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-[14px] tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+              <span className="font-bold text-sm tracking-tight text-foreground dark:text-foreground">
                 IntelliClass AI
               </span>
             </div>
@@ -130,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       {/* Navigation Sections */}
-      <SidebarContent className="px-2 py-2">
+ <SidebarContent className="">
         {/* ── 1. Workspace / Dashboard ─────────────────────────────────── */}
         <SidebarGroup>
           <SidebarGroupLabel>
@@ -172,7 +172,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={pathname === "/settings/avatar"}
                   >
                     <Link href="/settings/avatar" onClick={handleLinkClick}>
-                      <Sparkles className="h-4 w-4 shrink-0 text-[#0071e3]" />
+                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
                       <span>AI Avatar &amp; Voice</span>
                     </Link>
                   </SidebarMenuButton>
@@ -185,7 +185,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* ── 2. Course Curriculum & Full Session Structure ────────────── */}
         <SidebarGroup>
           <div className="flex items-center justify-between px-2.5 mb-1">
-            <SidebarGroupLabel className="px-0">
+ <SidebarGroupLabel className="">
               Course Spaces
             </SidebarGroupLabel>
             {isLecturer && !isCollapsed && (
@@ -196,7 +196,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     variant="ghost"
                     size="icon-xs"
                     title="Add Course Space"
-                    className="h-6 w-6 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-md"
+ className="h-6 w-6 "
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
@@ -208,13 +208,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               {loading ? (
-                <div className="p-2.5 flex items-center gap-2 text-xs text-[#86868b] animate-pulse">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3]" />
+                <div className="p-2.5 flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                   {!isCollapsed && <span>Loading courses...</span>}
                 </div>
               ) : courses.length === 0 ? (
                 !isCollapsed && (
-                  <div className="p-2.5 text-xs text-[#86868b] text-center">
+                  <div className="p-2.5 text-xs text-muted-foreground text-center">
                     <span>No active courses.</span>
                   </div>
                 )
@@ -232,7 +232,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           <BookOpen className="h-4 w-4 shrink-0" />
                           <span className="truncate">{course.title}</span>
                           {!isCollapsed && isCourseActive && (
-                            <ChevronRight className="h-3.5 w-3.5 ml-auto text-[#86868b]" />
+                            <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
                           )}
                         </Link>
                       </SidebarMenuButton>

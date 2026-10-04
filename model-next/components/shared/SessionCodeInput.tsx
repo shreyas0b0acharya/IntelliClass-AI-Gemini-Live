@@ -45,7 +45,7 @@ export function SessionCodeInput({
   return (
     <form
       onSubmit={handleJoin}
-      className={`flex items-center gap-2 bg-[#f5f5f7] dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 rounded-full p-1 shadow-xs focus-within:ring-2 focus-within:ring-[#0071e3]/30 focus-within:border-[#0071e3] transition-all h-10 ${className}`}
+      className={`flex items-center gap-2 bg-muted dark:bg-card border border-black/10 dark:border-white/10 rounded-full p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-primary transition-all h-10 ${className}`}
     >
       <input
         type="text"
@@ -53,7 +53,7 @@ export function SessionCodeInput({
         placeholder={placeholder}
         value={sessionCode}
         onChange={(e) => setSessionCode(e.target.value)}
-        className={`bg-transparent font-medium px-3.5 outline-none text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#86868b] text-xs sm:text-sm w-36 sm:w-48 ${isLarge ? "w-48 sm:w-64" : ""
+        className={`bg-transparent font-medium px-3.5 outline-none text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-xs sm:text-sm w-36 sm:w-48 ${isLarge ? "w-48 sm:w-64" : ""
           }`}
       />
       <Button
@@ -61,7 +61,7 @@ export function SessionCodeInput({
         disabled={!hasCode}
         variant={hasCode ? "default" : "secondary"}
         size="xs"
-        className="h-8 px-4 font-medium text-xs shadow-xs rounded-full"
+ className="h-8 "
       >
         <span>{buttonText}</span>
         {hasCode && <ArrowRight className="h-3 w-3" />}

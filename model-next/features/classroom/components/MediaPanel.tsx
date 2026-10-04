@@ -52,7 +52,7 @@ export function MediaPanel({
             ) : (
               <ImageIcon className="h-4 w-4 text-primary shrink-0" />
             )}
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate">
               {item.label || (isVideo ? "Lecture Video" : "Curriculum Asset")}
             </span>
           </div>

@@ -91,20 +91,20 @@ function SessionCard({
   return (
     <div
       className={`group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border transition-all shadow-xs ${isLive
-          ? "bg-emerald-500/[0.03] dark:bg-emerald-500/[0.06] border-emerald-500/30 hover:border-emerald-500/50"
+          ? "bg-chart-2/[0.03] dark:bg-chart-2/[0.06] border-chart-2/30 hover:border-chart-2/50"
           : isPaused
-            ? "bg-amber-500/[0.03] dark:bg-amber-500/[0.06] border-amber-500/30 hover:border-amber-500/50"
-            : "bg-[#f5f5f7] dark:bg-[#1c1c1e] border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15"
+            ? "bg-chart-4/5 dark:bg-chart-4/5 border-chart-4/30 hover:border-chart-4/50"
+            : "bg-muted dark:bg-card border-black/5 dark:border-white/5 hover:border-black/15 dark:hover:border-white/15"
         }`}
     >
       {/* Left: Icon + Info */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
         <div
           className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${isLive
-              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+              ? "bg-chart-2/15 text-chart-2 dark:text-chart-2"
               : isPaused
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                : "bg-black/5 dark:bg-white/10 text-[#0071e3]"
+                ? "bg-chart-4/15 text-chart-4 dark:text-chart-4"
+                : "bg-black/5 dark:bg-white/10 text-primary"
             }`}
         >
           {isLive ? (
@@ -118,15 +118,15 @@ function SessionCard({
 
         <div className="flex flex-col min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-[14px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] truncate max-w-xs sm:max-w-md">
+            <h4 className="text-sm font-bold text-foreground dark:text-foreground truncate max-w-xs sm:max-w-md">
               {session.topic}
             </h4>
             <StatusBadge status={session.status} stoppedReason={session.stopped_reason} />
-            <span className="font-mono text-[10px] bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7] px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5 font-semibold">
+            <span className="font-mono text-xs bg-black/5 dark:bg-white/10 text-foreground dark:text-foreground px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5 font-semibold">
               {meetingCode}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-[#86868b] font-medium flex-wrap">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium flex-wrap">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               {formattedDate}
@@ -136,7 +136,7 @@ function SessionCard({
             {isLive && (
               <>
                 <span>&bull;</span>
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <span className="flex items-center gap-1 text-chart-2 dark:text-chart-2 font-semibold">
                   <Users className="h-3 w-3" />
                   Live Broadcast
                 </span>
@@ -155,7 +155,7 @@ function SessionCard({
             variant="ghost"
             size="icon-xs"
             onClick={handleCopyLink}
-            className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-xl"
+ className="h-8 w-8 "
             title="Copy student join link"
           >
             <Copy className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ function SessionCard({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => onEdit(session)}
-                className="h-8 w-8 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white rounded-xl"
+ className="h-8 w-8 "
                 title="Edit session"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -178,7 +178,7 @@ function SessionCard({
                 size="icon-xs"
                 onClick={() => onRestart(session)}
                 disabled={restarting === session.id}
-                className="h-8 w-8 text-[#86868b] hover:text-[#0071e3] rounded-xl"
+ className="h-8 w-8 "
                 title="Reset session"
               >
                 {restarting === session.id ? (
@@ -191,7 +191,7 @@ function SessionCard({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => onDelete(session)}
-                className="h-8 w-8 text-[#86868b] hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+ className="h-8 w-8 "
                 title="Delete session"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -206,8 +206,8 @@ function SessionCard({
             asChild
             size="sm"
             variant="default"
-            className={`h-10 px-5 font-medium text-xs sm:text-sm rounded-full ${
-              isLive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+ className={`h-10 ${
+ isLive ? " " : ""
             }`}
           >
             <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
@@ -225,7 +225,7 @@ function SessionCard({
                 asChild
                 size="sm"
                 variant="default"
-                className="h-10 px-5 font-medium text-xs sm:text-sm rounded-full bg-emerald-600 hover:bg-emerald-700 text-white"
+ className="h-10 "
               >
                 <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
                   <Radio className="h-3.5 w-3.5" />
@@ -237,7 +237,7 @@ function SessionCard({
                 asChild
                 size="sm"
                 variant="default"
-                className="h-10 px-5 font-medium text-xs sm:text-sm rounded-full"
+ className="h-10 "
               >
                 <Link href={`/classroom/${session.id}`} className="inline-flex items-center gap-1.5">
                   <Play className="h-3.5 w-3.5 fill-current" />
@@ -246,7 +246,7 @@ function SessionCard({
                 </Link>
               </Button>
             ) : (
-              <div className="flex items-center gap-1.5 text-[11px] text-[#86868b] font-medium px-3.5 h-9 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium px-3.5 h-9 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/5">
                 <Lock className="h-3.5 w-3.5" />
                 <span>Ended</span>
               </div>
@@ -366,19 +366,19 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-[#f5f5f7] dark:bg-[#1c1c1e] shadow-xs animate-pulse"
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-muted dark:bg-card shadow-xs animate-pulse"
           >
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
-              <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
+ <Skeleton className="w-11 h-11 shrink-0" />
               <div className="space-y-2 flex-1 max-w-md">
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-48 rounded-md" />
-                  <Skeleton className="h-4 w-16 rounded-full" />
+ <Skeleton className="h-4 w-48 " />
+ <Skeleton className="h-4 w-16 " />
                 </div>
-                <Skeleton className="h-3 w-32 rounded-md" />
+ <Skeleton className="h-3 w-32 " />
               </div>
             </div>
-            <Skeleton className="h-10 w-32 rounded-full shrink-0 self-end sm:self-center" />
+ <Skeleton className="h-10 w-32 shrink-0 self-end sm:self-center" />
           </div>
         ))}
       </div>
@@ -388,11 +388,11 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
   if (sessions.length === 0) {
     return (
       <div className="p-10 rounded-2xl border border-dashed border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center space-y-3">
-        <div className="w-12 h-12 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center mx-auto text-[#86868b]">
+        <div className="w-12 h-12 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center mx-auto text-muted-foreground">
           <Sparkles className="h-6 w-6" />
         </div>
-        <p className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">No classroom sessions yet</p>
-        <p className="text-xs text-[#86868b] max-w-xs mx-auto leading-relaxed">
+        <p className="text-sm font-bold text-foreground dark:text-foreground">No classroom sessions yet</p>
+        <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
           {isLecturer
             ? "Click 'New AI Lecture' above to generate and broadcast your first lecture."
             : "Live lectures by your professor will appear here. Come back when a session goes live."}
@@ -424,10 +424,10 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-chart-2 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-chart-2" />
             </span>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Live &amp; Active Broadcasts
             </h3>
           </div>
@@ -446,14 +446,14 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
             className="flex items-center gap-2 w-full text-left group cursor-pointer p-1"
             onClick={() => setHistoryExpanded((v) => !v)}
           >
-            <Clock className="h-3.5 w-3.5 text-[#86868b]" />
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b] group-hover:text-[#1d1d1f] dark:group-hover:text-white transition-colors">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-foreground dark:group-hover:text-white transition-colors">
               Session History
-              <span className="ml-2 text-[10px] font-semibold bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-full text-[#1d1d1f] dark:text-[#f5f5f7]">
+              <span className="ml-2 text-xs font-semibold bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-full text-foreground dark:text-foreground">
                 {historySessions.length}
               </span>
             </h3>
-            <span className="ml-auto text-[#86868b]">
+            <span className="ml-auto text-muted-foreground">
               {historyExpanded ? (
                 <ChevronUp className="h-4 w-4" />
               ) : (
@@ -472,7 +472,7 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
 
           {!historyExpanded && historySessions.length > 0 && (
             <div
-              className="text-center text-xs text-[#86868b] cursor-pointer hover:text-[#1d1d1f] dark:hover:text-white transition-colors py-2"
+              className="text-center text-xs text-muted-foreground cursor-pointer hover:text-foreground dark:hover:text-white transition-colors py-2"
               onClick={() => setHistoryExpanded(true)}
             >
               Click to view {historySessions.length} past session{historySessions.length > 1 ? "s" : ""}
@@ -484,8 +484,8 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
       {/* No live sessions notice for students */}
       {!isLecturer && liveSessions.length === 0 && historySessions.length > 0 && (
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
-          <Radio className="h-4 w-4 text-[#86868b] shrink-0" />
-          <p className="text-xs text-[#86868b]">
+          <Radio className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-xs text-muted-foreground">
             No live broadcast active right now. You can join when a professor starts broadcasting.
           </p>
         </div>
@@ -503,26 +503,26 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
 
       {/* Delete Confirm Dialog */}
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="rounded-3xl border border-black/10 dark:border-white/10 shadow-2xl p-0 overflow-hidden max-w-sm bg-[#f5f5f7] dark:bg-[#1c1c1e]">
-          <div className="p-6 border-b border-black/5 dark:border-white/10">
+ <AlertDialogContent className=" overflow-hidden max-w-sm ">
+ <div className="p-6 border-b border-black/5 ">
             <AlertDialogHeader>
-              <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center mb-3">
-                <Trash2 className="h-5 w-5 text-red-500" />
+              <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-3">
+                <Trash2 className="h-5 w-5 text-destructive" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Delete Session?</AlertDialogTitle>
-              <AlertDialogDescription className="text-xs text-[#86868b] mt-1 leading-relaxed">
-                <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+ <AlertDialogTitle className="">Delete Session?</AlertDialogTitle>
+ <AlertDialogDescription className=" mt-1 ">
+ <span className="font-semibold ">
                   &ldquo;{deleteTarget?.topic}&rdquo;
                 </span>{" "}
                 will be permanently deleted along with all its messages and data. This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
           </div>
-          <AlertDialogFooter className="p-6 pt-4 flex-col gap-2 sm:flex-col">
+ <AlertDialogFooter className=" flex-col sm:flex-col">
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="w-full h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium text-xs gap-2"
+ className="w-full h-10 "
             >
               {deleting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Deleting...</>
@@ -532,7 +532,7 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
             </AlertDialogAction>
             <AlertDialogCancel
               disabled={deleting}
-              className="w-full h-10 rounded-full mt-0 border border-black/10 dark:border-white/10 font-medium text-xs bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-[#f5f5f7]"
+ className="w-full h-10 mt-0 "
             >
               Cancel
             </AlertDialogCancel>

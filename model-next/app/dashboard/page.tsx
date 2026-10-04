@@ -141,12 +141,12 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48 rounded-xl" />
-          <Skeleton className="h-10 w-64 rounded-full" />
+ <Skeleton className="h-8 w-48 " />
+ <Skeleton className="h-10 w-64 " />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-60 rounded-2xl w-full" />
+ <Skeleton key={i} className="h-60 w-full" />
           ))}
         </div>
       </div>
@@ -158,10 +158,10 @@ export default function DashboardPage() {
       {/* ── 1. Minimal Top Bar: Greeting + Quick Session Code + Actions ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-black/5 dark:border-white/10">
         <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground dark:text-foreground">
             Welcome back, {profile?.name || "Professor"}
           </h1>
-          <p className="text-xs text-[#86868b]">
+          <p className="text-xs text-muted-foreground">
             Live lecture broadcasts, course spaces, and recent classroom sessions.
           </p>
         </div>
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                 <Button
                   variant="default"
                   size="sm"
-                  className="px-4 h-10 font-medium text-xs shadow-xs rounded-full"
+ className=" h-10 "
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>New Course</span>
@@ -193,10 +193,10 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-chart-2 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-chart-2" />
             </span>
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Live &amp; Paused Broadcasts ({activeSessions.length})
             </h2>
           </div>
@@ -208,16 +208,16 @@ export default function DashboardPage() {
                 <div
                   key={session.id}
                   className={`flex flex-col justify-between p-5 rounded-2xl border transition-all shadow-xs min-h-[230px] ${isLive
-                      ? "bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border-emerald-500/30 hover:border-emerald-500/60 shadow-emerald-500/5"
-                      : "bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border-amber-500/30 hover:border-amber-500/60 shadow-amber-500/5"
+                      ? "bg-chart-2/[0.04] dark:bg-chart-2/[0.08] border-chart-2/30 hover:border-chart-2/60 shadow-chart-2/5"
+                      : "bg-chart-4/5 dark:bg-chart-4/10 border-chart-4/30 hover:border-chart-4/60 shadow-chart-4/5"
                     }`}
                 >
                   {/* Top: Icon + Status */}
                   <div className="flex items-start justify-between gap-2">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isLive
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          ? "bg-chart-2/15 text-chart-2 dark:text-chart-2"
+                          : "bg-chart-4/15 text-chart-4 dark:text-chart-4"
                         }`}
                     >
                       {isLive ? (
@@ -231,14 +231,14 @@ export default function DashboardPage() {
 
                   {/* Middle: Course, Topic, Code */}
                   <div className="space-y-1.5 my-3 flex-1">
-                    <p className="text-[11px] font-semibold text-[#86868b] truncate">
+                    <p className="text-xs font-semibold text-muted-foreground truncate">
                       {session.courseTitle}
                     </p>
-                    <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] line-clamp-2 leading-snug">
+                    <h3 className="text-sm font-bold text-foreground dark:text-foreground line-clamp-2 leading-snug">
                       {session.topic}
                     </h3>
                     {session.meeting_code && (
-                      <span className="inline-block font-mono text-[10px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5">
+                      <span className="inline-block font-mono text-xs font-bold text-foreground dark:text-foreground bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5">
                         {session.meeting_code}
                       </span>
                     )}
@@ -249,9 +249,9 @@ export default function DashboardPage() {
                     size="sm"
                     asChild
                     variant="default"
-                    className={`w-full h-10 text-xs font-semibold shrink-0 shadow-xs rounded-full ${
+ className={`w-full h-10 shrink-0 ${
                       isLive
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+ ? " "
                         : ""
                     }`}
                   >
@@ -272,12 +272,12 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-[#0071e3]" />
-            <h2 className="text-sm font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold tracking-tight text-foreground dark:text-foreground">
               Academic Course Spaces
             </h2>
           </div>
-          <span className="text-[11px] text-[#86868b] font-medium">
+          <span className="text-xs text-muted-foreground font-medium">
             {courses.length} Course{courses.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -285,17 +285,17 @@ export default function DashboardPage() {
         {loadingData ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-44 rounded-2xl w-full" />
+ <Skeleton key={i} className="h-44 w-full" />
             ))}
           </div>
         ) : courses.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-dashed border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center text-[#86868b] mx-auto">
+ <div className="p-8 border border-dashed border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center space-y-3">
+            <div className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground mx-auto">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">No Course Spaces Yet</p>
-              <p className="text-[11px] text-[#86868b] mt-0.5">
+              <p className="text-xs font-semibold text-foreground dark:text-foreground">No Course Spaces Yet</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Create a course space to upload course materials and launch AI lectures.
               </p>
             </div>
@@ -306,7 +306,7 @@ export default function DashboardPage() {
                   <Button
                     variant="default"
                     size="sm"
-                    className="px-4 h-9 font-medium text-xs shadow-xs rounded-full"
+ className=" h-9 "
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Create First Course</span>
@@ -321,26 +321,26 @@ export default function DashboardPage() {
               <Link
                 key={course.id}
                 href={`/course/${course.id}`}
-                className="group flex flex-col justify-between p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-[#1c1c1e] hover:border-black/15 dark:hover:border-white/20 transition-all shadow-xs hover:shadow-md min-h-[170px]"
+                className="group flex flex-col justify-between p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-white dark:bg-card hover:border-black/15 dark:hover:border-white/20 transition-all shadow-xs hover:shadow-md min-h-[170px]"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                       <BookOpen className="h-4 w-4" />
                     </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-[#86868b] group-hover:text-[#0071e3] group-hover:translate-x-0.5 transition-all" />
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] line-clamp-1 group-hover:text-[#0071e3] transition-colors">
+                    <h3 className="text-sm font-bold text-foreground dark:text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                       {course.title}
                     </h3>
-                    <p className="text-[11px] text-[#86868b] line-clamp-2 mt-1">
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                       {course.description || "No description provided."}
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-[10px] text-[#86868b]">
+                <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <FolderOpen className="h-3 w-3" />
                     Open Space
@@ -365,12 +365,12 @@ export default function DashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Presentation className="h-4 w-4 text-[#0071e3]" />
-            <h2 className="text-sm font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            <Presentation className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold tracking-tight text-foreground dark:text-foreground">
               Recent Sessions
             </h2>
           </div>
-          <span className="text-[11px] text-[#86868b] font-medium">
+          <span className="text-xs text-muted-foreground font-medium">
             {recentSessions.length} total
           </span>
         </div>
@@ -378,14 +378,14 @@ export default function DashboardPage() {
         {loadingData ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-56 rounded-2xl w-full" />
+ <Skeleton key={i} className="h-56 w-full" />
             ))}
           </div>
         ) : recentSessions.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-dashed border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center space-y-2">
-            <p className="text-xs text-[#86868b]">No previous sessions found.</p>
+ <div className="p-8 border border-dashed border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] text-center space-y-2">
+            <p className="text-xs text-muted-foreground">No previous sessions found.</p>
             {courses.length > 0 && (
-              <p className="text-[11px] text-[#86868b]">
+              <p className="text-xs text-muted-foreground">
                 Select a course above or in the sidebar to schedule your first lecture session.
               </p>
             )}
@@ -395,11 +395,11 @@ export default function DashboardPage() {
             {recentSessions.map((session) => (
               <div
                 key={session.id}
-                className="group flex flex-col justify-between p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-[#f5f5f7] dark:bg-[#1c1c1e] hover:border-black/15 dark:hover:border-white/20 transition-all shadow-xs min-h-[230px]"
+                className="group flex flex-col justify-between p-5 rounded-2xl border border-black/5 dark:border-white/5 bg-muted dark:bg-card hover:border-black/15 dark:hover:border-white/20 transition-all shadow-xs min-h-[230px]"
               >
                 {/* Top: Icon + Status */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/10 text-[#0071e3] flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/10 text-primary flex items-center justify-center shrink-0">
                     <Presentation className="h-4 w-4" />
                   </div>
                   <StatusBadge status={session.status} />
@@ -407,19 +407,19 @@ export default function DashboardPage() {
 
                 {/* Middle: Course, Topic, Code */}
                 <div className="space-y-1.5 my-3 flex-1">
-                  <p className="text-[11px] font-semibold text-[#86868b] truncate">
+                  <p className="text-xs font-semibold text-muted-foreground truncate">
                     {session.courseTitle}
                   </p>
-                  <h3 className="text-sm font-bold text-[#1d1d1f] dark:text-[#f5f5f7] line-clamp-2 leading-snug group-hover:text-[#0071e3] transition-colors">
+                  <h3 className="text-sm font-bold text-foreground dark:text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                     {session.topic}
                   </h3>
                   <div className="flex items-center gap-2 pt-0.5">
                     {session.meeting_code && (
-                      <span className="font-mono text-[10px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
+                      <span className="font-mono text-xs font-semibold text-foreground dark:text-foreground bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
                         {session.meeting_code}
                       </span>
                     )}
-                    <span className="text-[10px] text-[#86868b] flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-2.5 w-2.5" />
                       {new Date(session.created_at).toLocaleString("en-US", {
                         month: "short",
@@ -437,7 +437,7 @@ export default function DashboardPage() {
                   size="sm"
                   asChild
                   variant="secondary"
-                  className="w-full h-10 px-4 text-xs font-semibold shrink-0 shadow-xs rounded-full"
+ className="w-full h-10 shrink-0 "
                 >
                   <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-2">
                     <Play className="h-3 w-3 fill-current" />

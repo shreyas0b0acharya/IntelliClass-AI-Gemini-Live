@@ -50,7 +50,7 @@ export function AudioUnlockModal({
         disabled={isUnlocking}
         variant="default"
         size="lg"
-        className="px-10 h-13 text-sm font-bold shadow-xl shadow-primary/20 rounded-xl"
+ className=" h-13 "
       >
         {isUnlocking ? (
           <>

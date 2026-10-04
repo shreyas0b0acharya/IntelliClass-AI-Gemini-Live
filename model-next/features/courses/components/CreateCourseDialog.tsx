@@ -65,27 +65,27 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
         ) : (
           <Button
             variant="default"
-            className="font-semibold shadow-md rounded-xl inline-flex items-center gap-1.5"
+ className=" inline-flex items-center "
           >
             <Plus className="h-4 w-4" />
             <span>Create New Course</span>
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md rounded-3xl p-6">
-        <DialogHeader className="space-y-2">
+ <DialogContent className="max-w-md ">
+ <DialogHeader className="">
           <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-1">
             <BookPlus className="h-5 w-5" />
           </div>
-          <DialogTitle className="text-xl font-bold">Add Academic Course</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
+ <DialogTitle className="">Add Academic Course</DialogTitle>
+ <DialogDescription className="">
             Set up a new course subject to upload syllabus PDFs and host live AI lectures.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-2">
-            <Label htmlFor="course-title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+ <Label htmlFor="course-title" className="">
               Course Title *
             </Label>
             <Input
@@ -95,12 +95,12 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
               onChange={(e) => setTitle(e.target.value)}
               disabled={isLoading}
               required
-              className="rounded-xl h-11"
+ className=" h-11"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="course-desc" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+ <Label htmlFor="course-desc" className="">
               Description (Optional)
             </Label>
             <Textarea
@@ -109,17 +109,17 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isLoading}
-              className="rounded-xl min-h-[90px] resize-none"
+ className=" min-h-[90px] resize-none"
             />
           </div>
 
-          <DialogFooter className="pt-2">
+ <DialogFooter className="">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={isLoading}
-              className="rounded-xl"
+ className=""
             >
               <span>Cancel</span>
             </Button>
@@ -127,7 +127,7 @@ export function CreateCourseDialog({ onCreated, trigger }: CreateCourseDialogPro
               type="submit"
               variant="default"
               disabled={isLoading}
-              className="font-semibold rounded-xl inline-flex items-center gap-1.5"
+ className=" inline-flex items-center "
             >
               {isLoading ? (
                 <>

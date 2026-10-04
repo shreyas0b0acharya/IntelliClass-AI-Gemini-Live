@@ -33,15 +33,15 @@ export function LeaveClassroomDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+ <DialogContent className="max-w-sm overflow-hidden ">
         {/* Header */}
         <div className="p-6 pb-5 border-b border-border/40">
           <DialogHeader>
             <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive mb-3">
               <LogOut className="h-6 w-6" />
             </div>
-            <DialogTitle className="text-xl font-bold">Leave Classroom?</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground mt-1 leading-relaxed">
+ <DialogTitle className="">Leave Classroom?</DialogTitle>
+ <DialogDescription className=" mt-1 ">
               {isLecturer && isLive
                 ? "The session is currently live. Choose how you want to proceed."
                 : "Are you sure you want to leave this classroom?"}
@@ -56,7 +56,7 @@ export function LeaveClassroomDialog({
             onClick={onStopAndLeave}
             variant="destructive"
             size="lg"
-            className="w-full font-semibold rounded-xl inline-flex items-center justify-center gap-2"
+ className="w-full inline-flex items-center justify-center "
           >
             <LogOut className="h-4 w-4" />
             <span>{isLecturer && isLive ? "End Session & Leave" : "Leave Classroom"}</span>
@@ -68,11 +68,11 @@ export function LeaveClassroomDialog({
               onClick={onContinueInBackground}
               variant="outline"
               size="lg"
-              className="w-full font-semibold border-2 justify-start px-4 rounded-xl inline-flex items-center gap-2"
+ className="w-full justify-start inline-flex items-center "
             >
-              <Radio className="h-4 w-4 text-red-500 shrink-0" />
+              <Radio className="h-4 w-4 text-destructive shrink-0" />
               <span>Continue in Background</span>
-              <span className="ml-auto text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
                 LIVE
               </span>
             </Button>
@@ -83,7 +83,7 @@ export function LeaveClassroomDialog({
             onClick={() => onOpenChange(false)}
             variant="ghost"
             size="default"
-            className="w-full font-medium text-muted-foreground hover:text-foreground rounded-xl inline-flex items-center justify-center gap-2"
+ className="w-full inline-flex items-center justify-center "
           >
             <X className="h-4 w-4" />
             <span>Stay in Classroom</span>

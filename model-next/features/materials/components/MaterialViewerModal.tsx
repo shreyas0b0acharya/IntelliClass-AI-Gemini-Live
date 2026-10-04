@@ -85,22 +85,22 @@ export function MaterialViewerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl h-[90vh] rounded-3xl p-0 overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-[#1c1c1e] shadow-2xl flex flex-col">
+ <DialogContent className="sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <DialogHeader className="p-4 sm:p-5 border-b border-black/5 dark:border-white/10 shrink-0 bg-black/[0.015] dark:bg-white/[0.02]">
+ <DialogHeader className=" shrink-0 ">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3] shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 <FileText className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <DialogTitle className="text-sm sm:text-base font-bold truncate max-w-md">
+ <DialogTitle className=" max-w-md">
                   {file.file_name}
                 </DialogTitle>
-                <div className="flex items-center gap-2 text-[11px] text-[#86868b] mt-0.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                   <span>{sizeMb} MB</span>
                   <span>&bull;</span>
-                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <span className="flex items-center gap-1 text-chart-2 dark:text-chart-2 font-semibold">
                     <CheckCircle2 className="h-3 w-3" /> Indexed for AI Lecture Grounding
                   </span>
                 </div>
@@ -114,8 +114,8 @@ export function MaterialViewerModal({
                   <button
                     onClick={() => setActiveTab("document")}
                     className={`px-3 py-1 rounded-lg transition-all ${activeTab === "document"
-                        ? "bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs"
-                        : "text-[#86868b] hover:text-foreground"
+                        ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                       }`}
                   >
                     PDF Document
@@ -123,11 +123,11 @@ export function MaterialViewerModal({
                   <button
                     onClick={() => setActiveTab("diagrams")}
                     className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${activeTab === "diagrams"
-                        ? "bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs"
-                        : "text-[#86868b] hover:text-foreground"
+                        ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                       }`}
                   >
-                    <ImageIcon className="h-3 w-3 text-[#0071e3]" />
+                    <ImageIcon className="h-3 w-3 text-primary" />
                     <span>Visuals ({matchedDiagrams.length})</span>
                   </button>
                 </div>
@@ -139,7 +139,7 @@ export function MaterialViewerModal({
                     asChild
                     variant="outline"
                     size="sm"
-                    className="h-8 px-2.5 text-xs font-semibold hidden sm:flex rounded-xl"
+ className="h-8 hidden sm:flex "
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer" download={file.file_name} className="inline-flex items-center gap-1.5">
                       <Download className="h-3.5 w-3.5" />
@@ -151,7 +151,7 @@ export function MaterialViewerModal({
                     asChild
                     size="sm"
                     variant="default"
-                    className="h-8 px-3 text-xs font-bold rounded-xl"
+ className="h-8 "
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -165,11 +165,11 @@ export function MaterialViewerModal({
         </DialogHeader>
 
         {/* Viewer Content Frame */}
-        <div className="flex-1 w-full h-full relative bg-[#f5f5f7] dark:bg-[#121214] overflow-hidden">
+        <div className="flex-1 w-full h-full relative bg-muted dark:bg-background overflow-hidden">
           {loading ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 text-[#0071e3] animate-spin" />
-              <p className="text-xs font-semibold text-[#86868b]">Loading document preview...</p>
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <p className="text-xs font-semibold text-muted-foreground">Loading document preview...</p>
             </div>
           ) : activeTab === "diagrams" ? (
             <div className="p-6 h-full overflow-y-auto">
@@ -178,7 +178,7 @@ export function MaterialViewerModal({
                   <div
                     key={diag.id}
                     onClick={() => setSelectedDiagram(diag)}
-                    className="group relative rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-[#1c1c1e] shadow-xs cursor-pointer hover:border-[#0071e3]/60 transition-all hover:scale-[1.02]"
+                    className="group relative rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-card shadow-xs cursor-pointer hover:border-primary/60 transition-all hover:scale-[1.02]"
                   >
                     <div className="w-full h-40 overflow-hidden bg-black/5 dark:bg-white/5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -190,7 +190,7 @@ export function MaterialViewerModal({
                       />
                     </div>
                     <div className="p-2.5 bg-black/[0.02] dark:bg-white/[0.03] border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold truncate text-foreground flex-1">
+                      <span className="text-xs font-bold truncate text-foreground flex-1">
                         {diag.label}
                       </span>
                       {onProjectToStage ? (
@@ -206,13 +206,13 @@ export function MaterialViewerModal({
                             });
                             onOpenChange(false);
                           }}
-                          className="h-6 px-2 text-[10px] text-[#0071e3] hover:bg-[#0071e3]/10 font-bold shrink-0 rounded-full"
+ className="h-6 shrink-0 "
                           title="Project directly to stage"
                         >
                           Project
                         </Button>
                       ) : (
-                        <Maximize2 className="h-3.5 w-3.5 text-[#86868b] group-hover:text-[#0071e3] shrink-0 ml-1" />
+                        <Maximize2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 ml-1" />
                       )}
                     </div>
                   </div>
@@ -227,9 +227,9 @@ export function MaterialViewerModal({
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-center p-6">
-              <FileText className="h-10 w-10 text-[#86868b]" />
+              <FileText className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm font-bold text-foreground">Unable to preview document</p>
-              <p className="text-xs text-[#86868b] max-w-sm">
+              <p className="text-xs text-muted-foreground max-w-sm">
                 The file URL could not be generated. Please try again or download directly.
               </p>
             </div>
@@ -239,9 +239,9 @@ export function MaterialViewerModal({
         {/* Selected Diagram Lightbox */}
         {selectedDiagram && (
           <Dialog open={Boolean(selectedDiagram)} onOpenChange={(open) => !open && setSelectedDiagram(null)}>
-            <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border border-white/10 bg-black/95 text-white shadow-2xl">
-              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3">
-                <DialogTitle className="text-sm font-bold text-white truncate max-w-md">
+ <DialogContent className="max-w-3xl overflow-hidden ">
+ <div className="p-4 border-b flex items-center justify-between gap-3">
+ <DialogTitle className=" max-w-md">
                   {selectedDiagram.label}
                 </DialogTitle>
                 {onProjectToStage && (
@@ -257,7 +257,7 @@ export function MaterialViewerModal({
                       setSelectedDiagram(null);
                       onOpenChange(false);
                     }}
-                    className="h-8 px-3 text-xs font-semibold shadow-xs rounded-full inline-flex items-center gap-1.5"
+ className="h-8 inline-flex items-center "
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     <span>Project to Stage</span>

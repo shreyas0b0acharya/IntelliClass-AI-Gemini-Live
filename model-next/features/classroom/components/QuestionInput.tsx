@@ -44,7 +44,7 @@ export function QuestionInput({
                 : "Ask a doubt or interrupt Professor Sharma..."
           }
           disabled={disabled || isThinking}
-          className="flex-1 h-9 border-none bg-transparent shadow-none text-xs focus-visible:ring-0 placeholder:text-muted-foreground/70"
+ className="flex-1 h-9 "
         />
 
         <Button
@@ -52,7 +52,7 @@ export function QuestionInput({
           size="sm"
           variant="default"
           disabled={disabled || isThinking || !question.trim()}
-          className="h-9 px-4 text-xs font-semibold shrink-0 rounded-xl inline-flex items-center gap-1.5"
+ className="h-9 shrink-0 inline-flex items-center "
         >
           {isThinking ? (
             <>
