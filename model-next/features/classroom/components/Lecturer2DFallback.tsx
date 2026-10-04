@@ -127,8 +127,8 @@ export function Lecturer2DFallback({
             {waveformBars.map((height, idx) => (
               <div
                 key={idx}
-                style={{ height: isSpeaking ? `${height}%` : "15%" }}
-                className={`w-1 rounded-full transition-all duration-150 ${
+                style={{ "--bar-height": isSpeaking ? `${height}%` : "15%" } as React.CSSProperties}
+                className={`w-1 h-[var(--bar-height)] rounded-full transition-all duration-150 ${
                   isSpeaking ? "bg-[#0071e3]" : "bg-white/20"
                 }`}
               />

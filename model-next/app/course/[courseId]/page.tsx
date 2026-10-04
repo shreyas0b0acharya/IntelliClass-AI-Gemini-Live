@@ -6,7 +6,7 @@ import type { Course } from "@/lib/supabase/types";
 import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { MaterialList, FileUploadDialog } from "@/features/materials";
-import { SessionList, CreateSessionDialog } from "@/features/sessions";
+import { SessionList } from "@/features/sessions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";

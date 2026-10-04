@@ -187,10 +187,8 @@ export default function ClassroomPage({
 
   return (
     <div
-      className={cn(
-        "h-dvh min-h-dvh w-screen flex flex-col overflow-hidden bg-background select-none",
-        isLecturer ? "role-lecturer" : "role-student"
-      )}
+      data-role={isLecturer ? "lecturer" : "student"}
+      className="h-dvh min-h-dvh w-screen flex flex-col overflow-hidden bg-background select-none"
     >
       {/* Audio Unlock Overlay */}
       {!classroom.audioUnlocked && (

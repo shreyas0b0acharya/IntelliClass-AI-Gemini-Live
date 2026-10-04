@@ -50,7 +50,9 @@ export function MaterialViewerModal({
     }
 
     let isMounted = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (isMounted) setLoading(true);
+    });
 
     api
       .getCourseFileViewUrl(courseId, file.id)

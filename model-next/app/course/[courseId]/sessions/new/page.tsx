@@ -26,7 +26,6 @@ import {
   FileText,
   Upload,
   ShieldCheck,
-  BookOpen,
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";

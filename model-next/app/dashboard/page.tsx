@@ -91,7 +91,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthLoading && user) {
-      loadData();
+      queueMicrotask(() => {
+        void loadData();
+      });
     }
 
     // Listen to local window event triggered on course creation/deletion
@@ -133,7 +135,7 @@ export default function DashboardPage() {
       supabase.removeChannel(coursesChannel);
       supabase.removeChannel(sessionsChannel);
     };
-  }, [loadData]);
+  }, [loadData, isAuthLoading, user]);
 
   if (isAuthLoading && !profile) {
     return (

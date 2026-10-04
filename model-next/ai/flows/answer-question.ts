@@ -53,7 +53,7 @@ export const studentAIQuestionAnsweringFlow = ai.defineFlow(
 
         if (!error && matches && matches.length > 0) {
           return matches
-            .map((m: any) => m.content)
+            .map((m: { content?: string }) => m.content)
             .filter(Boolean)
             .join("\n\n---\n\n");
         }

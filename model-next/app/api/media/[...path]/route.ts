@@ -89,7 +89,7 @@ export async function GET(
         }
 
         return new NextResponse("File not found in storage", { status: 404 });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Media proxy error:", err);
         return new NextResponse("Internal server error", { status: 500 });
     }

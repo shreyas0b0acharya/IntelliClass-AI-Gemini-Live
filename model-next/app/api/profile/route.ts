@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
     const {
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ profile, user });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API GET /api/profile error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -68,9 +68,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ profile: data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API POST /api/profile error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -89,7 +89,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { name, role } = body;
 
-    const updates: Record<string, any> = {};
+    const updates: Record<string, string> = {};
     if (name && typeof name === "string") updates.name = name.trim();
     if (role && (role === "lecturer" || role === "student")) updates.role = role;
 
@@ -126,13 +126,13 @@ export async function PATCH(request: NextRequest) {
 
     console.log(`✅ [Profile API] Successfully updated profile for user ${user.id}:`, updates);
     return NextResponse.json({ profile });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API PATCH /api/profile error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Internal server error" }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const supabase = await createClient();
     const {
@@ -172,8 +172,8 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`✅ [Account API] User account ${user.id} successfully deleted.`);
     return NextResponse.json({ success: true, message: "Account deleted permanently." });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API DELETE /api/profile error:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete account" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Failed to delete account" }, { status: 500 });
   }
 }

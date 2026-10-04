@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem(PROFILE_STORAGE_KEY);
         } catch {}
       }
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       // Gracefully handle unauthenticated or network transitions
       setProfile(null);
       setUser(null);

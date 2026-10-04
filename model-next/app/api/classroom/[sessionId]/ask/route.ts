@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { sessionId } = await params;
+    const { sessionId: _sessionId } = await params;
     const supabase = await createClient();
 
     // Authenticate user
@@ -40,10 +40,10 @@ export async function POST(
     });
 
     return NextResponse.json(response);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API /classroom/ask error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process question." },
+      { error: (error as Error)?.message || "Failed to process question." },
       { status: 500 }
     );
   }

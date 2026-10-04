@@ -3,7 +3,6 @@ import type { SessionParticipantRecord, AdmissionStatus } from "@/lib/supabase/t
 // Global in-memory cache surviving during server process lifecycle
 // Ensures zero-downtime admission and snapshot reconciliation even before DB table migration
 declare global {
-  // eslint-disable-next-line no-var
   var __classroomParticipantsStore: Map<string, Map<string, SessionParticipantRecord>> | undefined;
 }
 

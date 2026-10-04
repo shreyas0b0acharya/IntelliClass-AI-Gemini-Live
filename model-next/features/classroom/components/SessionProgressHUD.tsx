@@ -88,8 +88,8 @@ export function SessionProgressHUD({
       {/* Progress Track */}
       <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden relative">
         <div
-          className="h-full bg-gradient-to-r from-[#0071e3] via-sky-400 to-emerald-400 rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${percent}%` }}
+          className="h-full w-[var(--hud-progress)] bg-gradient-to-r from-[#0071e3] via-sky-400 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+          style={{ "--hud-progress": `${percent}%` } as React.CSSProperties}
         />
       </div>
     </div>

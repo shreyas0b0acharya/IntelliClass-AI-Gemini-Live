@@ -8,7 +8,6 @@ import {
   HardDriveDownload,
   Minimize2,
   Maximize2,
-  ShieldCheck,
 } from "lucide-react";
 import { useAssetSync } from "@/features/avatar";
 
@@ -33,7 +32,7 @@ function formatDuration(sec: number): string {
 }
 
 export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps) {
-  const { progress, isComplete, isSyncing, isPaused } = useAssetSync({
+  const { progress, isComplete, isPaused } = useAssetSync({
     autoStart: true,
     preferredGender,
   });
@@ -106,8 +105,8 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
           {/* Primary Progress Bar */}
           <div className="relative w-full h-2 rounded-full bg-white/10 overflow-hidden">
             <div
-              style={{ width: `${progress.overallPercentage}%` }}
-              className="h-full bg-gradient-to-r from-[#0071e3] to-[#4facfe] rounded-full transition-all duration-300"
+              style={{ "--progress-bar-width": `${progress.overallPercentage}%` } as React.CSSProperties}
+              className="h-full w-[var(--progress-bar-width)] bg-gradient-to-r from-[#0071e3] to-[#4facfe] rounded-full transition-all duration-300"
             />
           </div>
 
@@ -137,8 +136,8 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
             </div>
             <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden">
               <div
-                style={{ width: `${progress.currentAssetPercentage}%` }}
-                className="h-full bg-white/60 rounded-full transition-all duration-200"
+                style={{ "--asset-bar-width": `${progress.currentAssetPercentage}%` } as React.CSSProperties}
+                className="h-full w-[var(--asset-bar-width)] bg-white/60 rounded-full transition-all duration-200"
               />
             </div>
           </div>

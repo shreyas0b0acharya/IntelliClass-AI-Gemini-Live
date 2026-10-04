@@ -22,9 +22,9 @@ export async function GET(
     }
 
     return NextResponse.json({ messages: messages || [] });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API GET /api/classroom/[sessionId]/messages error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -38,7 +38,7 @@ export async function POST(
 
     const {
       data: { user },
-      error: authError,
+      error: _authError,
     } = await supabase.auth.getUser();
 
     const body = await request.json();
@@ -66,8 +66,8 @@ export async function POST(
     }
 
     return NextResponse.json({ message: data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API POST /api/classroom/[sessionId]/messages error:", err);
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: (err as Error)?.message || "Internal server error" }, { status: 500 });
   }
 }

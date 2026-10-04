@@ -96,13 +96,13 @@ export default function HomePage() {
       const params = new URLSearchParams(search);
       const code = params.get("code");
       if (code) {
-        window.location.href = `/auth/callback?code=${encodeURIComponent(code)}&next=/reset-password`;
+        router.replace(`/auth/callback?code=${encodeURIComponent(code)}&next=/reset-password`);
         return;
       }
 
       // 2. If recovery hash token landed on root, route directly to /reset-password
       if (hash.includes("type=recovery")) {
-        window.location.href = `/reset-password${hash}`;
+        router.replace(`/reset-password${hash}`);
         return;
       }
 

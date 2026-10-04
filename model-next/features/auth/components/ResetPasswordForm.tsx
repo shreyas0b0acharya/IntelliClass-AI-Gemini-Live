@@ -34,13 +34,17 @@ function ResetPasswordFormContent() {
     const code = searchParams.get("code");
 
     if (errorCode === "otp_expired" || errorParam === "access_denied") {
-      setIsExpired(true);
-      setErrorMessage(errorDesc || "This password reset link is invalid or has expired.");
-      toast.error("Password reset link expired");
+      queueMicrotask(() => {
+        setIsExpired(true);
+        setErrorMessage(errorDesc || "This password reset link is invalid or has expired.");
+        toast.error("Password reset link expired");
+      });
     } else if (typeof window !== "undefined" && window.location.hash.includes("otp_expired")) {
-      setIsExpired(true);
-      setErrorMessage("This password reset link is invalid or has expired.");
-      toast.error("Password reset link expired");
+      queueMicrotask(() => {
+        setIsExpired(true);
+        setErrorMessage("This password reset link is invalid or has expired.");
+        toast.error("Password reset link expired");
+      });
     } else if (code) {
       supabase.auth.exchangeCodeForSession(code).catch((err: unknown) => {
         console.warn("Direct code exchange warning:", err);

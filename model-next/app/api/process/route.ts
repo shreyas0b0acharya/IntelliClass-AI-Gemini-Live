@@ -29,10 +29,10 @@ export async function POST(req: Request) {
 
     const data = JSON.parse(text);
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Processing API route error:", error);
     return NextResponse.json(
-      { error: error.message || "Processing failed" },
+      { error: (error as Error)?.message || "Processing failed" },
       { status: 500 }
     );
   }

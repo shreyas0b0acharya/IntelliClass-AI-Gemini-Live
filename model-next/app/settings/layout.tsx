@@ -51,7 +51,7 @@ export default function SettingsLayout({
 
   // 2. Lecturer View: Studio sidebar layout with sticky header and top clearance
   return (
-    <div className="role-lecturer">
+    <div data-role="lecturer">
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

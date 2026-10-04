@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/immutability */
 
 import { useMemo } from "react";
 import type { AvatarGLTFResult } from "../types/avatar.types";

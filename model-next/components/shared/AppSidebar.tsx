@@ -49,7 +49,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   React.useEffect(() => {
     if (isAuthLoading || !user) {
-      setLoading(false);
+      queueMicrotask(() => setLoading(false));
       return;
     }
 

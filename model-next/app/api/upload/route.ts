@@ -117,7 +117,7 @@ export async function POST(req: Request) {
             "No readable text chunks could be extracted from this PDF."
         );
       }
-    } catch (procErr: any) {
+    } catch (procErr: unknown) {
       console.error("Document vectorization error during upload:", procErr);
       // Rollback database and storage records on processing/vectorization failure
       await supabase.from("course_files").delete().eq("id", fileData.id);
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
 
       return Response.json(
         {
-          error: `Document Processing Failed: ${procErr.message || "Unable to extract chunks or vectorize this PDF."}`,
+          error: `Document Processing Failed: ${(procErr as Error)?.message || "Unable to extract chunks or vectorize this PDF."}`,
         },
         { status: 422 }
       );
@@ -204,8 +204,8 @@ export async function POST(req: Request) {
       totalChunks: processResult?.totalChunks,
       extractedImages: extractedImageCount,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Upload error:", err);
-    return Response.json({ error: err.message || "Upload failed" }, { status: 500 });
+    return Response.json({ error: (err as Error)?.message || "Upload failed" }, { status: 500 });
   }
 }

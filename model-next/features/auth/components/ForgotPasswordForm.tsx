@@ -6,7 +6,6 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
   Loader2,
   ArrowRight,
   ArrowLeft,
@@ -32,11 +31,15 @@ function ForgotPasswordFormContent() {
 
     if (errorCode === "otp_expired" || errorParam === "access_denied") {
       const msg = errorDesc || "Your password reset link has expired or is invalid. Please enter your email below to request a new link.";
-      setErrorMessage(msg);
-      toast.error("Password reset link expired");
+      queueMicrotask(() => {
+        setErrorMessage(msg);
+        toast.error("Password reset link expired");
+      });
     } else if (typeof window !== "undefined" && window.location.hash.includes("otp_expired")) {
-      setErrorMessage("Your password reset link has expired or is invalid. Please enter your email below to request a new link.");
-      toast.error("Password reset link expired");
+      queueMicrotask(() => {
+        setErrorMessage("Your password reset link has expired or is invalid. Please enter your email below to request a new link.");
+        toast.error("Password reset link expired");
+      });
     }
   }, [searchParams]);
 

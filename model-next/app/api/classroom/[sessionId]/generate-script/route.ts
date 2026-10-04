@@ -118,13 +118,11 @@ export async function POST(
     }
 
     console.log(`🎉 [API /generate-script] Successfully updated session ${sessionId} with lecture script!`);
-
-    console.log(`🎉 [API /generate-script] Successfully updated session ${sessionId} with lecture script!`);
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ [API /classroom/generate-script] Error:", error);
     return NextResponse.json(
-      { error: error.message || "Script generation failed." },
+      { error: (error as Error)?.message || "Script generation failed." },
       { status: 500 }
     );
   }

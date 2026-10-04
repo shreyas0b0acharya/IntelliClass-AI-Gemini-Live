@@ -244,7 +244,7 @@ export function ParticipantsModal({
                               <span className="text-[9px] font-semibold text-[#86868b]">(You)</span>
                             )}
                             {student.connectionCount && student.connectionCount > 1 ? (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-white/10 text-white/60">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">
                                 {student.connectionCount} tabs
                               </span>
                             ) : null}

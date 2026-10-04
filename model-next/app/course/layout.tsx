@@ -40,7 +40,7 @@ export default function CourseLayout({
   }
 
   return (
-    <div className="role-lecturer">
+    <div data-role="lecturer">
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

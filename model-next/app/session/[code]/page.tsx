@@ -19,7 +19,6 @@ import {
   Users,
   AlertCircle,
   Play,
-  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -195,9 +194,7 @@ export default function SessionPreJoinPage({
     );
   }
 
-  const isLecturer = profile?.role === "lecturer";
   const isLive = session.status === "running";
-  const canJoin = session.status !== "ended";
   const personaName =
     session.voice_id === "af_bella" ? "Professor Bella" : "Professor Sharma";
   const personaGender = session.voice_id === "af_bella" ? "Female" : "Male";

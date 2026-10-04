@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
 import { AnimationLoader } from "@/components/shared";
 
@@ -91,11 +90,13 @@ export function AvatarAnimations({
       return;
     }
 
-    setLoadedAnimMap((prev) => {
-      if (prev.has(currentTargetAnim)) return prev;
-      const nextMap = new Map(prev);
-      nextMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
-      return nextMap;
+    queueMicrotask(() => {
+      setLoadedAnimMap((prev) => {
+        if (prev.has(currentTargetAnim)) return prev;
+        const nextMap = new Map(prev);
+        nextMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
+        return nextMap;
+      });
     });
   }, [currentTargetAnim, modelName]);
 

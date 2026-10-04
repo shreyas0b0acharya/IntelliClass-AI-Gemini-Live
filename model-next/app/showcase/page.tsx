@@ -111,6 +111,7 @@ export default function App() {
    */
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [targetEpochMs, setTargetEpochMs] = useState<number | undefined>();
+  const playNextSentenceRef = useRef<() => void>(() => {});
 
   const handleStopSpeech = useCallback(() => {
     cancelRef.current = true;
@@ -161,7 +162,7 @@ export default function App() {
 
       void scheduleAudioPlayback(next.audioPath, targetEpoch, () => {
         if (!cancelRef.current) {
-          playNextSentence();
+          playNextSentenceRef.current();
         }
       }).then((src) => {
         activeSourceRef.current = src;
@@ -177,6 +178,10 @@ export default function App() {
       handleStopSpeech();
     }
   }, [handleStopSpeech]);
+
+  useEffect(() => {
+    playNextSentenceRef.current = playNextSentence;
+  }, [playNextSentence]);
 
   /**
    * Background pre-fetcher for remaining sentences

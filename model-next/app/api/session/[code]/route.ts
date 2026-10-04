@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
@@ -16,7 +16,7 @@ export async function GET(
     const supabase = await createClient();
 
     // 1. Try resolving by meeting_code first
-    let { data: session, error } = await supabase
+    let { data: session } = await supabase
       .from("sessions")
       .select("*, courses(*)")
       .ilike("meeting_code", cleanCode)
@@ -32,7 +32,6 @@ export async function GET(
         .maybeSingle();
       if (res.data) {
         session = res.data;
-        error = null;
       }
     }
 
@@ -46,7 +45,6 @@ export async function GET(
         .maybeSingle();
       if (res.data) {
         session = res.data;
-        error = null;
       }
     }
 
@@ -79,7 +77,6 @@ export async function GET(
 
         if (res.data) {
           session = res.data;
-          error = null;
         }
       } catch (adminErr) {
         console.warn("Admin session lookup fallback error:", adminErr);

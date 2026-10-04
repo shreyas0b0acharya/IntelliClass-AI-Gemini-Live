@@ -112,10 +112,10 @@ export const generateTeachingScriptFlow = ai.defineFlow(
         const selectionMap = new Map(input.sources.map((s) => [s.fileName, s]));
 
         for (const row of data) {
-          const meta = row.metadata as any;
-          const srcName = meta?.source;
-          const page = meta?.page;
-          const selection = selectionMap.get(srcName);
+          const meta = row.metadata as Record<string, unknown> | null;
+          const srcName = typeof meta?.source === "string" ? meta.source : undefined;
+          const page = typeof meta?.page === "number" ? meta.page : undefined;
+          const selection = srcName ? selectionMap.get(srcName) : undefined;
 
           if (selection) {
             if (selection.startPage !== undefined && (page === undefined || page < selection.startPage)) continue;
