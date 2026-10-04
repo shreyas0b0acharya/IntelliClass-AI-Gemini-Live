@@ -684,6 +684,7 @@ export function useClassroomSync({
         event.type === "RESUME" ||
         event.type === "PAUSE" ||
         event.type === "END" ||
+        event.type === "CONFIG_UPDATE" ||
         event.type === "SEEK_SYNC" ||
         event.type === "INTERRUPT" ||
         event.type === "ADMIT_PARTICIPANT" ||

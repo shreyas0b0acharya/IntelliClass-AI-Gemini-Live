@@ -18,6 +18,7 @@ export { Lecturer2DFallback } from "./components/Lecturer2DFallback";
 export { ClassroomHeader } from "./components/ClassroomHeader";
 export { StageOverlay } from "./components/StageOverlay";
 export { MobileViewSwitcher } from "./components/MobileViewSwitcher";
+export { ClassroomConfigModal } from "./components/ClassroomConfigModal";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";

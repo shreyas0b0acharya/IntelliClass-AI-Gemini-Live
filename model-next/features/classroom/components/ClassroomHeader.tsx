@@ -18,6 +18,8 @@ import {
   RotateCcw,
   Captions,
   Activity,
+  Settings2,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SessionController } from "./SessionController";
@@ -62,6 +64,7 @@ interface ClassroomHeaderProps {
   onToggleCaptions?: () => void;
   showProgressHUD?: boolean;
   onToggleProgressHUD?: () => void;
+  onOpenConfig?: () => void;
 }
 
 export function ClassroomHeader({
@@ -91,6 +94,7 @@ export function ClassroomHeader({
   onToggleCaptions,
   showProgressHUD = true,
   onToggleProgressHUD,
+  onOpenConfig,
 }: ClassroomHeaderProps) {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -297,6 +301,31 @@ export function ClassroomHeader({
  <DropdownMenuLabel className="">
               Classroom Settings
             </DropdownMenuLabel>
+
+            {/* AI Lecturer & Voice Configuration (Lecturer only, locked while live) */}
+            {isLecturer && onOpenConfig && (() => {
+              const configLocked = sessionStatus === "running" || sessionStatus === "paused";
+              return (
+                <DropdownMenuItem
+                  disabled={configLocked}
+                  onClick={configLocked ? undefined : onOpenConfig}
+                  className="cursor-pointer"
+                >
+                  <Settings2 className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-semibold text-xs text-foreground">AI Lecturer &amp; Voice</span>
+                    <span className="text-xs text-muted-foreground">
+                      {configLocked
+                        ? "Locked while broadcast is live"
+                        : `${personaName} · ${voiceId || "am_fenrir"}`}
+                    </span>
+                  </div>
+                  {configLocked && (
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              );
+            })()}
 
             {/* Audio Volume Controller */}
             <VolumeControl variant="menu" />

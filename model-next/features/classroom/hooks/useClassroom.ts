@@ -663,6 +663,20 @@ export function useClassroom(sessionId: string) {
         syncStore().setActiveMedia(null);
       }
 
+      // ── CONFIG_UPDATE ───────────────────────────────────────────────
+      else if (event.type === "CONFIG_UPDATE") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        setSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            voice_id: event.voiceId,
+            ...(event.avatarModel ? { avatar_model: event.avatarModel } : {}),
+          };
+        });
+        toast.info(`Lecturer updated persona to ${event.personaName || event.voiceId}`);
+      }
+
       // ── END ────────────────────────────────────────────────────────
       else if (event.type === "END") {
         lastSeqRef.current = event.sequence;
@@ -1246,6 +1260,58 @@ export function useClassroom(sessionId: string) {
     }
   }, [syncStore]);
 
+  const updateSessionConfig = useCallback(
+    async (updates: { voiceId: string; avatarModel?: string; personaName?: string }) => {
+      if (!isLecturerRef.current || !sessionId) return;
+
+      if (sessionStatusRef.current !== "created" && sessionStatusRef.current !== "ended") {
+        toast.error("Voice and avatar model can only be changed in Standby or Ended states.");
+        return;
+      }
+
+      try {
+        await api.updateSessionMeta(sessionId, {
+          voice_id: updates.voiceId,
+        });
+
+        setSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            voice_id: updates.voiceId,
+            ...(updates.avatarModel ? { avatar_model: updates.avatarModel } : {}),
+          };
+        });
+
+        sequenceRef.current++;
+        broadcastEventRef.current?.({
+          type: "CONFIG_UPDATE",
+          sequence: sequenceRef.current,
+          voiceId: updates.voiceId,
+          avatarModel: updates.avatarModel,
+          personaName: updates.personaName,
+          driverLeaseVersion: driverLeaseVersionRef.current,
+        });
+
+        // Prefetch first few speech items with the new voice
+        const nextSpeech = itemsRef.current
+          .slice(currentIndexRef.current, currentIndexRef.current + 5)
+          .filter((i): i is LectureSpeechItem => i.type === "speech")
+          .map((i) => i.text);
+        if (nextSpeech.length > 0) {
+          speech.prefetch(nextSpeech, updates.voiceId);
+        }
+
+        toast.success(`Updated AI Lecturer to ${updates.personaName || updates.voiceId}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to update session settings.";
+        toast.error(msg);
+        throw err;
+      }
+    },
+    [sessionId, speech]
+  );
+
   return {
     user,
     profile,
@@ -1276,6 +1342,7 @@ export function useClassroom(sessionId: string) {
     endSession,
     restartSession,
     updateScript,
+    updateSessionConfig,
     admitParticipant,
     denyParticipant,
     kickParticipant,

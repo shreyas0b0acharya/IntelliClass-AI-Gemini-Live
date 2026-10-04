@@ -147,6 +147,16 @@ export type ClassroomEvent =
       sequence: 0; // always 0 — indicates a full counter reset
       stateVersion?: number;
       driverLeaseVersion?: number;
+    }
+  | {
+      // Broadcast when the lecturer changes the AI voice or avatar model in standby or ended state
+      type: "CONFIG_UPDATE";
+      sequence: number;
+      voiceId: string;
+      avatarModel?: string;
+      personaName?: string;
+      stateVersion?: number;
+      driverLeaseVersion?: number;
     };
 
 export type AdmissionStatus = "waiting" | "admitted" | "denied" | "left";
