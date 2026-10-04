@@ -12,7 +12,6 @@ import {
   ParticipantsModal,
   LectureScriptModal,
   ClassroomHeader,
-  ClassroomConfigModal,
   StageOverlay,
   MobileViewSwitcher,
   ChatPanel,
@@ -370,23 +369,8 @@ export default function ClassroomPage({
         onToggleCaptions={handleToggleCaptions}
         showProgressHUD={showProgressHUD}
         onToggleProgressHUD={handleToggleProgressHUD}
-        onOpenConfig={isLecturer ? () => setShowConfigModal(true) : undefined}
+        onOpenConfig={isLecturer ? () => setShowPersonaModal(true) : undefined}
       />
-
-      {/* AI Lecturer & Voice Configuration Modal (Lecturer only) */}
-      {isLecturer && (
-        <ClassroomConfigModal
-          key={showConfigModal ? `config-open-${classroom.session?.voice_id ?? ""}` : "config-closed"}
-          open={showConfigModal}
-          onOpenChange={setShowConfigModal}
-          sessionStatus={classroom.sessionStatus}
-          currentVoiceId={classroom.session?.voice_id ?? undefined}
-          currentAvatarModel={avatarModel}
-          onSave={async ({ voiceId, avatarModel: model, personaName }) => {
-            await classroom.updateSessionConfig({ voiceId, avatarModel: model, personaName });
-          }}
-        />
-      )}
 
       {/* Main Classroom Area: State-Preserving Persistent Panels */}
       <div className="flex-1 relative min-h-0 overflow-hidden lg:grid lg:grid-cols-4">

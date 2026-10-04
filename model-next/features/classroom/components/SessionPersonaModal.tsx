@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { AppButton } from "@/components/app";
+import { Button } from "@/components/ui/button";
 import {
   AVATAR_MODELS,
   getAvatarMetadata,
@@ -539,7 +539,7 @@ export function SessionPersonaModal({
             </div>
           </div>
 
-          <AppButton
+          <Button
             type="button"
             variant="outline"
             size="sm"
@@ -558,26 +558,26 @@ export function SessionPersonaModal({
                 <span>Test Voice</span>
               </>
             )}
-          </AppButton>
+          </Button>
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-3 pt-2">
-          <AppButton
+          <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="px-4 text-xs font-semibold"
           >
             {isLocked ? "Close" : "Cancel"}
-          </AppButton>
+          </Button>
 
           {!isLocked && isLecturer && (
-            <AppButton
+            <Button
               type="button"
-              variant="primary"
+              variant="default"
               onClick={handleSave}
               disabled={isSaving}
-              className="px-5 text-xs font-semibold gap-2 shadow-sm"
+              className="px-5 text-xs font-semibold gap-2 shadow-xs"
             >
               {isSaving ? (
                 <>
@@ -590,7 +590,7 @@ export function SessionPersonaModal({
                   <span>Save Configuration</span>
                 </>
               )}
-            </AppButton>
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

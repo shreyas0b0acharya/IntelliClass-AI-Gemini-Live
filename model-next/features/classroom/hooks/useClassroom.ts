@@ -729,15 +729,29 @@ export function useClassroom(sessionId: string) {
       // ── CONFIG_UPDATE ───────────────────────────────────────────────
       else if (event.type === "CONFIG_UPDATE") {
         lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        const resolvedAvatar = event.avatar_model || event.avatarModel;
+        const resolvedVoice = event.voice_id || event.voiceId;
+        const resolvedSpeed = event.speech_speed;
+        const resolvedProvider = event.tts_provider;
+
         setSession((prev) => {
           if (!prev) return prev;
           return {
             ...prev,
-            voice_id: event.voiceId,
-            ...(event.avatarModel ? { avatar_model: event.avatarModel } : {}),
+            avatar_model: resolvedAvatar || prev.avatar_model,
+            voice_id: resolvedVoice || prev.voice_id,
+            speech_speed: resolvedSpeed ?? prev.speech_speed,
+            tts_provider: resolvedProvider || prev.tts_provider,
           };
         });
-        toast.info(`Lecturer updated persona to ${event.personaName || event.voiceId}`);
+
+        if (!isLecturerRef.current) {
+          toast.info(
+            event.personaName
+              ? `Lecturer updated persona to ${event.personaName}`
+              : "Lecturer updated avatar persona & audio settings."
+          );
+        }
       }
 
       // ── END ────────────────────────────────────────────────────────
@@ -787,23 +801,6 @@ export function useClassroom(sessionId: string) {
         syncStore().setStoppedReason(undefined);
         setCurrentSubtitle("Lecture restarting. Please wait for the professor to begin.");
         syncStore().setCurrentSubtitle("Lecture restarting. Please wait for the professor to begin.");
-      }
-      // ── CONFIG_UPDATE ──────────────────────────────────────────────
-      else if (event.type === "CONFIG_UPDATE") {
-        console.log("[Realtime] CONFIG_UPDATE received:", event);
-        setSession((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            avatar_model: event.avatar_model || prev.avatar_model,
-            voice_id: event.voice_id || prev.voice_id,
-            speech_speed: event.speech_speed ?? prev.speech_speed,
-            tts_provider: event.tts_provider || prev.tts_provider,
-          };
-        });
-        if (!isLecturerRef.current) {
-          toast.info("Lecturer updated avatar persona & audio settings.");
-        }
       }
     },
     [session?.voice_id, speech, syncStore]

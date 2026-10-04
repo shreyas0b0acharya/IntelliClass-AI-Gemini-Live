@@ -189,8 +189,8 @@ export class ElevenLabsAlignmentToVisemeAdapter {
     const finalVdurations: number[] = [];
 
     for (let i = 0; i < rawVisemes.length; i++) {
-      let v = rawVisemes[i];
-      let t = rawVtimes[i];
+      const v = rawVisemes[i];
+      const t = rawVtimes[i];
       let d = rawVdurations[i];
 
       // Clamp to audio duration
