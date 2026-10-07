@@ -3,6 +3,7 @@
 // Components
 export { Avatar } from "./components/Avatar";
 export { AvatarPreview } from "./components/AvatarPreview";
+export { LandingHeroAvatarStage } from "./components/LandingHeroAvatarStage";
 export { Experience } from "./components/Experience";
 export { AudioTest } from "./components/AudioTest";
 export { TTSPanel } from "./components/TTSPanel";
@@ -69,7 +70,18 @@ export type {
   AvatarProps,
   AvatarNode,
   AvatarGLTFResult,
+  AvatarModelId,
+  AvatarModelInfo,
 } from "./types/avatar.types";
+export {
+  AVATAR_MODELS,
+  DEFAULT_AVATAR_MODEL,
+  getAvatarMetadata,
+  resolveAvatarModel,
+  validatePersonaPairing,
+} from "./services/avatarRegistry";
+export type { PersonaValidationResult } from "./services/avatarRegistry";
+
 export type {
   BehaviorState,
   BehaviorStore,
@@ -84,6 +96,7 @@ export type {
   LipMorphData,
 } from "./types/behavior.types";
 export type {
+  LipSyncData,
   HeadTTSData,
   LipSyncProps,
 } from "./types/lipSync.types";

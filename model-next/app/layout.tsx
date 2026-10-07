@@ -35,7 +35,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("h-full", "w-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
-      <body className="min-h-full w-full m-0 p-0 bg-background text-foreground">
+      <body
+        suppressHydrationWarning
+        className="min-h-full w-full m-0 p-0 bg-background text-foreground"
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

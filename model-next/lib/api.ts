@@ -1,4 +1,5 @@
 import type { Course, CourseFile, ClassroomSession, ChatMessage, Profile, MediaAsset } from "@/lib/supabase/types";
+import type { VoiceOption, TTSModelOption } from "@/features/classroom/types/speech";
 import type { User } from "@supabase/supabase-js";
 
 export class ApiError extends Error {
@@ -196,7 +197,14 @@ export const api = {
 
   createCourseSession: async (
     courseId: string,
-    data: { topic: string; voice_id?: string; meeting_code?: string }
+    data: {
+      topic: string;
+      voice_id?: string;
+      avatar_model?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+      meeting_code?: string;
+    }
   ) => {
     return fetchApi<{ session: ClassroomSession }>(`/api/courses/${courseId}/sessions`, {
       method: "POST",
@@ -248,6 +256,9 @@ export const api = {
       script?: string;
       topic?: string;
       voice_id?: string;
+      avatar_model?: string;
+      speech_speed?: number;
+      tts_provider?: string;
       driverTabId?: string;
       releaseLease?: boolean;
       target_epoch_ms?: number;
@@ -268,12 +279,24 @@ export const api = {
 
   updateSessionMeta: async (
     sessionId: string,
-    updates: { topic?: string; voice_id?: string }
+    updates: {
+      topic?: string;
+      voice_id?: string;
+      avatar_model?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+    }
   ) => {
     return fetchApi<{ session: ClassroomSession }>(`/api/classroom/${sessionId}`, {
       method: "PATCH",
       body: JSON.stringify(updates),
     });
+  },
+
+  getTTSVoices: async (refresh?: boolean) => {
+    return fetchApi<{ voices: VoiceOption[]; models: TTSModelOption[] }>(
+      `/api/tts/voices${refresh ? "?refresh=true" : ""}`
+    );
   },
 
   deleteSession: async (sessionId: string) => {

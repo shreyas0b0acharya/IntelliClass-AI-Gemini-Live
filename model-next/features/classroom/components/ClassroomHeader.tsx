@@ -20,11 +20,13 @@ import {
   Activity,
   Settings2,
   Lock,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SessionController } from "./SessionController";
 import { VolumeControl } from "./VolumeControl";
 import { ThemeToggle } from "@/components/shared";
+import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_AVATAR_MODEL } from "@/config";
 import type { ClassroomCapabilities } from "../types/capabilities";
 import type { SessionStateStatus } from "../types/classroom";
 import {
@@ -60,6 +62,8 @@ interface ClassroomHeaderProps {
   onEndSession?: () => void | Promise<void>;
   onRestartSession?: () => void | Promise<void>;
   isCompact?: boolean;
+  speechSpeed?: number;
+  onOpenPersonaConfig?: () => void;
   showCaptions?: boolean;
   onToggleCaptions?: () => void;
   showProgressHUD?: boolean;
@@ -75,6 +79,7 @@ export function ClassroomHeader({
   sessionStatus,
   voiceId,
   avatarModel,
+  speechSpeed,
   activeStudentCount,
   emptyRoomCountdown,
   stoppedReason,
@@ -85,6 +90,7 @@ export function ClassroomHeader({
   onOpenParticipants,
   onOpenScript,
   onOpenMaterials,
+  onOpenPersonaConfig,
   onStartSession,
   onPauseSession,
   onEndSession,
@@ -114,7 +120,7 @@ export function ClassroomHeader({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const isDrClara = avatarModel === "women-avatarsdk";
+  const isDrClara = avatarModel === DEFAULT_FEMALE_AVATAR_MODEL;
   const personaName = isDrClara ? "Dr. Clara" : "Prof. Arthur";
 
   return (
@@ -158,7 +164,7 @@ export function ClassroomHeader({
             <span className="text-muted-foreground/40 shrink-0">•</span>
             <span className="shrink-0 font-medium text-foreground/80">{personaName}</span>
             <span className="hidden sm:inline text-muted-foreground/40 shrink-0">•</span>
-            <span className="hidden sm:inline truncate">Voice: {voiceId || "am_fenrir"}</span>
+            <span className="hidden sm:inline truncate">Voice: {voiceId || DEFAULT_MALE_VOICE_ID}</span>
           </div>
         </div>
       </div>
@@ -180,6 +186,23 @@ export function ClassroomHeader({
             </span>
             {hasWaitingStudents && (
               <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-chart-4 ring-2 ring-background animate-pulse" />
+            )}
+          </Button>
+        )}
+
+        {/* Pre-Class Persona & Voice Setup (Visible to Lecturer) */}
+        {isLecturer && (onOpenPersonaConfig || onOpenConfig) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenPersonaConfig || onOpenConfig}
+            className="h-8 sm:h-9 px-2.5 text-xs font-semibold shrink-0 gap-1.5"
+            title={sessionStatus !== "running" ? "Configure Avatar Persona & Voice" : "View Persona & Audio Settings (Locked while broadcasting)"}
+          >
+            <User className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden md:inline text-xs">{personaName}</span>
+            {sessionStatus === "running" && (
+              <span className="text-[9px] px-1 py-0.2 rounded-md bg-muted text-muted-foreground font-mono">🔒</span>
             )}
           </Button>
         )}
@@ -215,6 +238,29 @@ export function ClassroomHeader({
  <DropdownMenuLabel className="">
               Classroom Tools
             </DropdownMenuLabel>
+
+            {/* Persona & Audio Configuration */}
+            {isLecturer && (onOpenPersonaConfig || onOpenConfig) && (
+              <DropdownMenuItem
+                onClick={onOpenPersonaConfig || onOpenConfig}
+                className="gap-2.5 py-2 cursor-pointer rounded-xl"
+              >
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-xs text-foreground">Avatar Persona & Voice</span>
+                    {sessionStatus === "running" && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-chart-4/10 text-chart-4 font-bold">
+                        Locked (Live)
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {personaName} • {voiceId || DEFAULT_MALE_VOICE_ID} {speechSpeed ? `(${speechSpeed.toFixed(2)}x)` : ""}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            )}
 
             {/* Course Materials */}
             {capabilities.canViewMaterials && (

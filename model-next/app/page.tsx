@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar, SessionCodeInput } from "@/components/shared";
 import { useAuth } from "@/features/auth";
 import { Button } from "@/components/ui/button";
+import { LandingHeroAvatarStage } from "@/features/avatar";
 import {
   ArrowRight,
   ChevronRight,
@@ -182,58 +183,68 @@ export default function HomePage() {
       <Navbar />
 
       {/* ── 2. HERO SECTION ─────────────────────────────────────────────────── */}
-      <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 px-4 sm:px-6 text-center max-w-5xl mx-auto">
-        {/* Apple Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-muted dark:bg-card border border-border dark:border-border text-foreground dark:text-foreground text-xs font-semibold tracking-tight mb-8">
-          <span className="w-2 h-2 rounded-full bg-primary" />
-          Autonomous AI Classroom System
+      <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+          {/* Left Column: Value Proposition & Action Controls */}
+          <div className="lg:col-span-6 xl:col-span-7 text-center lg:text-left">
+            {/* Apple Eyebrow Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-muted dark:bg-card border border-border dark:border-border text-foreground dark:text-foreground text-xs font-semibold tracking-tight mb-6">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              Autonomous AI Classroom System
+            </div>
+
+            {/* Apple Massive Headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[58px] xl:text-[68px] font-bold tracking-tight leading-[1.08] text-foreground dark:text-foreground mb-6">
+              The AI classroom.<br className="hidden sm:inline" />
+              Teaches like a professor.
+            </h1>
+
+            {/* Subhead (17px Apple Body standard) */}
+            <p className="text-base sm:text-lg leading-relaxed text-muted-foreground dark:text-muted-foreground max-w-2xl mx-auto lg:mx-0 mb-8 font-normal">
+              IntelliClass transforms course textbooks into live, interactive 3D lectures with an expressive biomechanical avatar, neural speech, and instant Q&amp;A.
+            </p>
+
+            {/* Action Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-8">
+              <Button
+                asChild
+                size="lg"
+                variant="default"
+                className="w-full sm:w-auto px-7 text-base shadow-xs"
+              >
+                <Link href="/register" className="inline-flex items-center justify-center gap-2">
+                  <span>Start as Lecturer</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+
+              {/* Student Join Code Box */}
+              <SessionCodeInput
+                placeholder="Enter meeting code..."
+                buttonText="Join"
+              />
+            </div>
+
+            {/* Monochromatic Link */}
+            <div className="flex items-center justify-center lg:justify-start gap-6 text-sm sm:text-base">
+              <Link
+                href="/showcase"
+                className="text-primary hover:underline flex items-center gap-1 font-medium group"
+              >
+                Explore 3D Avatar Lab in real time
+                <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive 3D Stage with Standing Chalkboard & Avatar Switcher */}
+          <div className="lg:col-span-6 xl:col-span-5 w-full max-w-lg mx-auto lg:max-w-none">
+            <LandingHeroAvatarStage />
+          </div>
         </div>
 
-        {/* Apple Massive Headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-7xl font-bold tracking-tight leading-tight text-foreground dark:text-foreground mb-6">
-          The AI classroom.<br className="hidden sm:inline" />
-          Teaches like a professor.
-        </h1>
-
-        {/* Subhead (17px Apple Body standard) */}
-        <p className="text-base sm:text-xl leading-relaxed text-muted-foreground dark:text-muted-foreground max-w-2xl mx-auto mb-10 font-normal">
-          IntelliClass transforms course textbooks into live, interactive 3D lectures with an expressive biomechanical avatar, neural speech, and instant Q&amp;A.
-        </p>
-
-        {/* Action Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-xl mx-auto mb-8">
-          <Button
-            asChild
-            size="lg"
-            variant="default"
- className="w-full sm:w-auto "
-          >
-            <Link href="/register" className="inline-flex items-center justify-center gap-2">
-              <span>Start as Lecturer</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-
-          {/* Student Join Code Box */}
-          <SessionCodeInput
-            placeholder="Enter meeting code..."
-            buttonText="Join"
-          />
-        </div>
-
-        {/* Monochromatic Link */}
-        <div className="flex items-center justify-center gap-6 text-base">
-          <Link
-            href="/showcase"
-            className="text-primary hover:underline flex items-center gap-1 font-medium group"
-          >
-            Explore 3D Avatar Lab in real time
-            <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
-        </div>
-
-        {/* Key Metrics Ribbon */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 mt-16 border-t border-border dark:border-border max-w-4xl mx-auto">
+        {/* Key Metrics Ribbon (Full Width below 2-column grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 mt-16 border-t border-border dark:border-border max-w-5xl mx-auto">
           {HIGHLIGHTS.map((item) => (
             <div key={item.label} className="text-center">
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground dark:text-foreground">

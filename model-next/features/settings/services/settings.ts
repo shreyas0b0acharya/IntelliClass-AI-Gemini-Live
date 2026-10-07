@@ -6,40 +6,68 @@ import type { ModelPreferences } from "../types/settings.types";
 
 export type { ModelPreferences };
 
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_ELEVENLABS_VOICE_ID,
+  DEFAULT_ELEVENLABS_MODEL_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+  MALE_MODEL_PRESETS,
+  FEMALE_MODEL_PRESETS,
+} from "@/config";
+
+export { MALE_MODEL_PRESETS, FEMALE_MODEL_PRESETS };
+
 export const DEFAULT_MODEL_PREFERENCES: ModelPreferences = {
   defaultGender: "male",
-  defaultMaleModelName: "Prof. Arthur",
-  defaultFemaleModelName: "Dr. Clara",
-  defaultMaleVoice: "am_fenrir",
-  defaultFemaleVoice: "af_bella",
-  speechSpeed: 1.0,
+  defaultMaleModelName: MALE_MODEL_PRESETS[0],
+  defaultFemaleModelName: FEMALE_MODEL_PRESETS[0],
+  defaultMaleVoice: DEFAULT_MALE_VOICE_ID,
+  defaultFemaleVoice: DEFAULT_FEMALE_VOICE_ID,
+  speechSpeed: DEFAULT_SPEECH_SPEED,
   speechPitch: 1.0,
   modelQuality: "high",
+  ttsProvider: DEFAULT_TTS_PROVIDER,
+  elevenLabsVoiceId: DEFAULT_ELEVENLABS_VOICE_ID,
+  elevenLabsModelId: DEFAULT_ELEVENLABS_MODEL_ID,
 };
 
-export const MALE_MODEL_PRESETS = [
-  "Prof. Arthur",
-  "Prof. Alexander",
-  "Prof. Sharma",
-  "Prof. David",
-  "Dr. Julian",
-];
+import type { VoiceOption, VoiceGender, TTSModelOption } from "@/features/classroom/types/speech";
+import {
+  TTS_MODELS,
+  HEADTTS_VOICE_OPTIONS,
+  ELEVENLABS_VOICE_OPTIONS,
+  ALL_DEFAULT_VOICE_OPTIONS,
+} from "@/features/classroom/constants/voices";
 
-export const FEMALE_MODEL_PRESETS = [
-  "Dr. Clara",
-  "Dr. Sophia",
-  "Prof. Bella",
-  "Dr. Elena",
-  "Prof. Evelyn",
-];
+export type { VoiceOption, VoiceGender, TTSModelOption };
+export { TTS_MODELS, HEADTTS_VOICE_OPTIONS, ELEVENLABS_VOICE_OPTIONS };
+export const VOICE_OPTIONS = HEADTTS_VOICE_OPTIONS;
+export const UNIFIED_VOICE_REGISTRY: VoiceOption[] = ALL_DEFAULT_VOICE_OPTIONS;
 
 /**
- * Strictly available neural Kokoro voice models inside HeadTTS/voices
+ * Resolves voice metadata safely.
+ * If voice is not in known registry, preserves ID and marks gender as "unknown" (never guesses "male").
  */
-export const VOICE_OPTIONS = [
-  { id: "am_fenrir", name: "Fenrir (Male, Deep & Academic)", gender: "male" },
-  { id: "af_bella", name: "Bella (Female, Articulate & Engaging)", gender: "female" },
-];
+export function getVoiceMetadata(voiceId?: string, customList?: VoiceOption[]): VoiceOption {
+  if (!voiceId) return HEADTTS_VOICE_OPTIONS[0];
+
+  const pool = customList && customList.length > 0 ? customList : UNIFIED_VOICE_REGISTRY;
+  const found = pool.find((v) => v.id === voiceId);
+  if (found) return found;
+
+  const isEleven = voiceId.length >= 18 || voiceId.startsWith("elevenlabs:");
+  const cleanId = voiceId.replace("elevenlabs:", "");
+
+  return {
+    id: cleanId,
+    name: `Custom Voice (${cleanId.slice(0, 6)}...)`,
+    provider: isEleven ? "elevenlabs" : "headtts",
+    gender: "unknown", // Unknown gender: never guess "male"
+    description: "Dynamically resolved voice",
+  };
+}
 
 const SETTINGS_STORAGE_KEY = "intelliclass_model_preferences";
 

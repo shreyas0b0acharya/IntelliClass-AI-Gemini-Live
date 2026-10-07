@@ -1,11 +1,13 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { VOICE_OPTIONS } from "../services/settings";
+import { VOICE_OPTIONS, ELEVENLABS_VOICE_OPTIONS } from "../services/settings";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -34,29 +36,52 @@ export function VoiceSpeedControls({
   onSpeedChange,
   disabled = false,
 }: VoiceSpeedControlsProps) {
-  const filteredVoices = VOICE_OPTIONS.filter((v) => v.gender === gender);
+  const filteredHeadTTS = VOICE_OPTIONS.filter((v) => v.gender === gender);
+  const filteredElevenLabs = ELEVENLABS_VOICE_OPTIONS.filter((v) => v.gender === gender);
 
   return (
     <div className="space-y-4">
       {/* Custom Radix Select for Voice Selection */}
       <div className="space-y-2">
- <Label className="">
-          HeadTTS Voice Profile
+        <Label>
+          Voice Profile &amp; Engine
         </Label>
         <Select value={voiceId} onValueChange={onVoiceChange} disabled={disabled}>
- <SelectTrigger className="w-full h-11 cursor-pointer ">
+          <SelectTrigger className="w-full h-11 cursor-pointer">
             <SelectValue placeholder="Select voice profile..." />
           </SelectTrigger>
- <SelectContent className="">
-            {filteredVoices.map((v) => (
-              <SelectItem
-                key={v.id}
-                value={v.id}
- className=" cursor-pointer "
-              >
-                {v.name}
-              </SelectItem>
-            ))}
+          <SelectContent className="rounded-xl border shadow-xl p-1">
+            <SelectGroup>
+              <SelectLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-2 py-1.5">
+                Local Voices (HeadTTS - Fast &amp; Offline)
+              </SelectLabel>
+              {filteredHeadTTS.map((v) => (
+                <SelectItem
+                  key={v.id}
+                  value={v.id}
+                  className="rounded-lg py-2 text-xs font-medium cursor-pointer"
+                >
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            {filteredElevenLabs.length > 0 && (
+              <SelectGroup className="mt-1 pt-1 border-t border-border">
+                <SelectLabel className="text-[10px] uppercase font-bold text-primary tracking-wider px-2 py-1.5 flex items-center justify-between">
+                  <span>Natural Cloud (ElevenLabs)</span>
+                  <span className="text-[9px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">Low Latency</span>
+                </SelectLabel>
+                {filteredElevenLabs.map((v) => (
+                  <SelectItem
+                    key={v.id}
+                    value={v.id}
+                    className="rounded-lg py-2 text-xs font-medium cursor-pointer"
+                  >
+                    {v.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </div>

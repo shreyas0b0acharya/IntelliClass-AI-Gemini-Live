@@ -1,17 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SpeechItem, SpeechStatus } from "../types/speech";
-import type { HeadTTSData } from "@/features/avatar";
+import type { SpeechItem, SpeechStatus, TTSProviderId } from "../types/speech";
+import type { LipSyncData, HeadTTSData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 import {
   preloadAudioBuffer,
   scheduleAudioPlayback,
   stopAllAudio,
 } from "@/features/avatar";
+import {
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+} from "@/config";
 
 export interface UseSpeechQueueOptions {
   voice?: string;
+  provider?: TTSProviderId;
+  modelId?: string;
+  speed?: number;
   onSpeechComplete?: (itemId: string, requestId: string) => void;
   onError?: (error: Error, itemId?: string) => void;
 }
@@ -22,7 +30,7 @@ export interface UseSpeechQueueOptions {
 export interface ScheduledPlayPayload {
   audioUrl: string;
   targetEpochMs: number;    // synchronized epoch when audio should start
-  lipSyncData: HeadTTSData;
+  lipSyncData: LipSyncData;
   sequence: number;         // monotonic sequence — used to gate morph animation
   text: string;
   itemId: string;
@@ -31,7 +39,10 @@ export interface ScheduledPlayPayload {
 }
 
 export function useSpeechQueue({
-  voice = "af_bella",
+  voice = DEFAULT_FEMALE_VOICE_ID,
+  provider = DEFAULT_TTS_PROVIDER,
+  modelId,
+  speed = DEFAULT_SPEECH_SPEED,
   onSpeechComplete,
   onError,
 }: UseSpeechQueueOptions = {}) {
@@ -78,9 +89,17 @@ export function useSpeechQueue({
   // ── Internal: fetch or deduplicate in-flight TTS synthesis ────────────
 
   const getOrFetchItem = useCallback(
-    async (text: string, selectedVoice: string, signal?: AbortSignal): Promise<SpeechItem> => {
+    async (
+      text: string,
+      selectedVoice: string = voice,
+      selectedProvider: TTSProviderId = provider,
+      selectedModelId?: string,
+      selectedSpeed: number = speed,
+      signal?: AbortSignal
+    ): Promise<SpeechItem> => {
       const cleanText = text.trim();
-      const cacheKey = `${cleanText}_${selectedVoice}`;
+      const effModel = selectedModelId || (selectedProvider === "elevenlabs" ? "eleven_flash_v2_5" : "kokoro-82m-onnx");
+      const cacheKey = `${selectedProvider}_${effModel}_${selectedVoice}_${cleanText}_${selectedSpeed.toFixed(2)}`;
 
       const existing = prefetchCacheRef.current.get(cacheKey);
       if (existing) return existing;
@@ -90,7 +109,14 @@ export function useSpeechQueue({
 
       const fetchPromise = (async () => {
         try {
-          const item = await fetchSpeechTTS({ text: cleanText, voice: selectedVoice, signal });
+          const item = await fetchSpeechTTS({
+            text: cleanText,
+            voice: selectedVoice,
+            provider: selectedProvider,
+            modelId: effModel,
+            speed: selectedSpeed,
+            signal,
+          });
 
           // Preload decoded buffer immediately — it'll be in RAM before LEAD_TIME expires
           if (typeof window !== "undefined" && item.audioPath) {
@@ -107,12 +133,18 @@ export function useSpeechQueue({
       inFlightRef.current.set(cacheKey, fetchPromise);
       return fetchPromise;
     },
-    []
+    [voice, provider, modelId, speed]
   );
 
   // ── Prefetch upcoming sentences in background (device-aware depth) ──
   const prefetch = useCallback(
-    async (texts: string[], selectedVoice: string = voice) => {
+    async (
+      texts: string[],
+      selectedVoice: string = voice,
+      selectedProvider: TTSProviderId = provider,
+      selectedModelId?: string,
+      selectedSpeed: number = speed
+    ) => {
       const isMobileOrSlow =
         typeof window !== "undefined" &&
         (window.innerWidth <= 768 ||
@@ -127,19 +159,26 @@ export function useSpeechQueue({
 
       await Promise.allSettled(
         uniqueTexts.map((text) =>
-          getOrFetchItem(text, selectedVoice).catch((err) => {
+          getOrFetchItem(text, selectedVoice, selectedProvider, selectedModelId, selectedSpeed).catch((err) => {
             console.warn("[SpeechQueue] Background prefetch skipped:", err?.message);
           })
         )
       );
     },
-    [voice, getOrFetchItem]
+    [voice, provider, speed, getOrFetchItem]
   );
 
   // ── Synthesize item — returns TTS result for broadcast (driver only) ──
 
   const synthesizeItem = useCallback(
-    async (text: string, itemId: string, selectedVoice: string = voice): Promise<SpeechItem | null> => {
+    async (
+      text: string,
+      itemId: string,
+      selectedVoice: string = voice,
+      selectedProvider: TTSProviderId = provider,
+      selectedModelId?: string,
+      selectedSpeed: number = speed
+    ): Promise<SpeechItem | null> => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -152,7 +191,14 @@ export function useSpeechQueue({
 
       setStatus("generating");
       try {
-        const result = await getOrFetchItem(text.trim(), selectedVoice, controller.signal);
+        const result = await getOrFetchItem(
+          text.trim(),
+          selectedVoice,
+          selectedProvider,
+          selectedModelId,
+          selectedSpeed,
+          controller.signal
+        );
         if (activeRequestIdRef.current !== requestId) return null;
         return { ...result, requestId };
       } catch (err: unknown) {
@@ -164,10 +210,10 @@ export function useSpeechQueue({
         return null;
       }
     },
-    [voice, onError, getOrFetchItem]
+    [voice, provider, speed, onError, getOrFetchItem]
   );
 
-  // ── NEW: Play a hardware-scheduled packet ─────────────────────────────
+  // ── Play a hardware-scheduled packet ─────────────────────────────
   //
   // Called by BOTH the driver (after local synthesis) AND students (after
   // receiving SCHEDULED_PLAY over broadcast). Uses scheduleAudioPlayback()
@@ -219,17 +265,10 @@ export function useSpeechQueue({
         if (onSpeechComplete) onSpeechComplete(itemId, requestId);
       };
 
-      // scheduleAudioPlayback handles:
-      //   - ctx.resume() if suspended
-      //   - future scheduling (delta > 0) or late-joiner seek (delta < 0)
-      //   - calls onEnded on error so sequencer never stalls (Fix #8)
       scheduleAudioPlayback(audioUrl, targetEpochMs, onEnded, offsetMs)
         .then((source) => {
           if (!source) {
-            // scheduleAudioPlayback already called onEnded on error
-            // But if we're in a cancelled state, ensure status is consistent
             if (activeRequestIdRef.current === requestId) {
-              // onEnded wasn't called (edge case guard) — auto-advance after 3s
               console.warn("[SpeechQueue] scheduleAudioPlayback returned null, auto-advancing in 3s");
               setTimeout(() => {
                 if (activeRequestIdRef.current === requestId) {
@@ -249,11 +288,25 @@ export function useSpeechQueue({
     [stop, onSpeechComplete]
   );
 
-  // ── Legacy: play speech by synthesizing on the fly (showcase/preview) ─
+  // ── Play speech by synthesizing on the fly (showcase/preview) ─
 
   const playSpeech = useCallback(
-    async (text: string, itemId: string, selectedVoice: string = voice) => {
-      const item = await synthesizeItem(text, itemId, selectedVoice);
+    async (
+      text: string,
+      itemId: string,
+      selectedVoice: string = voice,
+      selectedProvider: TTSProviderId = provider,
+      selectedModelId?: string,
+      selectedSpeed: number = speed
+    ) => {
+      const item = await synthesizeItem(
+        text,
+        itemId,
+        selectedVoice,
+        selectedProvider,
+        selectedModelId,
+        selectedSpeed
+      );
       if (!item) return null;
 
       const speechItem: SpeechItem = { ...item };
@@ -261,16 +314,16 @@ export function useSpeechQueue({
       setStatus("playing");
       return item;
     },
-    [voice, synthesizeItem]
+    [voice, provider, speed, synthesizeItem]
   );
 
-  // ── Legacy: play pre-synthesized item directly (non-scheduled) ─────────
+  // ── Play pre-synthesized item directly (non-scheduled) ─────────
 
   const playDirectSpeech = useCallback(
     (
       item: {
         audioPath: string;
-        lipSyncData: HeadTTSData;
+        lipSyncData: LipSyncData;
         text?: string;
         requestId?: string;
         cacheKey?: string;
@@ -308,8 +361,6 @@ export function useSpeechQueue({
   const handleAudioEnd = useCallback(
     (requestId?: string) => {
       if (requestId && activeRequestIdRef.current && requestId !== activeRequestIdRef.current) {
-        // Expected: fired by a previous audio segment's onended after we've moved on.
-        // This is the stale-guard working correctly — not an error.
         console.debug("[SpeechQueue] Stale audio end ignored (requestId:", requestId, ")");
         return;
       }
@@ -329,9 +380,6 @@ export function useSpeechQueue({
     [onSpeechComplete]
   );
 
-  // Memoize returned object so its reference is stable across re-renders.
-  // This prevents useCallbacks/useEffects in consumers (useClassroom) from
-  // re-creating on every state change (e.g. setSessionStatus causing re-render).
   return useMemo(
     () => ({
       currentSpeech,
@@ -344,8 +392,6 @@ export function useSpeechQueue({
       stop,
       prefetch,
     }),
-    // All the functions are themselves stable useCallbacks so this memo only
-    // busts when the reactive state (currentSpeech, status) changes.
     [currentSpeech, status, playSpeech, playScheduled, playDirectSpeech, synthesizeItem, handleAudioEnd, stop, prefetch]
   );
 }

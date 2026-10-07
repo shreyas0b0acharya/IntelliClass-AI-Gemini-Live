@@ -1,8 +1,17 @@
 import type { SpeechItem, TTSFetchOptions } from "../types/speech";
+import {
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_SPEECH_SPEED,
+} from "@/config";
 
 export async function fetchSpeechTTS({
   text,
-  voice = "af_bella",
+  voice = DEFAULT_FEMALE_VOICE_ID,
+  provider = DEFAULT_TTS_PROVIDER,
+  modelId,
+  speed = DEFAULT_SPEECH_SPEED,
+  voiceSettings,
   requestId,
   signal,
 }: TTSFetchOptions): Promise<SpeechItem> {
@@ -12,6 +21,10 @@ export async function fetchSpeechTTS({
     body: JSON.stringify({
       text,
       voice,
+      provider,
+      modelId,
+      speed,
+      voiceSettings,
       requestId,
     }),
     signal,

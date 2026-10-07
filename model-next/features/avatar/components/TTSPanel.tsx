@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { HeadTTSData } from "../types/lipSync.types";
 import { unlockAudioContext } from "../services/audioManager";
+import { HEADTTS_VOICE_OPTIONS, DEFAULT_FEMALE_VOICE_ID } from "@/config";
 
 interface TTSResult {
   audioPath: string;
@@ -19,10 +20,10 @@ interface TTSPanelProps {
   disabled?: boolean;
 }
 
-const KOKORO_VOICES = [
-  { id: "af_bella", label: "Bella (US Female - Default)" },
-  { id: "am_fenrir", label: "Fenrir (US Male)" },
-];
+const KOKORO_VOICES = HEADTTS_VOICE_OPTIONS.map((v) => ({
+  id: v.id,
+  label: v.name,
+}));
 
 export function TTSPanel({
   onSpeakText,
@@ -33,7 +34,7 @@ export function TTSPanel({
   disabled = false,
 }: TTSPanelProps) {
   const [text, setText] = useState("");
-  const [voice, setVoice] = useState("af_bella");
+  const [voice, setVoice] = useState(DEFAULT_FEMALE_VOICE_ID);
 
   const handleSpeak = () => {
     const value = text.trim();

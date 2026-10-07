@@ -234,9 +234,12 @@ export default function NewSessionPage({
     try {
       // 1. Create Session (Server automatically generates unique meeting code)
       console.log("📝 [New Session] Creating course session for topic:", topic);
+      const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
       const { session } = await api.createCourseSession(courseId, {
         topic: topic.trim(),
         voice_id: voiceId,
+        avatar_model: avatarModel,
+        speech_speed: speed,
       });
 
       // 2. Format selected sources

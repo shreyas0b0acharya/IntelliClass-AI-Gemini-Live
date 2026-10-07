@@ -6,6 +6,11 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
+import {
+  DEFAULT_AVATAR_MODEL,
+  DEFAULT_FEMALE_AVATAR_MODEL,
+  STUDIO_PREVIEW_CAMERA,
+} from "@/config";
 import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
 
 interface AvatarPreviewProps {
@@ -90,7 +95,7 @@ export function AvatarPreview({
   lipSyncData,
   onLipSyncEnd,
 }: AvatarPreviewProps) {
-  const modelFile = propModel || (gender === "female" ? "women-avatarsdk" : "men-avatarsdk");
+  const modelFile = propModel || (gender === "female" ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL);
 
   const [mounted, setMounted] = useState(false);
   const [contextLost, setContextLost] = useState(false);
@@ -101,27 +106,33 @@ export function AvatarPreview({
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for webglcontextlost / webglcontextrestored
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    canvasRef.current = gl.domElement;
 
-    const handleLost = (e: Event) => {
+    // Suppress WebGL shader compiler precision warnings in browser console
+    const _origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      if (typeof args[0] === "string" && (args[0].includes("X4122") || args[0].includes("sum of"))) return;
+      _origWarn.apply(console, args);
+    };
+
+    const handleContextLost = (e: Event) => {
       e.preventDefault();
       setContextLost(true);
     };
-    const handleRestored = () => setContextLost(false);
 
-    el.addEventListener("webglcontextlost", handleLost);
-    el.addEventListener("webglcontextrestored", handleRestored);
-    return () => {
-      el.removeEventListener("webglcontextlost", handleLost);
-      el.removeEventListener("webglcontextrestored", handleRestored);
+    const handleContextRestored = () => {
+      setContextLost(false);
     };
-  }, [mounted]);
 
-  const handleCreated = useCallback((state: { gl: THREE.WebGLRenderer }) => {
-    canvasRef.current = state.gl.domElement;
+    const el = gl.domElement;
+    el.addEventListener("webglcontextlost", handleContextLost);
+    el.addEventListener("webglcontextrestored", handleContextRestored);
+
+    return () => {
+      el.removeEventListener("webglcontextlost", handleContextLost);
+      el.removeEventListener("webglcontextrestored", handleContextRestored);
+    };
   }, []);
 
   return (
@@ -152,10 +163,10 @@ export function AvatarPreview({
           <Canvas
             shadows={false}
             camera={{
-              position: [0, 1.48, -2.1],
-              fov: 38,
-              near: 0.1,
-              far: 50,
+              position: STUDIO_PREVIEW_CAMERA.position,
+              fov: STUDIO_PREVIEW_CAMERA.fov,
+              near: STUDIO_PREVIEW_CAMERA.near,
+              far: STUDIO_PREVIEW_CAMERA.far,
             }}
             frameloop="always"
             dpr={[1, 1.5]}

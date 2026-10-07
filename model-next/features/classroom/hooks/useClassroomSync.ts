@@ -9,6 +9,7 @@ import type {
   AdmissionStatus,
 } from "../types/classroom";
 import { toast } from "sonner";
+import { CLASSROOM_TIMINGS } from "@/config";
 
 interface UseClassroomSyncOptions {
   sessionId: string;
@@ -741,7 +742,7 @@ export function useClassroomSync({
         const onlineEntry = onlineUserMap.get(pUserId);
         const lastSeen = presenceLastSeenRef.current.get(pUserId) || 0;
         const isOnline =
-          Boolean(onlineEntry) || now - lastSeen < 10000; // 10s presentation grace period
+          Boolean(onlineEntry) || now - lastSeen < CLASSROOM_TIMINGS.PRESENCE_GRACE_PERIOD_MS; // 10s presentation grace period
 
         // Check local admitted guard so admitted students are never downgraded
         const isLocallyAdmitted = admittedStudentIdsRef.current.has(pUserId);

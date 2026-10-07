@@ -12,15 +12,20 @@ import {
   ParticipantsModal,
   LectureScriptModal,
   ClassroomHeader,
-  ClassroomConfigModal,
   StageOverlay,
   MobileViewSwitcher,
   ChatPanel,
+  SessionPersonaModal,
   getCapabilities,
 } from "@/features/classroom";
 import { AssetSyncModal } from "@/components/shared";
-import { assetStorage } from "@/features/avatar";
+import { assetStorage, resolveAvatarModel } from "@/features/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  DEFAULT_TTS_PROVIDER,
+} from "@/config";
 import {
   Loader2,
   Clock,
@@ -61,7 +66,7 @@ export default function ClassroomPage({
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [showScriptModal, setShowScriptModal] = useState(false);
   const [showMaterialsModal, setShowMaterialsModal] = useState(false);
-  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [courseFiles, setCourseFiles] = useState<CourseFile[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedViewFile, setSelectedViewFile] = useState<CourseFile | null>(null);
@@ -154,10 +159,10 @@ export default function ClassroomPage({
   const courseId = classroom.session.course_id;
   const meetingCode = classroom.session.meeting_code || classroom.session.id?.slice(0, 8);
 
-  const avatarModel =
-    classroom.session.voice_id?.startsWith("af_")
-      ? "women-avatarsdk"
-      : "men-avatarsdk";
+  const avatarModel = resolveAvatarModel(
+    classroom.session.avatar_model,
+    classroom.session.voice_id
+  );
 
   const hasWaitingStudents =
     isLecturer && classroom.participants.some((p) => p.status === "waiting");
@@ -236,6 +241,21 @@ export default function ClassroomPage({
         rawScript={classroom.session.script || ""}
         onSaveScript={classroom.updateScript}
         onStartSession={classroom.startSession}
+      />
+
+      {/* 3D Persona & Speech Configuration Modal */}
+      <SessionPersonaModal
+        open={showPersonaModal}
+        onOpenChange={setShowPersonaModal}
+        sessionStatus={classroom.sessionStatus}
+        isLecturer={isLecturer}
+        currentAvatarModel={avatarModel}
+        currentVoiceId={classroom.session.voice_id || DEFAULT_MALE_VOICE_ID}
+        currentSpeechSpeed={classroom.session.speech_speed ?? DEFAULT_SPEECH_SPEED}
+        currentTtsProvider={classroom.session.tts_provider || DEFAULT_TTS_PROVIDER}
+        onSaveConfig={async (config) => {
+          await classroom.updatePersonaConfig(config);
+        }}
       />
 
       {/* Course Materials Browser Modal */}
@@ -328,6 +348,7 @@ export default function ClassroomPage({
         sessionStatus={classroom.sessionStatus}
         voiceId={classroom.session.voice_id}
         avatarModel={avatarModel}
+        speechSpeed={classroom.session.speech_speed ?? 1.0}
         activeStudentCount={classroom.activeStudentCount}
         emptyRoomCountdown={classroom.emptyRoomCountdown}
         stoppedReason={classroom.stoppedReason || undefined}
@@ -338,6 +359,7 @@ export default function ClassroomPage({
         onOpenParticipants={() => setShowParticipantsModal(true)}
         onOpenScript={() => setShowScriptModal(true)}
         onOpenMaterials={handleOpenMaterials}
+        onOpenPersonaConfig={() => setShowPersonaModal(true)}
         onStartSession={classroom.startSession}
         onPauseSession={classroom.pauseSession}
         onEndSession={classroom.endSession}
@@ -347,23 +369,8 @@ export default function ClassroomPage({
         onToggleCaptions={handleToggleCaptions}
         showProgressHUD={showProgressHUD}
         onToggleProgressHUD={handleToggleProgressHUD}
-        onOpenConfig={isLecturer ? () => setShowConfigModal(true) : undefined}
+        onOpenConfig={isLecturer ? () => setShowPersonaModal(true) : undefined}
       />
-
-      {/* AI Lecturer & Voice Configuration Modal (Lecturer only) */}
-      {isLecturer && (
-        <ClassroomConfigModal
-          key={showConfigModal ? `config-open-${classroom.session?.voice_id ?? ""}` : "config-closed"}
-          open={showConfigModal}
-          onOpenChange={setShowConfigModal}
-          sessionStatus={classroom.sessionStatus}
-          currentVoiceId={classroom.session?.voice_id ?? undefined}
-          currentAvatarModel={avatarModel}
-          onSave={async ({ voiceId, avatarModel: model, personaName }) => {
-            await classroom.updateSessionConfig({ voiceId, avatarModel: model, personaName });
-          }}
-        />
-      )}
 
       {/* Main Classroom Area: State-Preserving Persistent Panels */}
       <div className="flex-1 relative min-h-0 overflow-hidden lg:grid lg:grid-cols-4">
@@ -495,6 +502,7 @@ export default function ClassroomPage({
           <div className="flex flex-col relative h-full bg-gradient-to-b from-background via-background/95 to-muted/20 p-2 sm:p-4">
             <div className="flex-1 relative w-full h-full min-h-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl">
               <AvatarStage
+                key={avatarModel}
                 model={avatarModel}
                 isSpeaking={Boolean(classroom.currentSpeech)}
                 audioPath={classroom.currentSpeech?.audioPath}

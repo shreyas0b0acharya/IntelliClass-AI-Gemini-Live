@@ -22,6 +22,7 @@ import type { AvatarGLTFResult, AvatarProps } from "../types/avatar.types";
 import { AvatarEyeMovement } from "./AvatarEyeMovement";
 import { AvatarBreathing } from "./AvatarBreathing";
 import { AvatarHeadMovement } from "./AvatarHeadMovement";
+import { DEFAULT_AVATAR_MODEL } from "@/config";
 import { AvatarEyebrows } from "./AvatarEyebrows";
 import { AvatarCheeks } from "./AvatarCheeks";
 import { AvatarMouthCorners } from "./AvatarMouthCorners";
@@ -35,7 +36,7 @@ function AvatarLipSync(props: LipSyncProps) {
 }
 
 export function Avatar({
-  model = "men-avatarsdk",
+  model = DEFAULT_AVATAR_MODEL,
   animation = "weight shift",
   behaviorState = "idle",
   position,
@@ -48,7 +49,7 @@ export function Avatar({
   targetEpochMs,
   sequence,
 }: AvatarProps) {
-  const modelName = model || "men-avatarsdk";
+  const modelName = model || DEFAULT_AVATAR_MODEL;
   const { capabilities } = useDeviceTier();
 
   const [isReady, setIsReady] = useState(false);

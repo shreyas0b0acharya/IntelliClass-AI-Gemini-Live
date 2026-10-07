@@ -1,6 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAvatarModel } from "@/features/avatar";
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_SPEECH_SPEED,
+  PERSONA_CONFIG_FIELDS,
+  SESSION_ALLOWED_UPDATE_FIELDS,
+  SESSION_INTEGER_FIELDS,
+  CLASSROOM_TIMINGS,
+} from "@/config";
 
 export async function GET(
   request: NextRequest,
@@ -22,7 +31,9 @@ export async function GET(
 
     const normalizedSession = {
       ...session,
-      voice_id: session.voice_id || "am_fenrir",
+      voice_id: session.voice_id || DEFAULT_MALE_VOICE_ID,
+      avatar_model: resolveAvatarModel(session.avatar_model, session.voice_id),
+      speech_speed: typeof session.speech_speed === "number" ? session.speech_speed : DEFAULT_SPEECH_SPEED,
       meeting_code: session.meeting_code || session.id?.slice(0, 8),
     };
 
@@ -79,7 +90,22 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
 
-    // 3. Atomic CAS Conductor Lease Handling
+    // 3. Persona Lifecycle Lock Check:
+    // Avatar model, voice, speed, and TTS provider cannot be altered mid-speech while session is running.
+    // Allowed when session is "created", "paused", or "ended".
+    const personaFields = PERSONA_CONFIG_FIELDS;
+    const hasPersonaField = personaFields.some((f) => f in body);
+    if (hasPersonaField && existingSession.status === "running") {
+      return NextResponse.json(
+        {
+          error:
+            "Configuration locked: Avatar persona, voice, and speaking speed cannot be altered while lecture is running. Please pause the lecture first.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Atomic CAS Conductor Lease Handling
     if (typeof body.driverTabId === "string" && body.driverTabId) {
       const now = Date.now();
       const leaseExpiresAt = existingSession.driver_lease_expires_at
@@ -101,29 +127,8 @@ export async function PATCH(
     }
 
     // Whitelist allowed fields to update
-    const allowedFields = [
-      "status",
-      "current_item_id",
-      "current_sentence_index",
-      "sequence",
-      "stopped_reason",
-      "script",
-      "topic",
-      "voice_id",
-      "active_driver_tab_id",
-      "driver_lease_expires_at",
-      "driver_lease_version",
-      "target_epoch_ms",
-      "duration_ms",
-    ];
-
-    const integerFields = new Set([
-      "current_sentence_index",
-      "sequence",
-      "driver_lease_version",
-      "target_epoch_ms",
-      "duration_ms",
-    ]);
+    const allowedFields = SESSION_ALLOWED_UPDATE_FIELDS;
+    const integerFields = SESSION_INTEGER_FIELDS;
 
     const updatePayload: Record<string, unknown> = {};
     for (const field of allowedFields) {
@@ -149,7 +154,7 @@ export async function PATCH(
         updatePayload.active_driver_tab_id = body.driverTabId;
       }
       if (!knownMissingColumns.has("driver_lease_expires_at")) {
-        updatePayload.driver_lease_expires_at = new Date(Date.now() + 12000).toISOString();
+        updatePayload.driver_lease_expires_at = new Date(Date.now() + CLASSROOM_TIMINGS.DRIVER_LEASE_DURATION_MS).toISOString();
       }
       if (!knownMissingColumns.has("driver_lease_version")) {
         updatePayload.driver_lease_version =
@@ -212,9 +217,18 @@ export async function PATCH(
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    const finalSession = {
+      ...existingSession,
+      ...(updatedSession || {}),
+      ...(typeof body.avatar_model === "string" ? { avatar_model: body.avatar_model } : {}),
+      ...(typeof body.voice_id === "string" ? { voice_id: body.voice_id } : {}),
+      ...(typeof body.speech_speed === "number" ? { speech_speed: body.speech_speed } : {}),
+      ...(typeof body.tts_provider === "string" ? { tts_provider: body.tts_provider } : {}),
+    };
+
     return NextResponse.json({
       success: true,
-      session: updatedSession,
+      session: finalSession,
       isDriver:
         typeof body.driverTabId === "string" && body.driverTabId
           ? updatedSession?.active_driver_tab_id === body.driverTabId || true

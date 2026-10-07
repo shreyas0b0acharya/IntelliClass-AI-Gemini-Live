@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
@@ -27,13 +27,48 @@ import {
   type HeadTTSData,
 } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
-
-const LEAD_TIME_MS = 350;
+import { ELEVENLABS_VOICE_OPTIONS } from "@/features/settings/services/settings";
+import type { TTSProviderId } from "../types/speech";
+import {
+  CLASSROOM_TIMINGS,
+  LEAD_TIME_MS,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_TTS_PROVIDER,
+  DEFAULT_HEADTTS_MODEL_ID,
+  DEFAULT_ELEVENLABS_MODEL_ID,
+} from "@/config";
 
 export interface MediaItemDisplay {
   type: "image" | "video";
   url: string;
   label?: string;
+}
+
+export function resolveVoiceAndProvider(rawVoiceId?: string): {
+  voiceId: string;
+  provider: TTSProviderId;
+  modelId: string;
+} {
+  if (!rawVoiceId) {
+    return {
+      voiceId: DEFAULT_FEMALE_VOICE_ID,
+      provider: DEFAULT_TTS_PROVIDER,
+      modelId: DEFAULT_HEADTTS_MODEL_ID,
+    };
+  }
+  if (rawVoiceId.startsWith("elevenlabs:")) {
+    return {
+      voiceId: rawVoiceId.replace("elevenlabs:", ""),
+      provider: "elevenlabs",
+      modelId: DEFAULT_ELEVENLABS_MODEL_ID,
+    };
+  }
+  const isElevenLabs =
+    ELEVENLABS_VOICE_OPTIONS.some((v) => v.id === rawVoiceId) || rawVoiceId.length >= 18;
+  if (isElevenLabs) {
+    return { voiceId: rawVoiceId, provider: "elevenlabs", modelId: DEFAULT_ELEVENLABS_MODEL_ID };
+  }
+  return { voiceId: rawVoiceId, provider: DEFAULT_TTS_PROVIDER, modelId: DEFAULT_HEADTTS_MODEL_ID };
 }
 
 export function useClassroom(sessionId: string) {
@@ -158,9 +193,17 @@ export function useClassroom(sessionId: string) {
     executeLectureItemRef.current?.(itemsRef.current[nextIdx]);
   }, [sessionId, syncStore]);
 
+  const resolvedVoice = useMemo(
+    () => resolveVoiceAndProvider(session?.voice_id),
+    [session?.voice_id]
+  );
+
   // ── 2. TTS & Speech Queue Hook ───────────────────────────────────────
   const speech = useSpeechQueue({
-    voice: session?.voice_id || "af_bella",
+    voice: resolvedVoice.voiceId,
+    provider: resolvedVoice.provider,
+    modelId: resolvedVoice.modelId,
+    speed: session?.speech_speed ?? 1.0,
     onSpeechComplete: (_itemId) => {
       executingItemIdRef.current = null;
       // Only the active conductor advances — students follow strictly via broadcast
@@ -169,7 +212,7 @@ export function useClassroom(sessionId: string) {
         isLecturerRef.current &&
         isConductorLeaseActiveRef.current
       ) {
-        scheduleAdvance(80);
+        scheduleAdvance(CLASSROOM_TIMINGS.AUTO_ADVANCE_DELAY_MS);
       }
     },
     onError: (err) => {
@@ -286,14 +329,21 @@ export function useClassroom(sessionId: string) {
           .filter((i): i is LectureSpeechItem => i.type === "speech")
           .map((i) => i.text);
         if (nextItems.length > 0) {
-          speech.prefetch(nextItems, session?.voice_id || "af_bella");
+          speech.prefetch(
+            nextItems,
+            resolvedVoice.voiceId,
+            resolvedVoice.provider,
+            resolvedVoice.modelId
+          );
         }
 
         // Synthesize (uses cache if already prefetched)
         const speechResult = await speech.synthesizeItem(
           item.text,
           item.id,
-          session?.voice_id || "af_bella"
+          resolvedVoice.voiceId,
+          resolvedVoice.provider,
+          resolvedVoice.modelId
         );
 
         if (!speechResult || !speechResult.audioPath) {
@@ -311,7 +361,7 @@ export function useClassroom(sessionId: string) {
         }
 
         sequenceRef.current++;
-        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
+        const targetEpochMs = Math.round(getSynchronizedEpochMs() + CLASSROOM_TIMINGS.LEAD_TIME_MS);
         const seq = sequenceRef.current;
         const durationMs = Math.round(speechResult.durationMs || 0);
         const executionId = `${sessionId}_${item.id}_seq${seq}_${targetEpochMs}`;
@@ -336,6 +386,8 @@ export function useClassroom(sessionId: string) {
           driverLeaseVersion: driverLeaseVersionRef.current,
           executionId,
           itemId: item.id,
+          provider: speechResult.provider || resolvedVoice.provider,
+          modelId: speechResult.modelId || resolvedVoice.modelId,
           targetEpochMs,
           leadTimeMs: LEAD_TIME_MS,
           audioUrl: speechResult.audioPath,
@@ -417,7 +469,7 @@ export function useClassroom(sessionId: string) {
     };
 
     pollOrRenewLease();
-    const interval = setInterval(pollOrRenewLease, 5000);
+    const interval = setInterval(pollOrRenewLease, CLASSROOM_TIMINGS.DRIVER_LEASE_RENEW_INTERVAL_MS);
 
     return () => {
       active = false;
@@ -515,14 +567,19 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle(event.text || "");
         syncStore().setCurrentSubtitle(event.text || "");
 
-        // Prefetch next items for student cache
-        if (foundIdx !== -1) {
+        // Conductor prefetch next items (students stream broadcasted cache)
+        if (isLecturerRef.current && foundIdx !== -1) {
           const nextItems = itemsRef.current
-            .slice(foundIdx + 1, foundIdx + 4)
+            .slice(foundIdx + 1, foundIdx + 1 + CLASSROOM_TIMINGS.PREFETCH_LOOKAHEAD_COUNT)
             .filter((i): i is LectureSpeechItem => i.type === "speech")
             .map((i) => i.text);
           if (nextItems.length > 0) {
-            speech.prefetch(nextItems, session?.voice_id || "af_bella");
+            speech.prefetch(
+              nextItems,
+              resolvedVoice.voiceId,
+              resolvedVoice.provider,
+              resolvedVoice.modelId
+            );
           }
         }
 
@@ -555,7 +612,7 @@ export function useClassroom(sessionId: string) {
         setCurrentSubtitle(event.text || "");
         syncStore().setCurrentSubtitle(event.text || "");
 
-        if (remainingMs > 200 && event.audioUrl) {
+        if (remainingMs > CLASSROOM_TIMINGS.SEEK_SYNC_MIN_REMAINING_MS && event.audioUrl) {
           preloadAudioBuffer(event.audioUrl);
           speech.playScheduled({
             audioUrl: event.audioUrl,
@@ -639,7 +696,13 @@ export function useClassroom(sessionId: string) {
             offsetMs: 0,
           });
         } else {
-          speech.playSpeech(event.answer, event.interruptionId, session?.voice_id || "af_bella");
+          speech.playSpeech(
+            event.answer,
+            event.interruptionId,
+            resolvedVoice.voiceId,
+            resolvedVoice.provider,
+            resolvedVoice.modelId
+          );
         }
       }
 
@@ -666,15 +729,29 @@ export function useClassroom(sessionId: string) {
       // ── CONFIG_UPDATE ───────────────────────────────────────────────
       else if (event.type === "CONFIG_UPDATE") {
         lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        const resolvedAvatar = event.avatar_model || event.avatarModel;
+        const resolvedVoice = event.voice_id || event.voiceId;
+        const resolvedSpeed = event.speech_speed;
+        const resolvedProvider = event.tts_provider;
+
         setSession((prev) => {
           if (!prev) return prev;
           return {
             ...prev,
-            voice_id: event.voiceId,
-            ...(event.avatarModel ? { avatar_model: event.avatarModel } : {}),
+            avatar_model: resolvedAvatar || prev.avatar_model,
+            voice_id: resolvedVoice || prev.voice_id,
+            speech_speed: resolvedSpeed ?? prev.speech_speed,
+            tts_provider: resolvedProvider || prev.tts_provider,
           };
         });
-        toast.info(`Lecturer updated persona to ${event.personaName || event.voiceId}`);
+
+        if (!isLecturerRef.current) {
+          toast.info(
+            event.personaName
+              ? `Lecturer updated persona to ${event.personaName}`
+              : "Lecturer updated avatar persona & audio settings."
+          );
+        }
       }
 
       // ── END ────────────────────────────────────────────────────────
@@ -903,10 +980,18 @@ export function useClassroom(sessionId: string) {
             }
           }
 
-          // Prefetch initial speech items
-          const initialSpeechTexts = speechItems.slice(0, 6).map((i) => i.text);
-          if (initialSpeechTexts.length > 0) {
-            speechRef.current.prefetch(initialSpeechTexts, sessionData.voice_id || "af_bella");
+          // Prefetch initial speech items (Conductor only — students stream broadcasted cache)
+          if (isLecturerRef.current) {
+            const initialSpeechTexts = speechItems.slice(0, 6).map((i) => i.text);
+            if (initialSpeechTexts.length > 0) {
+              const vInfo = resolveVoiceAndProvider(sessionData.voice_id);
+              speechRef.current.prefetch(
+                initialSpeechTexts,
+                vInfo.voiceId,
+                vInfo.provider,
+                vInfo.modelId
+              );
+            }
           }
 
           // If session is already running when joining (late join):
@@ -1001,7 +1086,7 @@ export function useClassroom(sessionId: string) {
       try {
         const speechRes = await fetchSpeechTTS({
           text: answer,
-          voice: session.voice_id || "af_bella",
+          voice: session.voice_id || DEFAULT_FEMALE_VOICE_ID,
         });
         audioUrl = speechRes.audioPath;
         lipSyncData = speechRes.lipSyncData;
@@ -1260,56 +1345,72 @@ export function useClassroom(sessionId: string) {
     }
   }, [syncStore]);
 
-  const updateSessionConfig = useCallback(
-    async (updates: { voiceId: string; avatarModel?: string; personaName?: string }) => {
-      if (!isLecturerRef.current || !sessionId) return;
-
-      if (sessionStatusRef.current !== "created" && sessionStatusRef.current !== "ended") {
-        toast.error("Voice and avatar model can only be changed in Standby or Ended states.");
+  // ── 10. Pre-Class Persona & Speech Configuration ───────────────────
+  const updatePersonaConfig = useCallback(
+    async (config: {
+      avatar_model?: string;
+      voice_id?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+    }) => {
+      if (!session) return;
+      if (sessionStatusRef.current === "running") {
+        toast.error("Please pause the lecture before modifying avatar persona & voice.");
         return;
       }
 
       try {
-        await api.updateSessionMeta(sessionId, {
-          voice_id: updates.voiceId,
-        });
+        const res = await api.updateSessionMeta(sessionId, config);
+        if (res.session) {
+          setSession((prev) => {
+            const merged = {
+              ...(prev || {}),
+              ...(res.session || {}),
+              avatar_model: config.avatar_model || res.session?.avatar_model || prev?.avatar_model,
+              voice_id: config.voice_id || res.session?.voice_id || prev?.voice_id,
+              speech_speed: config.speech_speed ?? res.session?.speech_speed ?? prev?.speech_speed,
+              tts_provider: config.tts_provider || res.session?.tts_provider || prev?.tts_provider,
+            } as ClassroomSession;
+            return merged;
+          });
+          sequenceRef.current++;
+          broadcastEventRef.current?.({
+            type: "CONFIG_UPDATE",
+            sequence: sequenceRef.current,
+            driverLeaseVersion: driverLeaseVersionRef.current,
+            ...config,
+          });
 
-        setSession((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            voice_id: updates.voiceId,
-            ...(updates.avatarModel ? { avatar_model: updates.avatarModel } : {}),
-          };
-        });
+          // Prefetch first few speech items with the new voice if provided
+          if (config.voice_id) {
+            const nextSpeech = itemsRef.current
+              .slice(currentIndexRef.current, currentIndexRef.current + 5)
+              .filter((i): i is LectureSpeechItem => i.type === "speech")
+              .map((i) => i.text);
+            if (nextSpeech.length > 0) {
+              speech.prefetch(nextSpeech, config.voice_id);
+            }
+          }
 
-        sequenceRef.current++;
-        broadcastEventRef.current?.({
-          type: "CONFIG_UPDATE",
-          sequence: sequenceRef.current,
-          voiceId: updates.voiceId,
-          avatarModel: updates.avatarModel,
-          personaName: updates.personaName,
-          driverLeaseVersion: driverLeaseVersionRef.current,
-        });
-
-        // Prefetch first few speech items with the new voice
-        const nextSpeech = itemsRef.current
-          .slice(currentIndexRef.current, currentIndexRef.current + 5)
-          .filter((i): i is LectureSpeechItem => i.type === "speech")
-          .map((i) => i.text);
-        if (nextSpeech.length > 0) {
-          speech.prefetch(nextSpeech, updates.voiceId);
+          toast.success("Avatar persona & speech settings updated");
         }
-
-        toast.success(`Updated AI Lecturer to ${updates.personaName || updates.voiceId}`);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to update session settings.";
+        const msg = err instanceof Error ? err.message : "Failed to update configuration";
         toast.error(msg);
         throw err;
       }
     },
-    [sessionId, speech]
+    [session, sessionId, speech]
+  );
+
+  const updateSessionConfig = useCallback(
+    async (updates: { voiceId: string; avatarModel?: string; personaName?: string }) => {
+      await updatePersonaConfig({
+        voice_id: updates.voiceId,
+        avatar_model: updates.avatarModel,
+      });
+    },
+    [updatePersonaConfig]
   );
 
   return {
@@ -1343,6 +1444,7 @@ export function useClassroom(sessionId: string) {
     restartSession,
     updateScript,
     updateSessionConfig,
+    updatePersonaConfig,
     admitParticipant,
     denyParticipant,
     kickParticipant,

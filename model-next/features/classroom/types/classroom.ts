@@ -7,7 +7,8 @@
 // TypeScript will catch any missed call sites at `pnpm typecheck`.
 
 import type { LectureItem } from "./lecture-item";
-import type { HeadTTSData } from "@/features/avatar";
+import type { LipSyncData, HeadTTSData } from "@/features/avatar";
+import type { TTSProviderId } from "./speech";
 
 export type SessionStateStatus =
   | "created"
@@ -26,11 +27,13 @@ export type ClassroomEvent =
       driverLeaseVersion?: number;
       executionId?: string;
       itemId: string;
+      provider?: TTSProviderId;
+      modelId?: string;
       targetEpochMs: number;   // synchronized epoch when audio starts on ALL devices
       leadTimeMs: number;      // scheduling lead window used (for diagnostics/logging)
-      audioUrl: string;        // absolute path to the .wav served by /api/media/audio
+      audioUrl: string;        // absolute path to the audio served by /api/media/audio
       durationMs: number;      // expected audio duration for prefetch-next-item timing
-      lipSyncData: HeadTTSData; // viseme timestamps relative to audio start (ms)
+      lipSyncData: LipSyncData; // viseme timestamps relative to audio start (ms)
       text: string;            // subtitle text for this segment
       media?: {
         type: "image" | "video";
@@ -140,21 +143,24 @@ export type ClassroomEvent =
       stoppedReason?: string;
     }
   | {
+      type: "CONFIG_UPDATE";
+      avatar_model?: string;
+      voice_id?: string;
+      speech_speed?: number;
+      tts_provider?: string;
+      voiceId?: string;
+      avatarModel?: string;
+      personaName?: string;
+      sequence: number;
+      stateVersion?: number;
+      driverLeaseVersion?: number;
+    }
+  | {
       // Broadcast by the lecturer when restarting an ended/paused session from scratch.
       // MUST bypass all sequence guards on the receiver side so stale lastSeqRef
       // values from the previous run never block item 0 from playing.
       type: "RESTART";
       sequence: 0; // always 0 — indicates a full counter reset
-      stateVersion?: number;
-      driverLeaseVersion?: number;
-    }
-  | {
-      // Broadcast when the lecturer changes the AI voice or avatar model in standby or ended state
-      type: "CONFIG_UPDATE";
-      sequence: number;
-      voiceId: string;
-      avatarModel?: string;
-      personaName?: string;
       stateVersion?: number;
       driverLeaseVersion?: number;
     };
