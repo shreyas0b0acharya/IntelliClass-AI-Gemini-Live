@@ -121,8 +121,10 @@ export function useLipSync({
         );
       }
     } else {
+      // Do not reset morph weights synchronously here. The useFrame loop below
+      // already damps every viseme/jaw target toward zero while not playing.
+      // Keeping this transition frame-driven avoids a visible mouth/face pop.
       isPlayingRef.current = false;
-      resetMouth();
     }
   }, [play, targetEpochMs]);
 

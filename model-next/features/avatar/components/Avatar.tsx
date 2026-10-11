@@ -293,19 +293,19 @@ export function Avatar({
             />
           )}
 
-          {/* HEADTTS LIP SYNC */}
-          {audioPath && lipSyncData && (
-            <AvatarLipSync
-              head={nodes.AvatarHead}
-              teethLower={nodes.AvatarTeethLower}
-              audioPath={audioPath}
-              lipSyncData={lipSyncData}
-              play={playLipSync}
-              onEnded={onLipSyncEnd}
-              targetEpochMs={targetEpochMs}
-              sequence={sequence}
-            />
-          )}
+          {/* HEADTTS LIP SYNC
+              Keep the driver mounted across speech chunks so morph targets can
+              ease back to neutral instead of snapping during the idle gap. */}
+          <AvatarLipSync
+            head={nodes.AvatarHead}
+            teethLower={nodes.AvatarTeethLower}
+            audioPath={audioPath}
+            lipSyncData={lipSyncData}
+            play={playLipSync && Boolean(audioPath && lipSyncData)}
+            onEnded={onLipSyncEnd}
+            targetEpochMs={targetEpochMs}
+            sequence={sequence}
+          />
 
           {/* MODEL MESHES */}
           <AvatarMeshes nodes={nodes} materials={materials} />

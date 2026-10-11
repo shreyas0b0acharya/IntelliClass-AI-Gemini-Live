@@ -41,8 +41,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# 3D models and animation assets
+# 3D models and animation assets (hosted in Supabase Storage)
 public/animations/
 public/models/
 public/generated/
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.blend
 
+zips/

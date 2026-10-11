@@ -17,12 +17,14 @@ export function AvatarBehaviorController({
   isSpeaking = false,
   children,
 }: AvatarBehaviorControllerProps) {
-  // Current effective state: TTS playback takes conversational speaking role when active
-  const currentMode: BehaviorState = isSpeaking ? "talking" : behaviorState;
+  // Initial mode for the store. The live mode is resolved inside useFrame so a
+  // tiny gap between sentence audio chunks does not reset conversational motion.
+  const initialMode: BehaviorState = isSpeaking ? "talking" : behaviorState;
+  const lastSpeakingAt = useRef(Number.NEGATIVE_INFINITY);
 
   // Central Behavior Store Ref
   const store = useRef<BehaviorStore>({
-    state: currentMode,
+    state: initialMode,
     breathing: {
       chestExpansion: 0,
       shoulderLift: 0,
@@ -140,6 +142,11 @@ export function AvatarBehaviorController({
     const t = state.clock.getElapsedTime();
     const safeDelta = Math.min(delta, 0.1);
     const s = store.current;
+
+    if (isSpeaking) lastSpeakingAt.current = t;
+    const withinSpeechBoundaryGrace = t - lastSpeakingAt.current < 0.35;
+    const currentMode: BehaviorState =
+      isSpeaking || withinSpeechBoundaryGrace ? "talking" : behaviorState;
     s.state = currentMode;
 
     // ═════════════════════════════════════════════════════════════

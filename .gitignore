@@ -65,6 +65,19 @@ Thumbs.db
 *.tar.gz
 *.rar
 *.7z
+zips/
+
+
+# 3D Assets & Models (Hosted on Supabase Storage)
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.blend
+**/public/models/
+**/public/animations/
+**/public/generated/
+
 
 # Logs
 logs/
