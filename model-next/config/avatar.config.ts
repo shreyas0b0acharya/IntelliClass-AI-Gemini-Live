@@ -38,15 +38,32 @@ export const DEFAULT_MALE_AVATAR_MODEL: AvatarModelId = "men-avatarsdk";
 export const DEFAULT_FEMALE_AVATAR_MODEL: AvatarModelId = "women-avatarsdk";
 
 /**
- * 3D Model file paths
+ * Supabase Storage CDN base for 3D assets
+ */
+export const SUPABASE_3D_ASSETS_CDN = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
+
+/**
+ * 3D Model file paths (Remote CDN primary, local fallback supported)
  */
 export const AVATAR_MODEL_PATHS: Record<AvatarModelId, string> = {
-  "men-avatarsdk": "/models/men-avatarsdk.glb",
-  "women-avatarsdk": "/models/women-avatarsdk.glb",
+  "men-avatarsdk": `${SUPABASE_3D_ASSETS_CDN}/models/men-avatarsdk.glb`,
+  "women-avatarsdk": `${SUPABASE_3D_ASSETS_CDN}/models/women-avatarsdk.glb`,
 };
 
-export const CLASSROOM_STAGE_MODEL_PATH = "/models/CLASSROOM.glb";
-export const STAGE_BACKDROP_TEXTURE_PATH = "/textures/Blackboard-Stage-Wall.png";
+export const CLASSROOM_STAGE_MODEL_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/CLASSROOM.glb`;
+export const CLASSROOM_STAGE_MODEL_LOW_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/CLASSROOM-low.glb`;
+export const STANDING_CHALKBOARD_MODEL_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/standing_chalkboard.glb`;
+export const STAGE_BACKDROP_TEXTURE_PATH = `${SUPABASE_3D_ASSETS_CDN}/textures/Blackboard-Stage-Wall.png`;
+
+/**
+ * Resolves classroom model path according to hardware/LOD tier
+ */
+export function getClassroomModelPath(tier?: "low" | "medium" | "high"): string {
+  if (tier === "low") {
+    return CLASSROOM_STAGE_MODEL_LOW_PATH;
+  }
+  return CLASSROOM_STAGE_MODEL_PATH;
+}
 
 /**
  * Static Three.js Camera & Viewport Presets

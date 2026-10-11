@@ -16,34 +16,19 @@ import { getSynchronizedEpochMs } from "../services/clockSync";
 import {
   DEFAULT_FEMALE_AVATAR_MODEL,
   DEFAULT_MALE_AVATAR_MODEL,
+  STANDING_CHALKBOARD_MODEL_PATH,
+  AVATAR_MODEL_PATHS,
   type AvatarModelId,
 } from "@/config";
+import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
 
 // ─────────────────────────────────────────────
 // 1. Standing Chalkboard 3D Component
 // ─────────────────────────────────────────────
 function StandingChalkboard() {
-  const { scene } = useGLTF("/models/standing_chalkboard.glb");
+  const cachedUrl = useCachedAssetUrl(STANDING_CHALKBOARD_MODEL_PATH);
+  const { scene } = useGLTF(cachedUrl);
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
-
-  useEffect(() => {
-    return () => {
-      clone.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry?.dispose();
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => {
-              m.map?.dispose();
-              m.dispose();
-            });
-          } else if (obj.material) {
-            obj.material.map?.dispose();
-            obj.material.dispose();
-          }
-        }
-      });
-    };
-  }, [clone]);
 
   return (
     <primitive
@@ -55,9 +40,9 @@ function StandingChalkboard() {
   );
 }
 
-useGLTF.preload("/models/standing_chalkboard.glb");
-useGLTF.preload(`/models/${DEFAULT_FEMALE_AVATAR_MODEL}.glb`);
-useGLTF.preload(`/models/${DEFAULT_MALE_AVATAR_MODEL}.glb`);
+useGLTF.preload(STANDING_CHALKBOARD_MODEL_PATH);
+useGLTF.preload(AVATAR_MODEL_PATHS[DEFAULT_FEMALE_AVATAR_MODEL]);
+useGLTF.preload(AVATAR_MODEL_PATHS[DEFAULT_MALE_AVATAR_MODEL]);
 
 // ─────────────────────────────────────────────
 // 2. Persona Audio & Script Config (Static Assets)

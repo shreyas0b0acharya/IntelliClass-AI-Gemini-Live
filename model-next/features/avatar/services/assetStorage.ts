@@ -155,8 +155,18 @@ class AssetStorageService {
   }
 
   /**
+   * Synchronously checks if an Object URL was already generated and cached in memory.
+   */
+  public getSynchronousObjectUrl(originalUrl: string): string | null {
+    if (typeof window === "undefined" || !originalUrl) return null;
+    return this.objectUrlCache.get(originalUrl) || null;
+  }
+
+  /**
    * Retrieve asset URL for Three.js.
    * If cached in CacheStorage, creates and reuses an in-memory Object URL.
+   * Seamlessly checks both remote Supabase CDN URL and local path.
+   * If not cached, fetches once, caches persistently, and returns the blob URL.
    */
   public async getAssetUrl(originalUrl: string): Promise<string> {
     if (typeof window === "undefined" || !originalUrl) return originalUrl;
@@ -170,12 +180,55 @@ class AssetStorageService {
       // 2. Check-Before-Trust: Check if binary exists in CacheStorage
       const cache = await this.getCache();
       if (cache) {
-        const match = await cache.match(originalUrl);
+        let match = await cache.match(originalUrl);
+
+        // Check alternate equivalent URL (CDN vs local path)
+        const CDN_BASE = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
+        if (!match) {
+          if (originalUrl.startsWith(CDN_BASE)) {
+            const localEquivalent = originalUrl.replace(CDN_BASE, "");
+            match = await cache.match(localEquivalent);
+          } else if (originalUrl.startsWith("/")) {
+            const cdnEquivalent = `${CDN_BASE}${originalUrl}`;
+            match = await cache.match(cdnEquivalent);
+          }
+        }
+
         if (match) {
           const blob = await match.blob();
           const objectUrl = URL.createObjectURL(blob);
           this.objectUrlCache.set(originalUrl, objectUrl);
           return objectUrl;
+        }
+
+        // On-demand fetch & cache if not present (Download once, store forever)
+        try {
+          const res = await fetch(originalUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            await cache.put(
+              originalUrl,
+              new Response(blob, {
+                headers: { "Content-Type": "application/octet-stream" },
+              })
+            );
+            const objectUrl = URL.createObjectURL(blob);
+            this.objectUrlCache.set(originalUrl, objectUrl);
+            return objectUrl;
+          }
+        } catch {
+          // If remote CDN failed, try local fallback if applicable
+          if (originalUrl.startsWith(CDN_BASE)) {
+            const localFallback = originalUrl.replace(CDN_BASE, "");
+            const localRes = await fetch(localFallback);
+            if (localRes.ok) {
+              const blob = await localRes.blob();
+              await cache.put(originalUrl, new Response(blob));
+              const objectUrl = URL.createObjectURL(blob);
+              this.objectUrlCache.set(originalUrl, objectUrl);
+              return objectUrl;
+            }
+          }
         }
       }
     } catch (err) {

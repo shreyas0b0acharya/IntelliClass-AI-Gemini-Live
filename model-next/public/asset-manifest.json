@@ -1,52 +1,66 @@
 {
-  "version": "2.0.0",
-  "updatedAt": "2026-08-30T19:45:00Z",
+  "version": "2.1.0",
+  "updatedAt": "2026-10-08T00:10:00Z",
+  "cdnBase": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets",
   "assets": [
     {
       "assetKey": "avatar-men",
-      "name": "Professor Sharma (AI Faculty)",
+      "name": "Professor Arthur (AI Faculty)",
       "category": "avatar",
       "modelGender": "men",
       "priority": "P0",
       "variants": {
         "high": {
-          "url": "/models/men-avatarsdk.glb",
-          "size": 15833496,
-          "sha256": "men_meshopt_high_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "size": 15838288,
+          "sha256": "men_meshopt_high_v2_1"
         },
         "medium": {
-          "url": "/models/men-avatarsdk.glb",
-          "size": 15833496,
-          "sha256": "men_meshopt_med_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "size": 15838288,
+          "sha256": "men_meshopt_med_v2_1"
         },
         "low": {
-          "url": "/models/men-avatarsdk.glb",
-          "size": 15833496,
-          "sha256": "men_meshopt_low_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "size": 15838288,
+          "sha256": "men_meshopt_low_v2_1"
         }
       }
     },
     {
       "assetKey": "avatar-women",
-      "name": "Professor Elena (AI Faculty)",
+      "name": "Dr. Clara (AI Faculty)",
       "category": "avatar",
       "modelGender": "women",
       "priority": "P0",
       "variants": {
         "high": {
-          "url": "/models/women-avatarsdk.glb",
-          "size": 20793248,
-          "sha256": "women_meshopt_high_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "size": 14810288,
+          "sha256": "women_meshopt_high_v2_1"
         },
         "medium": {
-          "url": "/models/women-avatarsdk.glb",
-          "size": 20793248,
-          "sha256": "women_meshopt_med_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "size": 14810288,
+          "sha256": "women_meshopt_med_v2_1"
         },
         "low": {
-          "url": "/models/women-avatarsdk.glb",
-          "size": 20793248,
-          "sha256": "women_meshopt_low_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "size": 14810288,
+          "sha256": "women_meshopt_low_v2_1"
+        }
+      }
+    },
+    {
+      "assetKey": "standing-chalkboard",
+      "name": "Standing Chalkboard Stage",
+      "category": "classroom",
+      "priority": "P0",
+      "variants": {
+        "all": {
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/standing_chalkboard.glb",
+          "size": 138508,
+          "sha256": "chalkboard_meshopt_v2_1"
         }
       }
     },
@@ -57,9 +71,9 @@
       "priority": "P0",
       "variants": {
         "all": {
-          "url": "/textures/Blackboard-Stage-Wall.png",
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/textures/Blackboard-Stage-Wall.png",
           "size": 2233472,
-          "sha256": "stage_wall_v2"
+          "sha256": "stage_wall_v2_1"
         }
       }
     },
@@ -70,14 +84,14 @@
       "priority": "P0",
       "variants": {
         "men": {
-          "url": "/animations/men-avatarsdk/weight shift.fbx",
-          "size": 819200,
-          "sha256": "anim_men_ws_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/animations/men-avatarsdk/weight%20shift.fbx",
+          "size": 1814337,
+          "sha256": "anim_men_ws_v2_1"
         },
         "women": {
-          "url": "/animations/women-avatarsdk/weight shift.fbx",
-          "size": 819200,
-          "sha256": "anim_women_ws_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/animations/women-avatarsdk/weight%20shift.fbx",
+          "size": 1814337,
+          "sha256": "anim_women_ws_v2_1"
         }
       }
     },
@@ -88,14 +102,19 @@
       "priority": "P1",
       "variants": {
         "high": {
-          "url": "/models/CLASSROOM.glb",
-          "size": 42467328,
-          "sha256": "classroom_meshopt_high_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM.glb",
+          "size": 5109020,
+          "sha256": "classroom_meshopt_high_v2_1"
         },
         "medium": {
-          "url": "/models/CLASSROOM.glb",
-          "size": 42467328,
-          "sha256": "classroom_meshopt_med_v2"
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM.glb",
+          "size": 5109020,
+          "sha256": "classroom_meshopt_med_v2_1"
+        },
+        "low": {
+          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM-low.glb",
+          "size": 1791200,
+          "sha256": "classroom_meshopt_low_v2_1"
         }
       }
     },

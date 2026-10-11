@@ -11,30 +11,14 @@ import * as THREE from "three";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
 import { useDeviceTier } from "../hooks/useDeviceTier";
-import { DEFAULT_AVATAR_MODEL, CLASSROOM_STAGE_MODEL_PATH } from "@/config";
+import { DEFAULT_AVATAR_MODEL, getClassroomModelPath, STAGE_BACKDROP_TEXTURE_PATH } from "@/config";
+import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
 
 function ClassroomStage() {
-  const { scene } = useGLTF(CLASSROOM_STAGE_MODEL_PATH);
-
-  // Dispose geometries and materials on unmount
-  useEffect(() => {
-    return () => {
-      scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry?.dispose();
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => {
-              m.map?.dispose();
-              m.dispose();
-            });
-          } else if (obj.material) {
-            obj.material.map?.dispose();
-            obj.material.dispose();
-          }
-        }
-      });
-    };
-  }, [scene]);
+  const { capabilities } = useDeviceTier();
+  const classroomModelPath = getClassroomModelPath(capabilities.lodLevel);
+  const cachedUrl = useCachedAssetUrl(classroomModelPath);
+  const { scene } = useGLTF(cachedUrl);
 
   return <primitive object={scene} />;
 }
@@ -65,7 +49,8 @@ export function Experience({
   sequence,
 }: ExperienceProps) {
   const { capabilities } = useDeviceTier();
-  const texture = useTexture("/textures/Blackboard-Stage-Wall.png");
+  const cachedBackdropUrl = useCachedAssetUrl(STAGE_BACKDROP_TEXTURE_PATH);
+  const texture = useTexture(cachedBackdropUrl);
 
   return (
     <>

@@ -22,13 +22,14 @@ import type { AvatarGLTFResult, AvatarProps } from "../types/avatar.types";
 import { AvatarEyeMovement } from "./AvatarEyeMovement";
 import { AvatarBreathing } from "./AvatarBreathing";
 import { AvatarHeadMovement } from "./AvatarHeadMovement";
-import { DEFAULT_AVATAR_MODEL } from "@/config";
+import { DEFAULT_AVATAR_MODEL, AVATAR_MODEL_PATHS, type AvatarModelId } from "@/config";
 import { AvatarEyebrows } from "./AvatarEyebrows";
 import { AvatarCheeks } from "./AvatarCheeks";
 import { AvatarMouthCorners } from "./AvatarMouthCorners";
 import { AvatarNostrils } from "./AvatarNostrils";
 import { AvatarLips } from "./AvatarLips";
 import { useDeviceTier } from "../hooks/useDeviceTier";
+import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
 
 function AvatarLipSync(props: LipSyncProps) {
   useLipSync(props);
@@ -49,7 +50,9 @@ export function Avatar({
   targetEpochMs,
   sequence,
 }: AvatarProps) {
-  const modelName = model || DEFAULT_AVATAR_MODEL;
+  const modelName = (model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
+  const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
+  const cachedUrl = useCachedAssetUrl(canonicalUrl);
   const { capabilities } = useDeviceTier();
 
   const [isReady, setIsReady] = useState(false);
@@ -62,33 +65,13 @@ export function Avatar({
     return () => clearTimeout(timer);
   }, [modelName]);
 
-  const { scene } = useDreiGLTF(`/models/${modelName}.glb`);
+  const { scene } = useDreiGLTF(cachedUrl);
 
   /*
    * Clone the model so every avatar instance
    * has independent skeleton/morph state.
    */
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
-
-  // Clean up geometries and materials on unmount to prevent WebGL memory leaks
-  useEffect(() => {
-    return () => {
-      clone.traverse((obj) => {
-        if (obj instanceof THREE.Mesh || obj instanceof THREE.SkinnedMesh) {
-          obj.geometry?.dispose();
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => {
-              m.map?.dispose();
-              m.dispose();
-            });
-          } else if (obj.material) {
-            obj.material.map?.dispose();
-            obj.material.dispose();
-          }
-        }
-      });
-    };
-  }, [clone]);
 
   const { nodes, materials } = useGraph(clone) as unknown as AvatarGLTFResult;
 

@@ -17,6 +17,7 @@ export { useLipSync } from "./hooks/useLipSync";
 export { useDeviceTier } from "./hooks/useDeviceTier";
 export type { DeviceTier, DeviceCapabilities } from "./hooks/useDeviceTier";
 export { useAssetSync } from "./hooks/useAssetSync";
+export { useCachedAssetUrl } from "./hooks/useCachedAssetUrl";
 
 // Services & Utils
 export { assetStorage } from "./services/assetStorage";
