@@ -11,7 +11,8 @@ import {
   DEFAULT_FEMALE_AVATAR_MODEL,
   STUDIO_PREVIEW_CAMERA,
 } from "@/config";
-import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AvatarPreviewProps {
   model?: string;
@@ -99,14 +100,34 @@ export function AvatarPreview({
 
   const [mounted, setMounted] = useState(false);
   const [contextLost, setContextLost] = useState(false);
+  const [canvasKey, setCanvasKey] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
+  // Gracefully clean up WebGL renderer when component unmounts
+  useEffect(() => {
+    return () => {
+      if (rendererRef.current) {
+        try {
+          rendererRef.current.dispose();
+        } catch {}
+        rendererRef.current = null;
+      }
+    };
+  }, []);
+
+  const recoverContext = useCallback(() => {
+    setContextLost(false);
+    setCanvasKey((k) => k + 1);
+  }, []);
+
   const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    rendererRef.current = gl;
     canvasRef.current = gl.domElement;
 
     // Suppress WebGL shader compiler precision warnings in browser console
@@ -118,10 +139,18 @@ export function AvatarPreview({
 
     const handleContextLost = (e: Event) => {
       e.preventDefault();
+      console.warn("[AvatarPreview] WebGL Context lost — attempting self-healing recovery...");
       setContextLost(true);
+      // Auto-recover after a brief delay so the user is never stuck
+      setTimeout(() => {
+        setCanvasKey((k) => k + 1);
+        setContextLost(false);
+      }, 600);
     };
 
     const handleContextRestored = () => {
+      console.info("[AvatarPreview] WebGL Context restored");
+      setCanvasKey((k) => k + 1);
       setContextLost(false);
     };
 
@@ -139,13 +168,25 @@ export function AvatarPreview({
     <div
       className={`relative overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-gradient-to-b from-card to-background shadow-xs ${className}`}
     >
-      {/* Context-lost overlay */}
+      {/* Context-lost self-healing overlay */}
       {contextLost && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/90 backdrop-blur-sm">
-          <AlertTriangle className="h-6 w-6 text-chart-4" />
-          <span className="text-xs font-medium text-muted-foreground">
-            GPU context lost — reload the page to restore.
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 bg-background/90 backdrop-blur-md p-4 text-center animate-in fade-in duration-200">
+          <AlertTriangle className="h-6 w-6 text-chart-4 animate-pulse" />
+          <span className="text-xs font-semibold text-foreground">
+            Restoring 3D Viewport...
           </span>
+          <p className="text-[11px] text-muted-foreground max-w-xs">
+            GPU display state was reset by the browser. Rebuilding WebGL context.
+          </p>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={recoverContext}
+            className="mt-1 gap-1.5"
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span>Restore Now</span>
+          </Button>
         </div>
       )}
 
@@ -161,6 +202,7 @@ export function AvatarPreview({
           }
         >
           <Canvas
+            key={canvasKey}
             shadows={false}
             camera={{
               position: STUDIO_PREVIEW_CAMERA.position,
@@ -172,10 +214,11 @@ export function AvatarPreview({
             dpr={[1, 1.5]}
             gl={{
               antialias: true,
-              powerPreference: "low-power",
+              powerPreference: "high-performance",
               alpha: false,
               stencil: false,
               depth: true,
+              preserveDrawingBuffer: false,
             }}
             onCreated={handleCreated}
             className="w-full h-full cursor-grab active:cursor-grabbing"
