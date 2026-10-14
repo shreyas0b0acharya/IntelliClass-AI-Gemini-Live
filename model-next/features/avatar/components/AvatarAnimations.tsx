@@ -1,17 +1,24 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AnimationLoader } from "@/components/shared";
 import { useAvatarBehavior } from "./AvatarBehaviorContext";
 import { AvatarHandGestureDriver } from "../services/AvatarHandGestureDriver";
+import { planGestures } from "../services/gesturePlanner";
+import { getSynchronizedEpochMs } from "../services/clockSync";
+import type { LipSyncData } from "../types/lipSync.types";
 
 interface AvatarAnimationsProps {
   modelName: string;
   animation?: string;
   group: React.RefObject<THREE.Group | null>;
   onReady?: () => void;
+  /** Spoken text + word timings let gestures follow the actual speech. */
+  speechText?: string;
+  lipSyncData?: LipSyncData;
+  targetEpochMs?: number;
 }
 
 export function AvatarAnimations({
@@ -19,6 +26,9 @@ export function AvatarAnimations({
   animation = "weight shift",
   group,
   onReady,
+  speechText,
+  lipSyncData,
+  targetEpochMs,
 }: AvatarAnimationsProps) {
   const currentTargetAnim = animation || "weight shift";
   const behaviorRef = useAvatarBehavior();
@@ -27,6 +37,21 @@ export function AvatarAnimations({
   if (!gestureDriverRef.current) {
     gestureDriverRef.current = new AvatarHandGestureDriver();
   }
+
+  // Deterministic gesture timeline for the sentence being spoken.
+  const gesturePlan = useMemo(() => {
+    if (!speechText && !lipSyncData?.words?.length) return null;
+    return planGestures({ text: speechText, lipSync: lipSyncData });
+  }, [speechText, lipSyncData]);
+
+  const targetEpochRef = useRef(targetEpochMs);
+  useEffect(() => {
+    targetEpochRef.current = targetEpochMs;
+  }, [targetEpochMs]);
+
+  useEffect(() => {
+    gestureDriverRef.current?.setSpeech(gesturePlan);
+  }, [gesturePlan]);
 
   const [loadedAnimMap, setLoadedAnimMap] = useState<Map<string, string>>(() => {
     const initial = new Map<string, string>();
@@ -62,11 +87,17 @@ export function AvatarAnimations({
     driver?.setRoot(group.current);
     driver?.removePreviousOffsets();
     mixerRef.current?.update(Math.min(delta, 0.1));
-    driver?.update(
+    if (!driver) return;
+    const epoch = targetEpochRef.current;
+    driver.update(
       state.clock.getElapsedTime(),
       delta,
       behaviorRef.current.state === "talking",
+      epoch !== undefined ? getSynchronizedEpochMs() - epoch : undefined,
     );
+    const behavior = behaviorRef.current;
+    if (behavior.prosody) behavior.prosody.emphasis = driver.prosodyEmphasis;
+    else behavior.prosody = { emphasis: driver.prosodyEmphasis };
   });
 
   useEffect(() => {

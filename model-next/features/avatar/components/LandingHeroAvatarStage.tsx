@@ -267,6 +267,7 @@ export function LandingHeroAvatarStage() {
                   audioPath={currentPersona.audioPath}
                   lipSyncData={lipSyncCache[selectedModel]}
                   targetEpochMs={targetEpochMs}
+                  speechText={currentPersona.subtitle}
                   onLipSyncEnd={handleSpeechEnded}
                 />
               </group>

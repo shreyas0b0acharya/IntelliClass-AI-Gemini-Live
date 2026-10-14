@@ -34,6 +34,7 @@ interface ExperienceProps {
   onLipSyncEnd?: () => void;
   targetEpochMs?: number;
   sequence?: number;
+  speechText?: string;
 }
 
 export function Experience({
@@ -47,6 +48,7 @@ export function Experience({
   onLipSyncEnd,
   targetEpochMs,
   sequence,
+  speechText,
 }: ExperienceProps) {
   const { capabilities } = useDeviceTier();
   const cachedBackdropUrl = useCachedAssetUrl(STAGE_BACKDROP_TEXTURE_PATH);
@@ -85,6 +87,7 @@ export function Experience({
         onLipSyncEnd={onLipSyncEnd}
         targetEpochMs={targetEpochMs}
         sequence={sequence}
+        speechText={speechText}
       />
 
       {/* Studio portrait lighting: 3-point illumination + frontal eye catchlight across all tiers */}

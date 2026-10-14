@@ -27,9 +27,9 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
 
 // Biomechanical recruitment thresholds (radians)
 const T_CHEST_START = THREE.MathUtils.degToRad(20); // Spine2 stays 0 until 20 deg
-const T_CHEST_FULL  = THREE.MathUtils.degToRad(42); // Spine2 reaches full contribution by 42 deg
+const T_CHEST_FULL = THREE.MathUtils.degToRad(42); // Spine2 reaches full contribution by 42 deg
 const T_SPINE_START = THREE.MathUtils.degToRad(38); // Lower spine stays 0 until 38 deg
-const T_SPINE_FULL  = THREE.MathUtils.degToRad(60); // Lower spine reaches full contribution by 60 deg
+const T_SPINE_FULL = THREE.MathUtils.degToRad(60); // Lower spine reaches full contribution by 60 deg
 
 const T_PITCH_CHEST_START = THREE.MathUtils.degToRad(14); // Chest pitch stays 0 until 14 deg
 
@@ -192,7 +192,7 @@ export function AvatarHeadMovement({
     const rSpine = smoothstep(T_SPINE_START, T_SPINE_FULL, absYaw);
     const excessSpineYaw = Math.max(0, absYaw - T_SPINE_START);
     const targetSpine1Yaw = signYaw * rSpine * Math.min(excessSpineYaw * 0.30, THREE.MathUtils.degToRad(8));
-    const targetSpineYaw  = signYaw * rSpine * Math.min(excessSpineYaw * 0.20, THREE.MathUtils.degToRad(6));
+    const targetSpineYaw = signYaw * rSpine * Math.min(excessSpineYaw * 0.20, THREE.MathUtils.degToRad(6));
 
     // Remaining yaw is shared by Cervical Neck (~42%) and Head (~58%)
     const torsoTotalYaw = targetSpineYaw + targetSpine1Yaw + targetSpine2Yaw;
@@ -249,6 +249,8 @@ export function AvatarHeadMovement({
     const posture = b.head.current;
     const drift = b.head.drift;
     const breathNod = b.breathing.neckNod;
+    // Small nod that lands on stressed words, in sync with the hand beat.
+    const emphasisNod = (b.prosody?.emphasis ?? 0) * 0.03;
 
     // When headFollow is active, keep wandering posture subtle so head stays focused on user
     const pWeight = headFollow ? 0.25 : 0.85;
@@ -277,14 +279,14 @@ export function AvatarHeadMovement({
 
     if (nBone) {
       const baseRot = !isAnimated && baseNeckRot.current ? baseNeckRot.current : null;
-      nBone.rotation.x = (baseRot ? baseRot.x : nBone.rotation.x) + neckPitch.current + posture.x * 0.35 * pWeight + drift.x * 0.5 + breathNod;
+      nBone.rotation.x = (baseRot ? baseRot.x : nBone.rotation.x) + neckPitch.current + posture.x * 0.35 * pWeight + drift.x * 0.5 + breathNod + emphasisNod * 0.4;
       nBone.rotation.y = (baseRot ? baseRot.y : nBone.rotation.y) + neckYaw.current + posture.y * 0.35 * pWeight + drift.y * 0.5;
       nBone.rotation.z = (baseRot ? baseRot.z : nBone.rotation.z) + neckRoll.current + posture.z * 0.35 * pWeight + drift.z * 0.5;
     }
 
     if (hBone) {
       const baseRot = !isAnimated && baseHeadRot.current ? baseHeadRot.current : null;
-      hBone.rotation.x = (baseRot ? baseRot.x : hBone.rotation.x) + headPitch.current + posture.x * 0.65 * pWeight + drift.x * 0.75;
+      hBone.rotation.x = (baseRot ? baseRot.x : hBone.rotation.x) + headPitch.current + posture.x * 0.65 * pWeight + drift.x * 0.75 + emphasisNod * 0.6;
       hBone.rotation.y = (baseRot ? baseRot.y : hBone.rotation.y) + headYaw.current + posture.y * 0.65 * pWeight + drift.y * 0.75;
       hBone.rotation.z = (baseRot ? baseRot.z : hBone.rotation.z) + headRoll.current + posture.z * 0.65 * pWeight + drift.z * 0.75;
     }

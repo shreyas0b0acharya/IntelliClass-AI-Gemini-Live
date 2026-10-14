@@ -49,6 +49,7 @@ export function Avatar({
   onLipSyncEnd,
   targetEpochMs,
   sequence,
+  speechText,
 }: AvatarProps) {
   const modelName = (model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
   const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
@@ -214,6 +215,9 @@ export function Avatar({
             animation={animation}
             group={group}
             onReady={() => setIsReady(true)}
+            speechText={speechText}
+            lipSyncData={lipSyncData}
+            targetEpochMs={targetEpochMs}
           />
 
           {/* BLINKING */}

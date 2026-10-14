@@ -70,6 +70,10 @@ export interface LipMorphData {
   mouthPucker: number;
 }
 
+export interface ProsodyData {
+  emphasis: number; // 0..1 pulse on stressed words (written by the hand gesture driver)
+}
+
 export interface BehaviorStore {
   state: BehaviorState;
   breathing: BreathingData;
@@ -81,4 +85,5 @@ export interface BehaviorStore {
   mouthCorners: MouthCornerMorphData;
   nostrils: NostrilMorphData;
   lips: LipMorphData;
+  prosody?: ProsodyData;
 }
