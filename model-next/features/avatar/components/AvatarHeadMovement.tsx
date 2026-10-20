@@ -249,8 +249,14 @@ export function AvatarHeadMovement({
     const posture = b.head.current;
     const drift = b.head.drift;
     const breathNod = b.breathing.neckNod;
-    // Small nod that lands on stressed words, in sync with the hand beat.
-    const emphasisNod = (b.prosody?.emphasis ?? 0) * 0.03;
+    // Context-driven layer (nods on stressed words, tilts on questions, glances away, lean and
+    // turn that follow the gesturing arms). Already smoothed; added on top of everything else.
+    const speech = b.speech;
+    const spPitch = speech?.headPitch ?? 0;
+    const spYaw = speech?.headYaw ?? 0;
+    const spRoll = speech?.headRoll ?? 0;
+    const torsoPitch = speech?.torsoPitch ?? 0;
+    const torsoYaw = speech?.torsoYaw ?? 0;
 
     // When headFollow is active, keep wandering posture subtle so head stays focused on user
     const pWeight = headFollow ? 0.25 : 0.85;
@@ -258,37 +264,37 @@ export function AvatarHeadMovement({
     // Apply to bones with seamless blending of living micro-movements (layering on top of FBX animations):
     if (sBone) {
       const baseRot = !isAnimated && baseSpineRot.current ? baseSpineRot.current : null;
-      sBone.rotation.x = (baseRot ? baseRot.x : sBone.rotation.x) + spinePitch.current;
-      sBone.rotation.y = (baseRot ? baseRot.y : sBone.rotation.y) + spineYaw.current;
+      sBone.rotation.x = (baseRot ? baseRot.x : sBone.rotation.x) + spinePitch.current + torsoPitch * 0.2;
+      sBone.rotation.y = (baseRot ? baseRot.y : sBone.rotation.y) + spineYaw.current + torsoYaw * 0.2;
       sBone.rotation.z = (baseRot ? baseRot.z : sBone.rotation.z) + spineRoll.current;
     }
 
     if (s1Bone) {
       const baseRot = !isAnimated && baseSpine1Rot.current ? baseSpine1Rot.current : null;
-      s1Bone.rotation.x = (baseRot ? baseRot.x : s1Bone.rotation.x) + spine1Pitch.current;
-      s1Bone.rotation.y = (baseRot ? baseRot.y : s1Bone.rotation.y) + spine1Yaw.current;
+      s1Bone.rotation.x = (baseRot ? baseRot.x : s1Bone.rotation.x) + spine1Pitch.current + torsoPitch * 0.35;
+      s1Bone.rotation.y = (baseRot ? baseRot.y : s1Bone.rotation.y) + spine1Yaw.current + torsoYaw * 0.35;
       s1Bone.rotation.z = (baseRot ? baseRot.z : s1Bone.rotation.z) + spine1Roll.current;
     }
 
     if (s2Bone) {
       const baseRot = !isAnimated && baseSpine2Rot.current ? baseSpine2Rot.current : null;
-      s2Bone.rotation.x = (baseRot ? baseRot.x : s2Bone.rotation.x) + spine2Pitch.current + drift.x * 0.25;
-      s2Bone.rotation.y = (baseRot ? baseRot.y : s2Bone.rotation.y) + spine2Yaw.current + drift.y * 0.25;
+      s2Bone.rotation.x = (baseRot ? baseRot.x : s2Bone.rotation.x) + spine2Pitch.current + drift.x * 0.25 + torsoPitch * 0.45;
+      s2Bone.rotation.y = (baseRot ? baseRot.y : s2Bone.rotation.y) + spine2Yaw.current + drift.y * 0.25 + torsoYaw * 0.45;
       s2Bone.rotation.z = (baseRot ? baseRot.z : s2Bone.rotation.z) + spine2Roll.current + drift.z * 0.25;
     }
 
     if (nBone) {
       const baseRot = !isAnimated && baseNeckRot.current ? baseNeckRot.current : null;
-      nBone.rotation.x = (baseRot ? baseRot.x : nBone.rotation.x) + neckPitch.current + posture.x * 0.35 * pWeight + drift.x * 0.5 + breathNod + emphasisNod * 0.4;
-      nBone.rotation.y = (baseRot ? baseRot.y : nBone.rotation.y) + neckYaw.current + posture.y * 0.35 * pWeight + drift.y * 0.5;
-      nBone.rotation.z = (baseRot ? baseRot.z : nBone.rotation.z) + neckRoll.current + posture.z * 0.35 * pWeight + drift.z * 0.5;
+      nBone.rotation.x = (baseRot ? baseRot.x : nBone.rotation.x) + neckPitch.current + posture.x * 0.35 * pWeight + drift.x * 0.5 + breathNod + spPitch * 0.35;
+      nBone.rotation.y = (baseRot ? baseRot.y : nBone.rotation.y) + neckYaw.current + posture.y * 0.35 * pWeight + drift.y * 0.5 + spYaw * 0.4;
+      nBone.rotation.z = (baseRot ? baseRot.z : nBone.rotation.z) + neckRoll.current + posture.z * 0.35 * pWeight + drift.z * 0.5 + spRoll * 0.4;
     }
 
     if (hBone) {
       const baseRot = !isAnimated && baseHeadRot.current ? baseHeadRot.current : null;
-      hBone.rotation.x = (baseRot ? baseRot.x : hBone.rotation.x) + headPitch.current + posture.x * 0.65 * pWeight + drift.x * 0.75 + emphasisNod * 0.6;
-      hBone.rotation.y = (baseRot ? baseRot.y : hBone.rotation.y) + headYaw.current + posture.y * 0.65 * pWeight + drift.y * 0.75;
-      hBone.rotation.z = (baseRot ? baseRot.z : hBone.rotation.z) + headRoll.current + posture.z * 0.65 * pWeight + drift.z * 0.75;
+      hBone.rotation.x = (baseRot ? baseRot.x : hBone.rotation.x) + headPitch.current + posture.x * 0.65 * pWeight + drift.x * 0.75 + spPitch * 0.65;
+      hBone.rotation.y = (baseRot ? baseRot.y : hBone.rotation.y) + headYaw.current + posture.y * 0.65 * pWeight + drift.y * 0.75 + spYaw * 0.6;
+      hBone.rotation.z = (baseRot ? baseRot.z : hBone.rotation.z) + headRoll.current + posture.z * 0.65 * pWeight + drift.z * 0.75 + spRoll * 0.6;
     }
   });
 

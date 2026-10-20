@@ -510,7 +510,7 @@ export default function ClassroomPage({
                 targetEpochMs={classroom.currentSpeech?.targetEpochMs}
                 sequence={classroom.currentSpeech?.sequence}
                 speechText={classroom.currentSpeech?.text}
-                onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
+                onLipSyncEnd={() => {}}
                 subtitle={classroom.currentSubtitle}
                 activeMedia={classroom.activeMedia || store.activeMedia}
                 userQuestion={classroom.userQuestion}

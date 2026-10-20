@@ -151,11 +151,18 @@ export function AvatarEyeMovement({
 
     // Micro-saccade influence (scaled to gentle living ocular tremor)
     const microWeight = isBlinking ? 0.0 : 0.04;
-    const finalTargetYawL = targetGazeYawL + microGaze.x * microWeight;
-    const finalTargetPitchL = targetGazePitchL + microGaze.y * microWeight;
 
-    const finalTargetYawR = targetGazeYawR + microGaze.x * microWeight;
-    const finalTargetPitchR = targetGazePitchR + microGaze.y * microWeight;
+    // Context-driven glances (looking away while thinking, back to the listener afterwards).
+    // Added on top of the camera tracking: + yaw = toward the avatar's left, + pitch = up.
+    const speech = behaviorRef.current.speech;
+    const speechYaw = speech?.gazeYaw ?? 0;
+    const speechPitch = speech?.gazePitch ?? 0;
+
+    const finalTargetYawL = THREE.MathUtils.clamp(targetGazeYawL + microGaze.x * microWeight + speechYaw, -0.5, 0.5);
+    const finalTargetPitchL = THREE.MathUtils.clamp(targetGazePitchL + microGaze.y * microWeight + speechPitch, -0.4, 0.4);
+
+    const finalTargetYawR = THREE.MathUtils.clamp(targetGazeYawR + microGaze.x * microWeight + speechYaw, -0.5, 0.5);
+    const finalTargetPitchR = THREE.MathUtils.clamp(targetGazePitchR + microGaze.y * microWeight + speechPitch, -0.4, 0.4);
 
     // Smooth ocular transition
     const eyeSpeed = isBlinking ? 6.0 : 15.0;

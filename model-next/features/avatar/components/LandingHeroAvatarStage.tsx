@@ -11,6 +11,7 @@ import type { HeadTTSData } from "../types/lipSync.types";
 import {
   scheduleAudioPlayback,
   stopAllAudio,
+  preloadAudioBuffer,
 } from "../services/audioManager";
 import { getSynchronizedEpochMs } from "../services/clockSync";
 import {
@@ -85,6 +86,7 @@ export function LandingHeroAvatarStage() {
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [targetEpochMs, setTargetEpochMs] = useState<number | undefined>(undefined);
   const [lipSyncCache, setLipSyncCache] = useState<Record<string, HeadTTSData>>({});
+  const [activeLipSync, setActiveLipSync] = useState<HeadTTSData | undefined>(undefined);
   const [mounted, setMounted] = useState(false);
 
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -94,9 +96,10 @@ export function LandingHeroAvatarStage() {
     setMounted(true);
   }, []);
 
-  // Preload viseme JSON for both models on mount
+  // Preload viseme JSON and audio buffers for both models on mount
   useEffect(() => {
     Object.values(PERSONA_CONFIGS).forEach(async (persona) => {
+      preloadAudioBuffer(persona.audioPath);
       try {
         const res = await fetch(persona.jsonPath);
         if (res.ok) {
@@ -130,6 +133,7 @@ export function LandingHeroAvatarStage() {
     setIsPlaying(false);
     setIsLoadingAudio(false);
     setTargetEpochMs(undefined);
+    setActiveLipSync(undefined);
   }, []);
 
   // Handler: When speech finishes naturally
@@ -137,6 +141,7 @@ export function LandingHeroAvatarStage() {
     setIsPlaying(false);
     setIsLoadingAudio(false);
     setTargetEpochMs(undefined);
+    setActiveLipSync(undefined);
     activeSourceRef.current = null;
   }, []);
 
@@ -160,9 +165,13 @@ export function LandingHeroAvatarStage() {
           setLipSyncCache((prev) => ({ ...prev, [selectedModel]: visemes }));
         }
       }
+      setActiveLipSync(visemes);
+
+      // Preload audio buffer eagerly to ensure instantaneous start
+      preloadAudioBuffer(persona.audioPath);
 
       // Schedule synchronized sample-accurate playback
-      const epoch = getSynchronizedEpochMs() + 60;
+      const epoch = getSynchronizedEpochMs() + 80;
       setTargetEpochMs(epoch);
       setIsPlaying(true);
       setIsLoadingAudio(false);
@@ -195,8 +204,9 @@ export function LandingHeroAvatarStage() {
       }
 
       setSelectedModel(modelId);
+      setActiveLipSync(lipSyncCache[modelId]);
     },
-    [selectedModel, isPlaying, stopPlayback]
+    [selectedModel, isPlaying, stopPlayback, lipSyncCache]
   );
 
   return (
@@ -265,7 +275,7 @@ export function LandingHeroAvatarStage() {
                   headFollow={true}
                   playLipSync={isPlaying}
                   audioPath={currentPersona.audioPath}
-                  lipSyncData={lipSyncCache[selectedModel]}
+                  lipSyncData={lipSyncCache[selectedModel] || activeLipSync}
                   targetEpochMs={targetEpochMs}
                   speechText={currentPersona.subtitle}
                   onLipSyncEnd={handleSpeechEnded}

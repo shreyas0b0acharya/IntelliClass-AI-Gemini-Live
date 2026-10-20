@@ -28,6 +28,7 @@ import { AvatarCheeks } from "./AvatarCheeks";
 import { AvatarMouthCorners } from "./AvatarMouthCorners";
 import { AvatarNostrils } from "./AvatarNostrils";
 import { AvatarLips } from "./AvatarLips";
+import { AvatarSpeechFace } from "./AvatarSpeechFace";
 import { useDeviceTier } from "../hooks/useDeviceTier";
 import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
 
@@ -196,6 +197,14 @@ export function Avatar({
   const group = useRef<THREE.Group>(null);
   const isAnimated = Boolean(animation && animation.toLowerCase() !== "none");
 
+  const headMesh =
+    nodes.AvatarHead ||
+    (nodes as unknown as Record<string, THREE.SkinnedMesh>).Wolf3D_Head;
+
+  const teethLowerMesh =
+    nodes.AvatarTeethLower ||
+    (nodes as unknown as Record<string, THREE.SkinnedMesh>).Wolf3D_Teeth;
+
   return (
     <group
       ref={group}
@@ -205,7 +214,7 @@ export function Avatar({
     >
       <AvatarBehaviorController
         behaviorState={behaviorState}
-        isSpeaking={playLipSync}
+        isSpeaking={Boolean(playLipSync || behaviorState === "talking")}
       >
         <group name="AvatarRoot">
           {/* On-demand single animation clip loader */}
@@ -223,7 +232,7 @@ export function Avatar({
           {/* BLINKING */}
           {capabilities.enableProceduralFace && (
             <AvatarBlink
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -231,7 +240,7 @@ export function Avatar({
           {/* EYEBROWS */}
           {capabilities.enableProceduralFace && (
             <AvatarEyebrows
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -239,7 +248,7 @@ export function Avatar({
           {/* CHEEKS */}
           {capabilities.enableProceduralFace && (
             <AvatarCheeks
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -247,7 +256,7 @@ export function Avatar({
           {/* MOUTH CORNERS */}
           {capabilities.enableProceduralFace && (
             <AvatarMouthCorners
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -255,14 +264,22 @@ export function Avatar({
           {/* NOSTRILS */}
           {capabilities.enableProceduralFace && (
             <AvatarNostrils
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
 
           {/* LIPS */}
           {capabilities.enableProceduralFace && (
-            <AvatarLips head={nodes.AvatarHead} />
+            <AvatarLips head={headMesh} />
+          )}
+
+          {/* SPEECH-DRIVEN FACE EXTRAS (eye widening / narrowing, lip-corner frown) */}
+          {capabilities.enableProceduralFace && (
+            <AvatarSpeechFace
+              head={headMesh}
+              eyelashes={nodes.AvatarEyelashes}
+            />
           )}
 
           {/* HEAD, NECK & BODY TRACKING */}
@@ -301,11 +318,11 @@ export function Avatar({
               Keep the driver mounted across speech chunks so morph targets can
               ease back to neutral instead of snapping during the idle gap. */}
           <AvatarLipSync
-            head={nodes.AvatarHead}
-            teethLower={nodes.AvatarTeethLower}
+            head={headMesh}
+            teethLower={teethLowerMesh}
             audioPath={audioPath}
             lipSyncData={lipSyncData}
-            play={playLipSync && Boolean(audioPath && lipSyncData)}
+            play={Boolean(playLipSync || behaviorState === "talking")}
             onEnded={onLipSyncEnd}
             targetEpochMs={targetEpochMs}
             sequence={sequence}

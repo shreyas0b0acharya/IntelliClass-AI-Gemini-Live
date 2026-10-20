@@ -78,7 +78,7 @@ function LightweightStudioScene({
         position={[0, 0, -3.8]}
         scale={1.05}
         headFollow={true}
-        playLipSync={isSpeaking && Boolean(lipSyncData)}
+        playLipSync={isSpeaking}
         audioPath={audioPath}
         lipSyncData={lipSyncData}
         onLipSyncEnd={onLipSyncEnd}

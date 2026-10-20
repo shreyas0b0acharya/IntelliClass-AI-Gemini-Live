@@ -70,8 +70,80 @@ export interface LipMorphData {
   mouthPucker: number;
 }
 
-export interface ProsodyData {
-  emphasis: number; // 0..1 pulse on stressed words (written by the hand gesture driver)
+/**
+ * Context-driven layer written by the speech behaviour driver (from what is
+ * actually being said) and ADDED on top of the random "living" behaviour by the
+ * face / head / eye / breathing components. All values are smoothed.
+ */
+export interface SpeechLayerData {
+  /** 0..1 — how much the avatar is currently "in speech". */
+  active: number;
+
+  // Face morph additions (0..1)
+  browInnerUp: number;
+  browOuterUpLeft: number;
+  browOuterUpRight: number;
+  browDownLeft: number;
+  browDownRight: number;
+  smileLeft: number;
+  smileRight: number;
+  cheekSquintLeft: number;
+  cheekSquintRight: number;
+  mouthPress: number;
+  mouthFrown: number;
+  eyeWide: number;
+  eyeSquint: number;
+
+  // Head & eyes (radians). Yaw: + = avatar's left. Pitch: head + = down, gaze + = up. Roll: + = tilt to avatar's right.
+  headPitch: number;
+  headYaw: number;
+  headRoll: number;
+  gazeYaw: number;
+  gazePitch: number;
+
+  // Body (radians). Cues (lean, shrug) write torsoPitch / shoulderLift (both shoulders); the arm
+  // driver adds the part that follows the gesturing arms: torsoYaw (+ = turn toward avatar's
+  // left) and a little extra forward lean. The torso values are applied by the head/spine
+  // component; the shoulder lift is applied by the arm driver.
+  torsoPitch: number;
+  torsoYaw: number;
+  shoulderLift: number;
+
+  // Edge-triggered requests: the consumer acts when the counter changes.
+  blinkRequest: number;
+  inhaleRequest: number;
+  /** Suggested length of the exhale that follows an inhale request (seconds). */
+  exhaleSec: number;
+}
+
+export function createSpeechLayer(): SpeechLayerData {
+  return {
+    active: 0,
+    browInnerUp: 0,
+    browOuterUpLeft: 0,
+    browOuterUpRight: 0,
+    browDownLeft: 0,
+    browDownRight: 0,
+    smileLeft: 0,
+    smileRight: 0,
+    cheekSquintLeft: 0,
+    cheekSquintRight: 0,
+    mouthPress: 0,
+    mouthFrown: 0,
+    eyeWide: 0,
+    eyeSquint: 0,
+    headPitch: 0,
+    headYaw: 0,
+    headRoll: 0,
+    gazeYaw: 0,
+    gazePitch: 0,
+    torsoPitch: 0,
+    torsoYaw: 0,
+    shoulderLift: 0,
+    blinkRequest: 0,
+    inhaleRequest: 0,
+    exhaleSec: 2.4,
+  };
 }
 
 export interface BehaviorStore {
@@ -85,5 +157,5 @@ export interface BehaviorStore {
   mouthCorners: MouthCornerMorphData;
   nostrils: NostrilMorphData;
   lips: LipMorphData;
-  prosody?: ProsodyData;
+  speech?: SpeechLayerData;
 }

@@ -73,9 +73,8 @@ export function AvatarBreathing({
         lShoulder.position.y = baseLShoulderPos.current.y + shoulders * 0.0032;
         lShoulder.position.x = baseLShoulderPos.current.x + shoulders * 0.0008;
       }
-      if (baseLShoulderRot.current) {
-        lShoulder.rotation.z = baseLShoulderRot.current.z - (shoulders - 0.5) * 0.008;
-      }
+      // Rotation is left to the animation and the speech arm driver (shrug / raised-arm shoulder lift);
+      // writing an absolute rotation.z here would wipe their shoulder motion every frame.
     }
 
     const rShoulder = rightShoulderRef.current;
@@ -83,9 +82,6 @@ export function AvatarBreathing({
       if (baseRShoulderPos.current) {
         rShoulder.position.y = baseRShoulderPos.current.y + shoulders * 0.0032;
         rShoulder.position.x = baseRShoulderPos.current.x - shoulders * 0.0008;
-      }
-      if (baseRShoulderRot.current) {
-        rShoulder.rotation.z = baseRShoulderRot.current.z + (shoulders - 0.5) * 0.008;
       }
     }
   });

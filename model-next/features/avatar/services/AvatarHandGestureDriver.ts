@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import {
+  KIND_TIMING,
+  RAISE_LINGER_MS,
   isStrokeKind,
-  planFallbackGestures,
   type GestureEvent,
   type GestureKind,
-  type GesturePlan,
   type HandSide,
 } from "./gesturePlanner";
+import type { SpeechTimeline } from "./speechTimeline";
+import type { SpeechLayerData } from "../types/behavior.types";
 
 type JointKey =
   | "leftUpperArm"
@@ -19,24 +21,31 @@ type JointMap = Partial<Record<JointKey, THREE.Object3D>>;
 type NamedBone = { object: THREE.Object3D; normalizedName: string };
 
 /**
- * Tunables. The NEUTRAL speaking pose (where the hands rest while talking) is
- * deliberately unchanged from the previous driver; everything here only
- * controls how far hands travel AWAY from that pose and how they move.
+ * Tunables.
+ *
+ * The arms REST in whatever pose the animation gives them (hanging relaxed).
+ * A gesture lifts a hand from there toward the "speaking pose" in front of the
+ * body (unchanged from the earlier versions), performs the stroke around it,
+ * and lets the hand sink back to rest.
  */
 export const GESTURE_CONFIG = {
-  /** Scales how far hands travel from the neutral pose (1.2 = default; 1 = subtler). */
+  /** Scales how far hands travel from the speaking pose during a gesture (1.2 = default; 1 = subtler). */
   amplitude: 1.2,
-  /** Subtle always-on life while talking (hand drift, finger breathing). */
+  /** Subtle life while a hand is raised (slow drift, finger breathing). */
   idleMotion: 1,
   /** Wrist/forearm roll (palm up / palm down) driven from the geometry of the rig. */
   wristRoll: true,
   /** Finger curl/extension. Disable if a rig's finger bones misbehave. */
   fingers: true,
-  /** Seconds of silence before the arms are released back to the animation. */
-  disengageDelaySec: 1.6,
+  /** 0..1: how much of the animation's natural finger spread is closed while a hand is raised. */
+  fingerAdduction: 0.55,
+  /** Scales the torso turn / lean / shoulder lift that follow the gesturing arms (0 = off). */
+  bodyFollow: 1,
 };
 
 const EPSILON = 1e-6;
+/** Below this raise the arm is left exactly as animated. */
+const RAISE_EPS = 2e-3;
 const MAX_ROLL_RAD = THREE.MathUtils.degToRad(70);
 const MAX_FLEX_RAD = THREE.MathUtils.degToRad(20);
 
@@ -53,10 +62,24 @@ const CHANNELS = 7;
 const OMEGA = [9, 11, 9, 8, 8, 18, 7]; // spring stiffness per channel (rad/s)
 const CH_MIN = [-0.12, -0.12, -0.12, -0.15, -1, -0.6, -1];
 const CH_MAX = [0.28, 0.26, 0.26, 0.45, 1, 1, 1];
+/** The hand lifts a touch quicker than it sinks back. */
+const RAISE_OMEGA_UP = 9;
+const RAISE_OMEGA_DOWN = 7;
+/**
+ * Lifting a hand from rest to gesture height takes at least this long; the lift starts early
+ * enough that the hand is up by the time the stroke lands.
+ */
+const RISE_MIN_MS = 600;
+/** Longest time the lift can start before an event's own start (events are sorted by start). */
+const RISE_LEAD_MS = RISE_MIN_MS;
+/** Raise at which the elbow flexion has fully changed over from the animation's to the solver's. */
+const ELBOW_BLEND_RAISE = 0.35;
+/** Integrate at least this often so low frame rates move like high ones. */
+const MAX_STEP_SEC = 1 / 55;
 
 type Template = [f: number, u: number, o: number, b: number, p: number, k: number, n: number];
 
-/** How far each gesture kind moves the hand from the neutral pose (lead hand, intensity 1). */
+/** How far each gesture kind moves the hand from the speaking pose (lead hand, intensity 1). */
 const TEMPLATES: Record<GestureKind, Template> = {
   beat: [0.07, 0.09, 0.0, 0.1, 0.15, 0.35, -0.3],
   emphasis: [0.13, 0.11, 0.03, 0.22, 0.15, 0.3, -0.4],
@@ -67,12 +90,19 @@ const TEMPLATES: Record<GestureKind, Template> = {
   inclusive: [0.12, 0.13, 0.18, 0.2, 0.85, 0, 0.2],
   self: [-0.06, 0.03, -0.06, 0.3, -0.2, 0, -0.1],
   negate: [0.08, 0.02, 0.16, 0.15, -0.7, 0, 0.15],
+  shrug: [0.05, 0.06, 0.12, 0.3, 0.8, 0, 0.1],
 };
 
 const SUPPORT_SCALE = 0.6;
 
-// Neutral speaking pose — identical numbers to the previous driver so hands rest in the same place.
-const NEUTRAL = { reach: 0.06, lift: 0.02, outward: 0.02, bend: 0.28 };
+// The speaking pose a raised hand is lifted to — identical numbers to the earlier drivers.
+const SPEAKING = { reach: 0.06, lift: 0.02, outward: 0.02, bend: 0.28 };
+
+// Body that follows the arms (radians at full effect).
+const BODY_YAW = 0.06;
+const BODY_PITCH = 0.028;
+/** Clavicle elevation of the side whose hand is up (shoulder girdle rises with the arm). */
+const BODY_SHOULDER = 0.06;
 
 // Finger curl per joint (radians at open = -1) and joint weights.
 const FINGER_CURL = { Index: 0.45, Middle: 0.5, Ring: 0.55, Pinky: 0.6 } as const;
@@ -92,6 +122,27 @@ function clamp01(v: number): number {
 function minJerk(x: number): number {
   const t = clamp01(x);
   return t * t * t * (10 - 15 * t + 6 * t * t);
+}
+
+function smooth01(x: number): number {
+  const t = clamp01(x);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * How far a gesture has lifted its hand from rest: rises through the
+ * preparation, stays up through the hold and a short linger, then sinks back.
+ * (The planner makes `endMs` long enough for the whole sinking motion.)
+ */
+function raiseEnvelope(e: GestureEvent, ms: number): number {
+  const rise = Math.max(RISE_MIN_MS, e.apexMs - e.startMs);
+  const riseStart = e.apexMs - rise;
+  if (ms <= riseStart) return 0;
+  if (ms < e.apexMs) return minJerk((ms - riseStart) / rise);
+  const fallStart = e.holdUntilMs + RAISE_LINGER_MS;
+  if (ms <= fallStart) return 1;
+  if (ms >= e.endMs) return 0;
+  return 1 - minJerk((ms - fallStart) / Math.max(1, e.endMs - fallStart));
 }
 
 function normalizeBoneName(name: string): string {
@@ -128,14 +179,16 @@ function fingerAliases(side: HandSide, finger: FingerName, index: number): strin
   ];
 }
 
-// Scratch objects (avoid per-frame allocations).
+// Scratch objects (avoid per-frame allocations in the finger code).
 const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
+const _v4 = new THREE.Vector3();
 const _q1 = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 
 interface FingerChain {
+  name: FingerName;
   bones: THREE.Object3D[];
   axisLocal: THREE.Vector3[];
   curl: number;
@@ -151,85 +204,86 @@ interface HandFrame {
 }
 
 interface HandState {
+  /** Gesture offsets from the speaking pose (channels F..N), smoothed. */
   x: Float64Array;
   v: Float64Array;
   target: Float64Array;
+  /** 0 = hand at rest as animated, 1 = hand at the speaking pose. */
+  raise: number;
+  raiseV: number;
   phase: number;
 }
 
 function newHandState(phase: number): HandState {
-  return { x: new Float64Array(CHANNELS), v: new Float64Array(CHANNELS), target: new Float64Array(CHANNELS), phase };
+  return {
+    x: new Float64Array(CHANNELS),
+    v: new Float64Array(CHANNELS),
+    target: new Float64Array(CHANNELS),
+    raise: 0,
+    raiseV: 0,
+    phase,
+  };
+}
+
+/** Exact critically damped spring step (frame-rate independent, no overshoot). */
+function springStep(x: number, v: number, target: number, omega: number, dt: number): [number, number] {
+  const d = x - target;
+  const e = Math.exp(-omega * dt);
+  const t = (v + omega * d) * dt;
+  return [target + (d + t) * e, (v - omega * t) * e];
 }
 
 /**
- * Procedural, speech-aware speaking gestures.
+ * Procedural, speech-aware arm and hand gestures.
  *
- * Pipeline per frame:
- *   1. A GesturePlan (from gesturePlanner) says which gesture happens when,
- *      on the speech clock — derived from the actual words, pauses and
- *      punctuation of the sentence being spoken.
- *   2. Each active gesture is evaluated with minimum-jerk envelopes
- *      (preparation → stroke → hold → retraction) and summed per hand.
- *   3. The summed targets drive critically-damped springs (frame-rate
- *      independent, no overshoot), so overlapping gestures blend instead of snap.
- *   4. The smoothed pose goes through the same shoulder/elbow/wrist solver as
- *      before: neutral hand position unchanged, gestures are offsets from it.
+ *   1. The shared SpeechTimeline says which gesture happens when (derived from
+ *      the words, pauses and punctuation of what is being spoken).
+ *   2. Each active gesture gives a RAISE (how far the hand has left its rest
+ *      pose) and a set of offsets around the speaking pose (reach, height,
+ *      palm turn, wrist, fingers). Both go through critically damped springs,
+ *      so overlapping gestures blend instead of snap.
+ *   3. The hand target runs from the animation's own wrist (rest) to the
+ *      speaking pose as the raise goes 0→1; an analytic two-bone solver puts
+ *      the arm there. The elbow direction starts as the animation's own and
+ *      eases into the standard "elbow back and down" one, so nothing pops when
+ *      a gesture begins or ends.
+ *   4. The body follows the arms a little: torso turn and lean and shoulder
+ *      elevation are written to the speech layer for the head/breathing
+ *      components to apply.
  *
  * Required frame order:
  *   1. removePreviousOffsets()
  *   2. AnimationMixer.update(delta)
- *   3. update(time, delta, isTalking, speechMs?)
+ *   3. update(time, delta, nowMs, layer)
  */
 export class AvatarHandGestureDriver {
   private root: THREE.Object3D | null = null;
   private joints: JointMap = {};
+  private clavicles: Partial<Record<HandSide, THREE.Object3D>> = {};
   private frames: Partial<Record<HandSide, HandFrame | null>> = {};
   private previousBaseQuaternions = new Map<THREE.Object3D, THREE.Quaternion>();
   private nextBoneScanAt = Number.NEGATIVE_INFINITY;
-
-  private plan: GesturePlan | null = null;
-  private planLocalStart = 0;
-  private planPending = false;
-  /** Once real speech arrived this engagement, never fall back to generic beats in the gaps. */
-  private sawRealPlan = false;
-  private fallbackPlan: GesturePlan | null = null;
-  private fallbackStart = 0;
-  private fallbackSeed = 1;
-
-  private lastTalkingAt = Number.NEGATIVE_INFINITY;
-  private engage = 0;
-  private engageV = 0;
   private hands: Record<HandSide, HandState> = {
     left: newHandState(0.7),
     right: newHandState(2.9),
   };
-  private cursor = 0;
 
-  /** 0..1 pulse that peaks on stressed words; consumed by head/brow motion. */
-  prosodyEmphasis = 0;
+  constructor(private readonly timeline: SpeechTimeline) {}
+
+  /** Current raise of a hand (0 = resting as animated, 1 = at the speaking pose). */
+  getRaise(side: HandSide): number {
+    return this.hands[side].raise;
+  }
 
   setRoot(root: THREE.Object3D | null): void {
     if (root === this.root) return;
     this.removePreviousOffsets();
     this.root = root;
     this.joints = {};
+    this.clavicles = {};
     this.frames = {};
     this.nextBoneScanAt = Number.NEGATIVE_INFINITY;
-    this.engage = 0;
-    this.engageV = 0;
     this.hands = { left: newHandState(0.7), right: newHandState(2.9) };
-  }
-
-  /**
-   * Give the driver the gesture plan for the sentence that is (about to be)
-   * spoken. If update() is fed a synchronized speech clock (speechMs) the plan
-   * follows it; otherwise it is timed from the moment it arrives.
-   */
-  setSpeech(plan: GesturePlan | null): void {
-    this.plan = plan;
-    this.planPending = plan !== null;
-    if (plan) this.sawRealPlan = true;
-    this.cursor = 0;
   }
 
   /** Restore the animation's exact local quaternions before the mixer advances. */
@@ -240,143 +294,142 @@ export class AvatarHandGestureDriver {
     this.previousBaseQuaternions.clear();
   }
 
-  update(time: number, delta: number, isTalking: boolean, speechMs?: number): void {
+  update(time: number, delta: number, nowMs: number, isTalking: boolean, layer: SpeechLayerData | null): void {
     const root = this.root;
     if (!root) return;
-
-    root.updateMatrixWorld(true);
-    if (time >= this.nextBoneScanAt) this.resolveBones(time);
-
     const dt = Math.min(Math.max(delta, 0), 0.1);
 
-    // ── Engagement: arms come up when speech starts, linger through short silences ──
-    if (isTalking) {
-      if (this.engage < 0.01 && time - this.lastTalkingAt > GESTURE_CONFIG.disengageDelaySec) {
-        this.fallbackStart = time;
-        this.fallbackPlan = null;
-        this.fallbackSeed += 7919;
-      }
-      this.lastTalkingAt = time;
-    }
-    if (this.planPending) {
-      this.planLocalStart = time;
-      this.planPending = false;
-    }
-    const engaged = time - this.lastTalkingAt < GESTURE_CONFIG.disengageDelaySec;
-    this.stepEngage(engaged ? 1 : 0, engaged ? 4.2 : 2.6, dt);
-
-    if (this.engage < 0.002 && !engaged) {
-      this.engage = 0;
-      this.engageV = 0;
-      this.prosodyEmphasis = 0;
-      this.sawRealPlan = false;
-      for (const hand of ["left", "right"] as const) {
-        this.hands[hand].x.fill(0);
-        this.hands[hand].v.fill(0);
-      }
-      return;
+    // ── Gesture targets + springs, sub-stepped so a slow frame rate moves like a fast one ──
+    const steps = Math.min(8, Math.max(1, Math.ceil(dt / MAX_STEP_SEC)));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      const back = (steps - 1 - i) * h;
+      this.integrate(time - back, nowMs - back * 1000, h, isTalking);
     }
 
-    // ── Pick the plan and the position on its clock ──
-    let plan = this.plan;
-    let ms = 0;
-    let useEvents = true;
-    if (plan) {
-      ms = speechMs !== undefined ? speechMs : (time - this.planLocalStart) * 1000;
-    } else if (this.sawRealPlan || !isTalking) {
-      // Gap between sentences (or silence): hands rest at the neutral pose, no invented gestures.
-      useEvents = false;
-    } else {
-      if (!this.fallbackPlan || (time - this.fallbackStart) * 1000 > this.fallbackPlan.durationMs - 5000) {
-        this.fallbackPlan = planFallbackGestures(60000, this.fallbackSeed);
-        this.fallbackStart = time;
-      }
-      plan = this.fallbackPlan;
-      ms = (time - this.fallbackStart) * 1000;
-    }
-
-    // ── Evaluate gestures into per-hand targets ──
     const left = this.hands.left;
     const right = this.hands.right;
-    left.target.fill(0);
-    right.target.fill(0);
-    let emphasis = 0;
 
-    const events = useEvents && plan ? plan.events : [];
-    const lo = ms - (plan?.maxSpanMs ?? 0);
-    // Binary search for the first event that could still be active.
-    let a = 0;
-    let b = events.length;
-    while (a < b) {
-      const mid = (a + b) >> 1;
-      if (events[mid].startMs < lo) a = mid + 1;
-      else b = mid;
-    }
-    for (let i = a; i < events.length; i++) {
-      const e = events[i];
-      if (e.startMs > ms) break;
-      if (ms > e.endMs) continue;
-      const st = e.hand === "left" ? left.target : right.target;
-      this.evalEvent(e, ms, st);
-      if (e.role === "lead" && isStrokeKind(e.kind)) {
-        const d = (ms - e.apexMs) / 110;
-        emphasis = Math.max(emphasis, e.intensity * Math.exp(-d * d));
-      }
-    }
-    this.prosodyEmphasis = emphasis * this.engage;
-
-    // ── Idle life + spring integration ──
-    const idle = GESTURE_CONFIG.idleMotion * this.engage;
-    for (const side of ["left", "right"] as const) {
-      const h = this.hands[side];
-      const ph = h.phase;
-      h.target[F] += idle * (0.010 * Math.sin(time * 0.91 + ph) + 0.005 * Math.sin(time * 2.3 + ph * 2.1));
-      h.target[U] += idle * (0.012 * Math.sin(time * 0.67 + ph * 1.7) + 0.005 * Math.sin(time * 1.9 + ph));
-      h.target[O] += idle * 0.008 * Math.sin(time * 0.53 + ph * 0.6);
-      h.target[K] += idle * 0.06 * Math.sin(time * 1.1 + ph * 1.3);
-      h.target[N] += idle * 0.08 * Math.sin(time * 0.43 + ph);
-      for (let c = 0; c < CHANNELS; c++) {
-        h.target[c] = THREE.MathUtils.clamp(h.target[c], CH_MIN[c], CH_MAX[c]);
-        const retracting = c <= B && Math.abs(h.target[c]) < Math.abs(h.x[c]);
-        this.stepSpring(h, c, OMEGA[c] * (retracting ? 0.7 : 1), dt);
+    // ── Apply to the skeleton (arms at rest are left exactly as animated) ──
+    // Shoulders first (shrug cue + the shoulder of a raised arm rises a little); the arms are then
+    // solved from the lifted shoulder, so hands rise with it.
+    const bodyScale = GESTURE_CONFIG.bodyFollow;
+    const shrug = layer ? layer.shoulderLift : 0;
+    const liftLeft = shrug + BODY_SHOULDER * bodyScale * smooth01(left.raise);
+    const liftRight = shrug + BODY_SHOULDER * bodyScale * smooth01(right.raise);
+    const anyRaised = left.raise > 0 || right.raise > 0;
+    const anyShoulder = liftLeft > 1e-3 || liftRight > 1e-3;
+    if (anyRaised || anyShoulder) {
+      root.updateMatrixWorld(true);
+      if (time >= this.nextBoneScanAt) this.resolveBones(time);
+      const axes = this.getAvatarAxes();
+      if (anyShoulder) this.liftShoulders(liftLeft, liftRight, axes.forward);
+      if (anyRaised) {
+        this.applyArm("left", left, -1, axes.forward, axes.up);
+        this.applyArm("right", right, 1, axes.forward, axes.up);
       }
     }
 
-    // ── Apply ──
-    const axes = this.getAvatarAxes();
-    this.applyArm("left", left, -1, axes.forward, axes.up);
-    this.applyArm("right", right, 1, axes.forward, axes.up);
+    this.writeBody(layer);
   }
 
   dispose(): void {
     this.removePreviousOffsets();
     this.root = null;
     this.joints = {};
+    this.clavicles = {};
     this.frames = {};
-    this.engage = 0;
-    this.engageV = 0;
-    this.plan = null;
+    this.hands = { left: newHandState(0.7), right: newHandState(2.9) };
+  }
+
+  /** One integration step: read the timeline at `nowMs`, update raise and offset springs by `dt`. */
+  private integrate(time: number, nowMs: number, dt: number, isTalking: boolean): void {
+    const left = this.hands.left;
+    const right = this.hands.right;
+    left.target.fill(0);
+    right.target.fill(0);
+    let leftRaise = 0;
+    let rightRaise = 0;
+
+    if (isTalking) {
+      for (const e of this.timeline.events) {
+        if (e.startMs - RISE_LEAD_MS > nowMs) break; // sorted by start
+        if (nowMs > e.endMs) continue;
+        const env = raiseEnvelope(e, nowMs);
+        if (env <= 0) continue;
+        const level = e.level * env;
+        if (e.hand === "left") {
+          if (level > leftRaise) leftRaise = level;
+          this.evalEvent(e, nowMs, left.target, env);
+        } else {
+          if (level > rightRaise) rightRaise = level;
+          this.evalEvent(e, nowMs, right.target, env);
+        }
+      }
+    }
+
+    for (const side of ["left", "right"] as const) {
+      const h = this.hands[side];
+      const raiseTarget = isTalking ? clamp01(side === "left" ? leftRaise : rightRaise) : 0;
+
+      const [r, rv] = springStep(
+        h.raise,
+        h.raiseV,
+        raiseTarget,
+        raiseTarget > h.raise ? RAISE_OMEGA_UP : RAISE_OMEGA_DOWN,
+        dt,
+      );
+      h.raise = r;
+      h.raiseV = rv;
+      if (h.raise < RAISE_EPS && raiseTarget === 0) {
+        h.raise = 0;
+        h.raiseV = 0;
+      }
+
+      // A little life while the hand is up: slow drift and finger breathing.
+      const idle = GESTURE_CONFIG.idleMotion * smooth01(h.raise / 0.5);
+      const ph = h.phase;
+      h.target[F] += idle * (0.01 * Math.sin(time * 0.91 + ph) + 0.005 * Math.sin(time * 2.3 + ph * 2.1));
+      h.target[U] += idle * (0.012 * Math.sin(time * 0.67 + ph * 1.7) + 0.005 * Math.sin(time * 1.9 + ph));
+      h.target[O] += idle * 0.008 * Math.sin(time * 0.53 + ph * 0.6);
+      h.target[K] += idle * 0.06 * Math.sin(time * 1.1 + ph * 1.3);
+      h.target[N] += idle * 0.08 * Math.sin(time * 0.43 + ph);
+
+      for (let c = 0; c < CHANNELS; c++) {
+        h.target[c] = THREE.MathUtils.clamp(h.target[c], CH_MIN[c], CH_MAX[c]);
+        const retracting = c <= B && Math.abs(h.target[c]) < Math.abs(h.x[c]);
+        const [x, v] = springStep(h.x[c], h.v[c], h.target[c], OMEGA[c] * (retracting ? 0.7 : 1), dt);
+        h.x[c] = x;
+        h.v[c] = v;
+      }
+    }
   }
 
   // ───────────────────────────────────────────────────────────
   // Gesture evaluation
   // ───────────────────────────────────────────────────────────
-  private evalEvent(e: GestureEvent, ms: number, out: Float64Array): void {
+  /** `env` = this event's raise envelope (0..1), used to fade its spatial variation in and out. */
+  private evalEvent(e: GestureEvent, ms: number, out: Float64Array, env: number): void {
     const tpl = TEMPLATES[e.kind];
     const scale = e.intensity * (e.role === "support" ? SUPPORT_SCALE : 1);
+    const timing = KIND_TIMING[e.kind];
     const prep = Math.max(120, e.apexMs - e.startMs);
-    const retract = Math.max(200, e.endMs - e.holdUntilMs);
+
+    // Where in the gesture space this particular gesture happens (follows the raise).
+    out[F] += e.jitter[0] * env;
+    out[U] += e.jitter[1] * env;
+    out[O] += e.jitter[2] * env;
 
     if (isStrokeKind(e.kind)) {
       // Beat / emphasis: lift in preparation, snap down on the stressed syllable, settle.
       const u = (ms - e.apexMs) / 1000;
       const prepS = prep / 1000;
-      const retractS = retract / 1000;
+      const settleS = Math.max(0.2, timing.retract / 1000);
       let lift = 0;
       if (u >= -prepS) {
         if (u < -0.04) lift = minJerk((u + prepS) / (prepS - 0.04));
         else if (u < 0.09) lift = 1 - 1.35 * minJerk((u + 0.04) / 0.13);
-        else lift = -0.35 * (1 - minJerk((u - 0.09) / Math.max(0.1, retractS - 0.09)));
+        else lift = -0.35 * (1 - minJerk((u - 0.09) / Math.max(0.1, settleS - 0.09)));
       }
       let push = 0;
       if (u >= -0.25 && u < 0) push = minJerk((u + 0.25) / 0.25);
@@ -395,43 +448,66 @@ export class AvatarHandGestureDriver {
       return;
     }
 
-    // Hold-type gesture: rise (minimum-jerk) → hold with a slow living wobble → retract.
-    let env: number;
-    if (ms < e.apexMs) env = minJerk((ms - e.startMs) / prep);
-    else if (ms <= e.holdUntilMs) env = 1;
-    else env = 1 - minJerk((ms - e.holdUntilMs) / retract);
+    // Hold-type gesture: rise (minimum-jerk) → hold with a slow living wobble → release.
+    let k: number;
+    if (ms < e.apexMs) k = minJerk((ms - e.startMs) / prep);
+    else if (ms <= e.holdUntilMs) k = 1;
+    else k = 1 - minJerk((ms - e.holdUntilMs) / Math.max(200, timing.retract));
 
     let live = 1;
     if (ms >= e.apexMs && ms <= e.holdUntilMs) {
       const held = (ms - e.apexMs) / 1000;
-      live = 1 + 0.06 * Math.sin(held * 2.1 + e.apexMs * 0.001) * minJerk(held / 0.4);
+      live = 1 + 0.06 * Math.sin(held * 2.1 + (e.apexMs % 6283) * 0.001) * minJerk(held / 0.4);
     }
-    const k = env * scale * live;
+    const g = k * scale * live;
     const step = e.step;
-    out[F] += tpl[0] * k;
-    out[U] += (tpl[1] + (e.kind === "enumerate" ? step * 0.02 : 0)) * k;
-    out[O] += (tpl[2] + (e.kind === "enumerate" ? step * 0.025 : 0)) * k;
-    out[B] += tpl[3] * k;
-    out[P] += tpl[4] * k;
-    out[K] += tpl[5] * k;
-    out[N] += tpl[6] * k;
+    out[F] += tpl[0] * g;
+    out[U] += (tpl[1] + (e.kind === "enumerate" ? step * 0.02 : 0)) * g;
+    out[O] += (tpl[2] + (e.kind === "enumerate" ? step * 0.025 : 0)) * g;
+    out[B] += tpl[3] * g;
+    out[P] += tpl[4] * g;
+    out[K] += tpl[5] * g;
+    out[N] += tpl[6] * g;
   }
 
-  private stepSpring(h: HandState, c: number, omega: number, dt: number): void {
-    const d = h.x[c] - h.target[c];
-    const e = Math.exp(-omega * dt);
-    const t = (h.v[c] + omega * d) * dt;
-    h.x[c] = h.target[c] + (d + t) * e;
-    h.v[c] = (h.v[c] - omega * t) * e;
+  /**
+   * Torso motion that goes with the arms: turn toward the gesturing side and lean in a little.
+   * Written to the speech layer; the spine component applies it after the arms are solved, so
+   * the hands travel with the body.
+   */
+  private writeBody(layer: SpeechLayerData | null): void {
+    if (!layer) return;
+    const k = GESTURE_CONFIG.bodyFollow;
+    const l = this.hands.left;
+    const r = this.hands.right;
+    if (k <= 0 || (l.raise <= 0 && r.raise <= 0)) {
+      layer.torsoYaw = 0;
+      return;
+    }
+    const activity = (h: HandState) => h.raise * (0.5 + 1.7 * THREE.MathUtils.clamp(h.x[F] + Math.max(0, h.x[O]), 0, 0.3));
+    const reach = (h: HandState) => h.raise * clamp01(h.x[F] / 0.2);
+    // Turning right (negative yaw) when the right hand gestures, left when the left one does.
+    layer.torsoYaw = BODY_YAW * k * (activity(l) - activity(r));
+    layer.torsoPitch += BODY_PITCH * k * Math.max(reach(l), reach(r));
   }
 
-  /** Critically damped spring on the engagement weight (smooth S-curve, no overshoot). */
-  private stepEngage(target: number, omega: number, dt: number): void {
-    const d = this.engage - target;
-    const e = Math.exp(-omega * dt);
-    const t = (this.engageV + omega * d) * dt;
-    this.engage = THREE.MathUtils.clamp(target + (d + t) * e, 0, 1);
-    this.engageV = (this.engageV - omega * t) * e;
+  /**
+   * Raise the clavicles about the avatar's forward axis (left up = +, right up = −). The upper
+   * arm is counter-rotated so it keeps its world orientation: the shoulder joint rises and the
+   * arm still hangs, instead of the whole arm swinging out like a pendulum.
+   */
+  private liftShoulders(left: number, right: number, forward: THREE.Vector3): void {
+    this.liftShoulder("left", left, forward);
+    this.liftShoulder("right", right, forward);
+  }
+
+  private liftShoulder(side: HandSide, amount: number, forward: THREE.Vector3): void {
+    const clavicle = this.clavicles[side];
+    const upperArm = this.joints[`${side}UpperArm` as JointKey];
+    if (!clavicle || amount <= 1e-3) return;
+    const q = new THREE.Quaternion().setFromAxisAngle(forward, side === "left" ? amount : -amount);
+    this.applyWorldDelta(clavicle, q);
+    if (upperArm) this.applyWorldDelta(upperArm, q.clone().invert());
   }
 
   // ───────────────────────────────────────────────────────────
@@ -465,6 +541,11 @@ export class AvatarHandGestureDriver {
       rightHand: findBone(bones, ["RightHand", "Hand_R", "RightWrist", "HandRight", "RHand", "Wrist_R", "J_Bip_R_Hand"]),
     };
 
+    this.clavicles = {
+      left: findBone(bones, ["LeftShoulder", "LeftClavicle", "Shoulder_L", "Clavicle_L", "ShoulderLeft", "LShoulder", "LClavicle", "J_Bip_L_Shoulder"]),
+      right: findBone(bones, ["RightShoulder", "RightClavicle", "Shoulder_R", "Clavicle_R", "ShoulderRight", "RShoulder", "RClavicle", "J_Bip_R_Shoulder"]),
+    };
+
     this.frames = {};
     for (const side of ["left", "right"] as const) {
       const index1 = findBone(bones, fingerAliases(side, "Index", 1));
@@ -482,7 +563,7 @@ export class AvatarHandGestureDriver {
           const bone = findBone(bones, fingerAliases(side, name, j));
           if (bone) chain.push(bone);
         }
-        if (chain.length === 3) fingers.push({ bones: chain, axisLocal: [], curl: FINGER_CURL[name] });
+        if (chain.length === 3) fingers.push({ name, bones: chain, axisLocal: [], curl: FINGER_CURL[name] });
       }
       this.frames[side] = {
         index1,
@@ -556,6 +637,9 @@ export class AvatarHandGestureDriver {
     forward: THREE.Vector3,
     up: THREE.Vector3,
   ): void {
+    const raise = Math.min(state.raise, 1);
+    if (raise < RAISE_EPS) return;
+
     const upperArm = this.joints[`${side}UpperArm` as JointKey];
     const foreArm = this.joints[`${side}ForeArm` as JointKey];
     const hand = this.joints[`${side}Hand` as JointKey];
@@ -563,13 +647,14 @@ export class AvatarHandGestureDriver {
     if (!root || !upperArm || !foreArm || !hand) return;
 
     const amp = GESTURE_CONFIG.amplitude;
-    const w = this.engage;
+    // Offsets, palm turn, wrist and fingers fade in over the first half of the lift.
+    const presence = smooth01(raise / 0.5);
 
     const shoulder = upperArm.getWorldPosition(new THREE.Vector3());
-    const elbow = foreArm.getWorldPosition(new THREE.Vector3());
-    const wrist = hand.getWorldPosition(new THREE.Vector3());
-    const upperLength = shoulder.distanceTo(elbow);
-    const foreLength = elbow.distanceTo(wrist);
+    const elbowAnim = foreArm.getWorldPosition(new THREE.Vector3());
+    const wristAnim = hand.getWorldPosition(new THREE.Vector3());
+    const upperLength = shoulder.distanceTo(elbowAnim);
+    const foreLength = elbowAnim.distanceTo(wristAnim);
     const totalLength = upperLength + foreLength;
     if (upperLength < EPSILON || foreLength < EPSILON || totalLength < EPSILON) return;
 
@@ -583,54 +668,77 @@ export class AvatarHandGestureDriver {
     outward.normalize();
 
     const minReach = Math.abs(upperLength - foreLength) + totalLength * 0.01;
-    const maxReach = totalLength * 0.995;
+    const maxReach = totalLength * 0.9995;
 
-    // 1) Neutral speaking pose — same formula and numbers as before.
-    const neutralDir = shoulder.clone()
-      .addScaledVector(forward, totalLength * (0.45 + NEUTRAL.reach * 0.1))
-      .addScaledVector(up, totalLength * (-0.36 + NEUTRAL.lift * 0.08))
-      .addScaledVector(outward, totalLength * (0.018 + NEUTRAL.outward * 0.035))
+    // 1) The speaking pose (same formula and numbers as the earlier drivers).
+    const speakingDir = shoulder.clone()
+      .addScaledVector(forward, totalLength * (0.45 + SPEAKING.reach * 0.1))
+      .addScaledVector(up, totalLength * (-0.36 + SPEAKING.lift * 0.08))
+      .addScaledVector(outward, totalLength * (0.018 + SPEAKING.outward * 0.035))
       .sub(shoulder)
       .normalize();
-    const neutralRadius = THREE.MathUtils.clamp(totalLength * (0.72 - 0.07 * NEUTRAL.bend), minReach, maxReach);
-    const target = shoulder.clone().addScaledVector(neutralDir, neutralRadius);
+    const speakingRadius = THREE.MathUtils.clamp(totalLength * (0.72 - 0.07 * SPEAKING.bend), minReach, maxReach);
+    const speaking = shoulder.clone().addScaledVector(speakingDir, speakingRadius);
 
-    // 2) Gesture offsets from the neutral pose (fractions of arm length).
+    // 2) Wrist target: from where the animation has the hand (rest) toward the speaking pose,
+    //    plus this gesture's offsets (fractions of arm length).
+    const target = wristAnim.clone().lerp(speaking, raise);
     target
-      .addScaledVector(forward, state.x[F] * amp * totalLength)
-      .addScaledVector(up, state.x[U] * amp * totalLength)
-      .addScaledVector(outward, state.x[O] * amp * totalLength);
+      .addScaledVector(forward, state.x[F] * amp * totalLength * presence)
+      .addScaledVector(up, state.x[U] * amp * totalLength * presence)
+      .addScaledVector(outward, state.x[O] * amp * totalLength * presence);
     const toTarget = target.sub(shoulder);
-    const dist = THREE.MathUtils.clamp(toTarget.length() * (1 - 0.08 * state.x[B] * amp), minReach, maxReach);
-    const solvedWristTarget = shoulder.clone().addScaledVector(toTarget.normalize(), dist);
-
-    // 3) Blend from the animation's own wrist to the solved one by engagement.
-    const blendedWrist = wrist.clone().lerp(solvedWristTarget, w);
-    const toWrist = blendedWrist.clone().sub(shoulder);
-    const distance = toWrist.length();
-    if (distance < EPSILON) return;
-
-    const reachDistance = THREE.MathUtils.clamp(distance, minReach, maxReach);
-    const reachDirection = toWrist.normalize();
-    const reachableWrist = shoulder.clone().addScaledVector(reachDirection, reachDistance);
+    const ikDistance = THREE.MathUtils.clamp(
+      toTarget.length() * (1 - 0.08 * state.x[B] * amp * presence),
+      minReach,
+      maxReach,
+    );
+    // A (nearly) straight rest arm needs a soft start: the elbow bulge grows as the square root of
+    // how much the shoulder-wrist distance shrinks, so a hand moving along a straight line from rest
+    // would kick the elbow out in the first few frames of every lift. For such arms the distance
+    // eases from the animation's own to the solver's (the hand first swings along an arc, then comes
+    // in), reaching the solver's by `ELBOW_BLEND_RAISE`. Relaxed (bent) arms are solved directly.
+    const restDistance = THREE.MathUtils.clamp(wristAnim.distanceTo(shoulder), minReach, totalLength);
+    const straightness = smooth01((restDistance / totalLength - 0.995) / 0.005);
+    const blend = THREE.MathUtils.lerp(1, minJerk(raise / ELBOW_BLEND_RAISE), straightness);
+    const distance = THREE.MathUtils.lerp(restDistance, ikDistance, blend);
+    const reachDirection = toTarget.normalize();
+    const reachableWrist = shoulder.clone().addScaledVector(reachDirection, distance);
 
     const along = THREE.MathUtils.clamp(
-      (upperLength * upperLength - foreLength * foreLength + reachDistance * reachDistance) / (2 * reachDistance),
+      (upperLength * upperLength - foreLength * foreLength + distance * distance) / (2 * distance),
       0,
       upperLength,
     );
     const height = Math.sqrt(Math.max(0, upperLength * upperLength - along * along));
 
-    // Elbow pole: mostly behind the forearm with a small outward bias (no "chicken wings").
+    // 3) Elbow direction. Standard: behind the forearm with a small outward bias (no "chicken
+    //    wings"). It starts as the animation's own elbow direction and eases into the standard
+    //    one, so the arm does not jump when a gesture begins.
     const poleReference = forward.clone().multiplyScalar(-0.84).addScaledVector(outward, 0.16);
-    const pole = poleReference.clone().addScaledVector(reachDirection, -poleReference.dot(reachDirection));
-    if (pole.lengthSq() < EPSILON) {
-      pole.copy(forward).negate();
-      pole.addScaledVector(reachDirection, -pole.dot(reachDirection));
+    const standardPole = poleReference.clone().addScaledVector(reachDirection, -poleReference.dot(reachDirection));
+    if (standardPole.lengthSq() < EPSILON) {
+      standardPole.copy(forward).negate();
+      standardPole.addScaledVector(reachDirection, -standardPole.dot(reachDirection));
     }
-    if (pole.lengthSq() < EPSILON) return;
-    if (pole.dot(forward.clone().negate()) < 0) pole.negate();
-    pole.normalize();
+    if (standardPole.lengthSq() < EPSILON) return;
+    if (standardPole.dot(forward.clone().negate()) < 0) standardPole.negate();
+    standardPole.normalize();
+
+    const pole = standardPole.clone();
+    const animDirection = wristAnim.clone().sub(shoulder).normalize();
+    const animElbow = elbowAnim.clone().sub(shoulder);
+    const animBulge = animElbow.addScaledVector(animDirection, -animElbow.dot(animDirection));
+    if (animBulge.length() > totalLength * 1e-3) {
+      animBulge.normalize();
+      animBulge.addScaledVector(reachDirection, -animBulge.dot(reachDirection));
+      if (animBulge.lengthSq() > 1e-4) {
+        animBulge.normalize();
+        pole.copy(animBulge).lerp(standardPole, smooth01(raise / 0.35));
+        if (pole.lengthSq() < 1e-6) pole.copy(standardPole);
+        pole.normalize();
+      }
+    }
 
     const desiredElbow = shoulder.clone()
       .addScaledVector(reachDirection, along)
@@ -649,10 +757,10 @@ export class AvatarHandGestureDriver {
       );
     }
 
-    // 4) Hand: palm roll, wrist flexion, finger curl — scaled by engagement.
+    // 4) Hand: palm roll, wrist flexion, finger spread and curl — scaled by presence.
     const frame = this.frames[side];
     if (!frame) return;
-    this.applyHand(frame, state, foreArm, hand, up, w);
+    this.applyHand(frame, state, foreArm, hand, up, presence);
   }
 
   private applyHand(
@@ -696,9 +804,15 @@ export class AvatarHandGestureDriver {
       this.applyWorldDelta(hand, new THREE.Quaternion().setFromAxisAngle(axis, flex));
     }
 
+    if (!GESTURE_CONFIG.fingers) return;
+
+    // Close the animation's natural finger fan a little: a relaxed raised hand has its fingers
+    // close together, not splayed.
+    this.adductFingers(frame, hand, GESTURE_CONFIG.fingerAdduction * weight);
+
     // Finger curl/extension — local rotations, no matrix traversal.
     const open = state.x[N] * weight;
-    if (GESTURE_CONFIG.fingers && Math.abs(open) > 0.005) {
+    if (Math.abs(open) > 0.005) {
       for (const finger of frame.fingers) {
         for (let j = 0; j < 3; j++) {
           const bone = finger.bones[j];
@@ -712,6 +826,45 @@ export class AvatarHandGestureDriver {
       }
       hand.updateMatrixWorld(true);
     }
+  }
+
+  /**
+   * Measure how far each finger fans away from the middle finger (in the plane
+   * of the palm) and rotate its base joint back toward it by `strength`.
+   * Self-limiting: if the animation's fingers are already together nothing moves.
+   */
+  private adductFingers(frame: HandFrame, hand: THREE.Object3D, strength: number): void {
+    if (strength < 0.01) return;
+    const middle = frame.fingers.find((f) => f.name === "Middle");
+    if (!middle) return;
+
+    hand.updateWorldMatrix(true, true);
+    const n = this.palmNormal(frame, hand, new THREE.Vector3());
+    const dm = this.fingerDirectionOnPalm(middle, n, new THREE.Vector3());
+    if (dm.lengthSq() < 0.5) return;
+
+    const dir = new THREE.Vector3();
+    const cross = new THREE.Vector3();
+    for (const finger of frame.fingers) {
+      if (finger === middle) continue;
+      if (this.fingerDirectionOnPalm(finger, n, dir).lengthSq() < 0.5) continue;
+      cross.crossVectors(dm, dir);
+      const angle = Math.atan2(n.dot(cross), dm.dot(dir));
+      const correction = -angle * strength;
+      if (Math.abs(correction) < 1e-4) continue;
+      this.applyWorldDelta(finger.bones[0], _q1.setFromAxisAngle(n, correction).clone());
+    }
+  }
+
+  /** Direction of a finger's first phalanx projected into the palm plane (unit, or ~zero if degenerate). */
+  private fingerDirectionOnPalm(finger: FingerChain, palmNormal: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
+    finger.bones[0].getWorldPosition(_v3);
+    finger.bones[1].getWorldPosition(_v4);
+    out.copy(_v4).sub(_v3);
+    out.addScaledVector(palmNormal, -out.dot(palmNormal));
+    const len = out.length();
+    if (len < EPSILON) return out.set(0, 0, 0);
+    return out.divideScalar(len);
   }
 
   private rotateSegmentToward(

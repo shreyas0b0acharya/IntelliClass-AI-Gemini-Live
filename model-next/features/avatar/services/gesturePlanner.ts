@@ -1,26 +1,33 @@
 import type { LipSyncData } from "../types/lipSync.types";
 
 /**
- * Speech-aware gesture planner.
+ * Speech-aware behaviour planner.
  *
  * Turns a sentence (text + optional word timings from the TTS provider) into a
- * deterministic timeline of gesture events on the *speech clock* (ms since the
- * audio starts; negative = before the audio starts, which is how gestures get
- * to begin slightly BEFORE the words they belong to).
+ * deterministic plan on the *speech clock* (ms since the audio starts;
+ * negative = before the audio starts, which is how gestures and expressions get
+ * to begin slightly BEFORE the words they belong to):
+ *
+ *   - `events`: hand/arm gestures (beats, open hands, counting, …)
+ *   - `cues`:   face / head / gaze / blink / breath / torso cues
  *
  * Pure TypeScript (no three.js) so it can be unit-tested in isolation.
  *
  * What makes it context aware:
  *  - Stress: content words, longer words, words the TTS actually lengthened,
- *    phrase-final (nuclear) words and an "intensifier" lexicon get beats.
- *  - Phrasing: commas / sentence ends / real silences between words split the
- *    speech into phrases; long phrases get a sustained open-hand gesture.
- *  - Semantics: questions (palm-up), enumerations (first/second/next),
- *    contrast (but/however), inclusion (we/everyone), self reference (I/my),
- *    negation (no/never/not) and deixis (here/look/for example).
- *  - Tempo: fast speech -> quicker, smaller gestures; slow speech -> broader.
+ *    phrase-final (nuclear) words and an "intensifier" lexicon get beats,
+ *    a small nod, a brow flash and a slight lean.
+ *  - Phrasing: commas / sentence ends / real silences split the speech into
+ *    phrases; blinks and gaze shifts land on those boundaries.
+ *  - Semantics: questions, enumerations, contrast, inclusion, self reference,
+ *    negation, deixis, uncertainty (shrug), positive and negative wording
+ *    (smile / furrow).
+ *  - Gesture UNITS: hands rest at the sides by default. A sentence either has
+ *    a gesture unit (hand(s) lift, gesture, drop back) or it does not, so the
+ *    hands are not held up in front of the body all the time.
+ *  - Tempo: fast speech -> quicker, tighter gestures; slow speech -> broader.
  *  - Determinism: seeded from the text, so every classroom participant renders
- *    the same gestures for the same sentence.
+ *    the same behaviour for the same sentence.
  */
 
 export type GestureKind =
@@ -32,7 +39,8 @@ export type GestureKind =
   | "contrast"
   | "inclusive"
   | "self"
-  | "negate";
+  | "negate"
+  | "shrug";
 
 export type HandSide = "left" | "right";
 
@@ -45,14 +53,57 @@ export interface GestureEvent {
   apexMs: number;
   /** Hold-type gestures stay up until here (>= apexMs). Beats: == apexMs. */
   holdUntilMs: number;
-  /** Envelope support: preparation begins here. */
+  /** Envelope support: preparation (lift from rest) begins here. */
   startMs: number;
-  /** Envelope support: retraction finishes here. */
+  /** Envelope support: the hand has fully returned to rest here. */
   endMs: number;
   /** 0..1 */
   intensity: number;
   /** Enumeration index (0,1,2…) — shifts the hand a little for each count. */
   step: number;
+  /**
+   * How far the hand is lifted from its resting position for this gesture
+   * (0 = hanging at the side, 1 = the classic "speaking height" in front).
+   */
+  level: number;
+  /** Per-gesture spatial variation (fractions of arm length): forward, up, outward. */
+  jitter: [number, number, number];
+}
+
+export type CueKind =
+  | "browFlash" // quick brow raise on a stressed word
+  | "browRaise" // sustained raise (questions, surprise)
+  | "browInner" // inner brows up (uncertainty, concern)
+  | "furrow" // brows down + lips pressed (seriousness / negative wording)
+  | "smile" // warmth (positive wording, greetings)
+  | "nod" // head nod (down-up)
+  | "headTilt" // sustained roll tilt
+  | "lookAway" // gaze aversion (eyes + head), then return
+  | "blink" // request a blink (edge-triggered)
+  | "inhale" // request a breath (edge-triggered)
+  | "shrug" // shoulders up
+  | "lean"; // torso lean (dir > 0 forward, < 0 back)
+
+export interface SpeechCue {
+  kind: CueKind;
+  /** Onset begins. */
+  startMs: number;
+  /** Reaches full strength. */
+  peakMs: number;
+  /** Starts releasing. */
+  holdUntilMs: number;
+  /** Fully released. */
+  endMs: number;
+  /** 0..1 */
+  intensity: number;
+  /** +1 = avatar's left, -1 = avatar's right (asymmetric brows, tilt, gaze). */
+  side: 1 | -1;
+  /** lean: +forward / -back. */
+  dir: number;
+  /** lookAway: radians, + = avatar's left. */
+  yaw: number;
+  /** lookAway: radians, + = up. */
+  pitch: number;
 }
 
 export interface PlannedWord {
@@ -63,11 +114,12 @@ export interface PlannedWord {
 
 export interface GesturePlan {
   events: GestureEvent[]; // sorted by startMs
+  cues: SpeechCue[]; // sorted by startMs
   words: PlannedWord[];
   durationMs: number;
   /** 0.8 (slow, broad) .. 1.25 (fast, tight) */
   tempo: number;
-  /** longest single event span, used for fast range lookup */
+  /** longest single event/cue span, used for fast range lookup */
   maxSpanMs: number;
 }
 
@@ -79,7 +131,7 @@ export interface PlanOptions {
   seed?: number;
 }
 
-/** Preparation / retraction time per gesture kind at tempo 1. */
+/** Preparation / retraction time per gesture kind at tempo 1 (ms). */
 export const KIND_TIMING: Record<GestureKind, { prep: number; retract: number }> = {
   beat: { prep: 340, retract: 520 },
   emphasis: { prep: 420, retract: 680 },
@@ -90,7 +142,14 @@ export const KIND_TIMING: Record<GestureKind, { prep: number; retract: number }>
   inclusive: { prep: 520, retract: 700 },
   self: { prep: 380, retract: 560 },
   negate: { prep: 300, retract: 480 },
+  shrug: { prep: 520, retract: 700 },
 };
+
+/** After the last gesture of a unit the hand waits briefly, then drops to rest. */
+export const RAISE_LINGER_MS = 320;
+export const RAISE_FALL_MS = 950;
+/** Gestures on the same hand closer than this stay "chained" (hand stays ready between them). */
+export const BRIDGE_GAP_MS = 2000;
 
 const STROKE_KINDS: ReadonlySet<GestureKind> = new Set(["beat", "emphasis"]);
 export function isStrokeKind(kind: GestureKind): boolean {
@@ -99,7 +158,7 @@ export function isStrokeKind(kind: GestureKind): boolean {
 
 // ─────────────────────────────────────────────────────────────
 // Lexicons (English). Other languages still get timing/punctuation
-// driven beats; only the semantic triggers are English-specific.
+// driven behaviour; only the semantic triggers are English-specific.
 // ─────────────────────────────────────────────────────────────
 const set = (s: string) => new Set(s.split(/\s+/).filter(Boolean));
 
@@ -124,6 +183,17 @@ const SELF = set("i i'm i'll i've i'd me my mine myself");
 const NEGATE = set("no not never don't doesn't didn't can't cannot won't isn't aren't nothing none without nobody neither nor");
 const DEIXIS = set("here this these look see notice consider imagine example instance show watch observe check");
 const QUESTION_WORDS = set("what why how who whom whose which when where do does did can could would should is are will");
+
+const GREETING = set("hello hi hey welcome greetings goodbye bye thanks thank congratulations");
+const POSITIVE = set(`great good nice love loved loves excellent awesome wonderful fantastic amazing beautiful perfect easy
+  simple fun exciting excited happy glad enjoy interesting brilliant best better success successful powerful helpful
+  useful wow cool elegant clever neat delightful lovely`);
+const NEGATIVE = set(`problem problems error errors mistake mistakes wrong bad worst difficult hard dangerous danger careful
+  warning risk risky avoid fail failure fails failed broken bug bugs crash issue issues trouble unfortunately sadly
+  confusing confused tricky painful serious severe`);
+const UNCERTAIN = set(`maybe perhaps might possibly probably sometimes depends unsure unclear guess suppose somewhat
+  roughly approximately`);
+const SURPRISE = set("wow surprisingly suddenly unexpectedly incredible unbelievable remarkably");
 
 // ─────────────────────────────────────────────────────────────
 // Small utilities
@@ -171,7 +241,11 @@ export function estimateSyllables(norm: string): number {
 }
 
 function normalizeWord(raw: string): string {
-  return raw.toLowerCase().replace(/[’‘]/g, "'").replace(/[^\p{L}\p{N}']/gu, "").replace(/^'+|'+$/g, "");
+  return raw
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[^\p{L}\p{N}']/gu, "")
+    .replace(/^'+|'+$/g, "");
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -291,13 +365,15 @@ function buildTokens(opts: PlanOptions): Token[] {
       base = tt.map((t, i) => ({ ...t, ...timings[i] }));
     }
   } else if (hasLip) {
-    base = lip!.words!.map((w, i) => ({
-      raw: w,
-      norm: normalizeWord(w),
-      punct: "",
-      startMs: lip!.wtimes![i],
-      endMs: lip!.wtimes![i] + (lip!.wdurations?.[i] ?? 200),
-    })).filter((t) => t.norm.length > 0);
+    base = lip!
+      .words!.map((w, i) => ({
+        raw: w,
+        norm: normalizeWord(w),
+        punct: "",
+        startMs: lip!.wtimes![i],
+        endMs: lip!.wtimes![i] + (lip!.wdurations?.[i] ?? 200),
+      }))
+      .filter((t) => t.norm.length > 0);
   }
 
   const tokens: Token[] = base.map((b) => ({
@@ -389,12 +465,39 @@ class Occupancy {
     // Beats keep a minimum spacing between strokes on one hand.
     if (kind === "beat" || kind === "emphasis") {
       for (const s of this.slots[hand]) {
-        if ((s.kind === "beat" || s.kind === "emphasis") && Math.abs(apex - (s.start + KIND_TIMING[s.kind].prep)) < 480) {
+        if ((s.kind === "beat" || s.kind === "emphasis") && Math.abs(apex - (s.start + KIND_TIMING[s.kind].prep)) < 560) {
           return false;
         }
       }
     }
     return true;
+  }
+}
+
+/** How high a hand is lifted for each kind of gesture (1 = classic speaking height). */
+function levelFor(kind: GestureKind, intensity: number): number {
+  const i = clamp(intensity, 0, 1);
+  switch (kind) {
+    case "beat":
+      return 0.55 + 0.2 * i;
+    case "emphasis":
+      return 0.8 + 0.15 * i;
+    case "present":
+      return 0.75 + 0.15 * i;
+    case "question":
+      return 0.9;
+    case "enumerate":
+      return 0.85;
+    case "contrast":
+      return 0.8;
+    case "inclusive":
+      return 0.9;
+    case "self":
+      return 0.6;
+    case "negate":
+      return 0.7;
+    case "shrug":
+      return 0.65;
   }
 }
 
@@ -407,7 +510,7 @@ export function planGestures(opts: PlanOptions): GesturePlan {
   const tokens = buildTokens(opts);
 
   if (!tokens.length) {
-    return { events: [], words: [], durationMs: opts.durationMs ?? 0, tempo: 1, maxSpanMs: 0 };
+    return { events: [], cues: [], words: [], durationMs: opts.durationMs ?? 0, tempo: 1, maxSpanMs: 0 };
   }
 
   scoreStress(tokens);
@@ -419,13 +522,9 @@ export function planGestures(opts: PlanOptions): GesturePlan {
   const speechEnd = tokens[tokens.length - 1].endMs;
   const occ = new Occupancy();
   const events: GestureEvent[] = [];
+  const cues: SpeechCue[] = [];
   let lastHand: HandSide = other;
-
-  const pickHand = (preferDominant = 0.65): HandSide => {
-    let h: HandSide = rng() < preferDominant ? dominant : other;
-    if (h === lastHand && rng() < 0.35) h = h === "left" ? "right" : "left";
-    return h;
-  };
+  const randSide = (): 1 | -1 => (rng() < 0.5 ? -1 : 1);
 
   const timing = (kind: GestureKind) => {
     const k = KIND_TIMING[kind];
@@ -446,9 +545,10 @@ export function planGestures(opts: PlanOptions): GesturePlan {
     const apex = apexMs + lagMs;
     const hold = Math.max(apex, holdUntilMs + lagMs);
     const start = apex - prep;
-    const end = hold + retract;
-    if (!occ.canPlace(hand, kind, start, end, apex)) return false;
-    occ.add(hand, { start, end, kind });
+    const coreEnd = hold + retract;
+    if (!occ.canPlace(hand, kind, start, coreEnd, apex)) return false;
+    occ.add(hand, { start, end: coreEnd, kind });
+    const inten = clamp(intensity, 0.2, 1);
     events.push({
       kind,
       hand,
@@ -456,9 +556,11 @@ export function planGestures(opts: PlanOptions): GesturePlan {
       apexMs: apex,
       holdUntilMs: hold,
       startMs: start,
-      endMs: end,
-      intensity: clamp(intensity, 0.2, 1),
+      endMs: hold + Math.max(retract, RAISE_LINGER_MS + RAISE_FALL_MS),
+      intensity: inten,
       step,
+      level: clamp(levelFor(kind, inten) * (role === "support" ? 0.92 : 1), 0.3, 1),
+      jitter: [(rng() - 0.5) * 0.05, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.06],
     });
     if (role === "lead") lastHand = hand;
     return true;
@@ -468,20 +570,24 @@ export function planGestures(opts: PlanOptions): GesturePlan {
   const apexOf = (t: Token) => t.startMs + Math.min(70, (t.endMs - t.startMs) * 0.25) - 40;
 
   const phraseRange = new Map<number, { first: number; last: number }>();
+  const sentenceRange = new Map<number, { first: number; last: number }>();
   tokens.forEach((t, i) => {
     const r = phraseRange.get(t.phrase);
     if (!r) phraseRange.set(t.phrase, { first: i, last: i });
     else r.last = i;
+    const s = sentenceRange.get(t.sentence);
+    if (!s) sentenceRange.set(t.sentence, { first: i, last: i });
+    else s.last = i;
   });
 
-  const sentenceRange = new Map<number, { first: number; last: number }>();
-  tokens.forEach((t, i) => {
-    const r = sentenceRange.get(t.sentence);
-    if (!r) sentenceRange.set(t.sentence, { first: i, last: i });
-    else r.last = i;
-  });
+  const sentenceIsQuestion = (sIdx: number): boolean => {
+    const r = sentenceRange.get(sIdx);
+    return !!r && /\?/.test(tokens[r.last].punct);
+  };
 
-  // ── Pass 1: semantic triggers ───────────────────────────────
+  const hasSemantic = new Set<number>();
+
+  // ── Pass 1: semantic gestures ───────────────────────────────
   const lastSemanticAt: Partial<Record<GestureKind, number>> = {};
   let lastAnySemantic = -1e9;
   let enumStep = -1;
@@ -489,9 +595,16 @@ export function planGestures(opts: PlanOptions): GesturePlan {
 
   const cooldownOk = (kind: GestureKind, at: number, same = 1800, any = 700): boolean =>
     at - (lastSemanticAt[kind] ?? -1e9) >= same && at - lastAnySemantic >= any;
-  const markSemantic = (kind: GestureKind, at: number) => {
+  const markSemantic = (kind: GestureKind, at: number, sentence: number) => {
     lastSemanticAt[kind] = at;
     lastAnySemantic = at;
+    hasSemantic.add(sentence);
+  };
+
+  const pickHand = (preferDominant = 0.65): HandSide => {
+    let h: HandSide = rng() < preferDominant ? dominant : other;
+    if (h === lastHand && rng() < 0.35) h = h === "left" ? "right" : "left";
+    return h;
   };
 
   // Questions: palm-up through the question clause.
@@ -506,17 +619,13 @@ export function planGestures(opts: PlanOptions): GesturePlan {
     }
     const apex = apexOf(tokens[from]);
     const hand = pickHand(0.7);
-    if (
-      place("question", hand, "lead", apex, lastTok.endMs - 80, 0.75 + rng() * 0.2) &&
-      rng() < 0.3
-    ) {
+    if (place("question", hand, "lead", apex, lastTok.endMs - 80, 0.75 + rng() * 0.2) && rng() < 0.3) {
       place("question", hand === "left" ? "right" : "left", "support", apex, lastTok.endMs - 80, 0.55, 0, 70);
     }
-    markSemantic("question", apex);
-    void sIdx;
+    markSemantic("question", apex, sIdx);
   }
 
-  tokens.forEach((t, i) => {
+  tokens.forEach((t) => {
     const apex = apexOf(t);
     const phr = phraseRange.get(t.phrase)!;
     const phraseEnd = tokens[phr.last].endMs;
@@ -530,7 +639,9 @@ export function planGestures(opts: PlanOptions): GesturePlan {
       enumSentence = t.sentence;
       if (cooldownOk("enumerate", apex, 900, 500)) {
         const hold = Math.min(phraseEnd, apex + 1400);
-        if (place("enumerate", dominant, "lead", apex, hold, 0.8, Math.min(enumStep, 4))) markSemantic("enumerate", apex);
+        if (place("enumerate", dominant, "lead", apex, hold, 0.8, Math.min(enumStep, 4))) {
+          markSemantic("enumerate", apex, t.sentence);
+        }
       }
       return;
     }
@@ -539,7 +650,18 @@ export function planGestures(opts: PlanOptions): GesturePlan {
     if (CONTRAST.has(norm) && cooldownOk("contrast", apex, 2200, 800)) {
       const a = place("contrast", dominant, "lead", apex - 60, apex + 380, 0.75, 0);
       const b = place("contrast", other, "lead", apex + 420, Math.min(phraseEnd, apex + 1500), 0.75, 1);
-      if (a || b) markSemantic("contrast", apex);
+      if (a || b) markSemantic("contrast", apex, t.sentence);
+      return;
+    }
+
+    // Uncertainty — shoulders and open palms ("maybe", "it depends").
+    if (UNCERTAIN.has(norm) && cooldownOk("shrug", apex, 4000, 900) && rng() < 0.6) {
+      const hold = Math.min(phraseEnd, apex + 1100);
+      const ok = place("shrug", dominant, "lead", apex, hold, 0.7);
+      if (ok) {
+        place("shrug", other, "lead", apex, hold, 0.7, 0, 40);
+        markSemantic("shrug", apex, t.sentence);
+      }
       return;
     }
 
@@ -549,20 +671,20 @@ export function planGestures(opts: PlanOptions): GesturePlan {
       const ok = place("inclusive", dominant, "lead", apex, hold, 0.7 + rng() * 0.2);
       if (ok) {
         place("inclusive", other, "lead", apex, hold, 0.7, 0, 35);
-        markSemantic("inclusive", apex);
+        markSemantic("inclusive", apex, t.sentence);
       }
       return;
     }
 
     // Negation — flat palm-down sweep.
     if (NEGATE.has(norm) && cooldownOk("negate", apex, 2500, 700) && rng() < 0.7) {
-      if (place("negate", pickHand(0.7), "lead", apex, apex + 260, 0.75)) markSemantic("negate", apex);
+      if (place("negate", pickHand(0.7), "lead", apex, apex + 260, 0.75)) markSemantic("negate", apex, t.sentence);
       return;
     }
 
     // Self reference — hand drifts toward the chest.
     if (SELF.has(norm) && cooldownOk("self", apex, 6000, 900) && rng() < 0.35) {
-      if (place("self", dominant, "lead", apex, apex + 500, 0.7)) markSemantic("self", apex);
+      if (place("self", dominant, "lead", apex, apex + 500, 0.7)) markSemantic("self", apex, t.sentence);
       return;
     }
 
@@ -573,36 +695,62 @@ export function planGestures(opts: PlanOptions): GesturePlan {
       const ok = place("present", hand, "lead", apex, hold, 0.7 + rng() * 0.2);
       if (ok) {
         if (rng() < 0.3) place("present", hand === "left" ? "right" : "left", "support", apex, hold, 0.5, 0, 80);
-        markSemantic("present", apex);
+        markSemantic("present", apex, t.sentence);
       }
     }
   });
+
+  // ── Gesture units: which sentences get hands up at all ───────
+  // Hands rest at the sides by default. A sentence either contains a gesture
+  // unit (lift → gesture → drop) or it does not. Longer sentences are more
+  // likely to; sentences with a semantic gesture always do.
+  type Mode = "dominant" | "other" | "both";
+  const sentenceMode = new Map<number, { active: boolean; mode: Mode }>();
+  for (const [sIdx, range] of sentenceRange) {
+    const nWords = range.last - range.first + 1;
+    const pActive = nWords <= 3 ? 0.3 : clamp(0.35 + 0.05 * nWords, 0.35, 0.85);
+    const active = hasSemantic.has(sIdx) || rng() < pActive;
+    const r = rng();
+    const mode: Mode = r < 0.68 ? "dominant" : r < 0.83 ? "other" : "both";
+    sentenceMode.set(sIdx, { active, mode });
+  }
+
+  const handForSentence = (sIdx: number): HandSide => {
+    const m = sentenceMode.get(sIdx)!;
+    if (m.mode === "dominant") return rng() < 0.85 ? dominant : other;
+    if (m.mode === "other") return rng() < 0.85 ? other : dominant;
+    return lastHand === "left" ? "right" : "left";
+  };
 
   // ── Pass 2: open-hand explaining gestures on long phrases ────
   for (const [, range] of phraseRange) {
     const first = tokens[range.first];
     const last = tokens[range.last];
+    const sm = sentenceMode.get(first.sentence);
+    if (!sm?.active) continue;
     const count = range.last - range.first + 1;
     const dur = last.endMs - first.startMs;
     if (count < 6 && dur < 1700) continue;
-    if (rng() > 0.6) continue;
+    if (rng() > 0.55) continue;
     const apex = first.startMs + Math.min(260, dur * 0.2);
     const hold = Math.min(last.endMs - 150, apex + 2400);
     if (hold - apex < 500) continue;
-    const hand = pickHand(0.6);
-    if (place("present", hand, "lead", apex, hold, 0.45 + rng() * 0.25) && rng() < 0.35) {
+    const hand = handForSentence(first.sentence);
+    if (place("present", hand, "lead", apex, hold, 0.45 + rng() * 0.25) && rng() < 0.3) {
       place("present", hand === "left" ? "right" : "left", "support", apex, hold, 0.4, 0, 90);
     }
   }
 
   // ── Pass 3: beats on stressed words ─────────────────────────
   for (const [, range] of phraseRange) {
+    const sm = sentenceMode.get(tokens[range.first].sentence);
+    if (!sm?.active) continue;
     const idxs: number[] = [];
     for (let i = range.first; i <= range.last; i++) idxs.push(i);
     const count = idxs.length;
-    const phraseGate = count <= 2 ? 0.35 : count <= 5 ? 0.78 : 0.92;
+    const phraseGate = count <= 2 ? 0.4 : count <= 5 ? 0.75 : 0.9;
     if (rng() > phraseGate) continue;
-    const maxBeats = count <= 2 ? 1 : count <= 5 ? 1 : count <= 9 ? 2 : 3;
+    const maxBeats = count <= 5 ? 1 : count <= 9 ? 2 : 3;
 
     const ranked = idxs
       .filter((i) => tokens[i].stress >= (count <= 3 ? 0.4 : 0.55))
@@ -617,7 +765,7 @@ export function planGestures(opts: PlanOptions): GesturePlan {
       if (placedApex.some((a) => Math.abs(a - apex) < 650)) continue;
       const strong = t.stress >= 1.4;
       const intensity = clamp(0.5 + 0.4 * (t.stress / 1.6) + (rng() - 0.5) * 0.2, 0.35, 1);
-      const hand = pickHand(0.62);
+      const hand = handForSentence(t.sentence);
       let ok: boolean;
       if (strong && rng() < 0.6) {
         ok = place("emphasis", hand, "lead", apex, apex, intensity);
@@ -633,11 +781,158 @@ export function planGestures(opts: PlanOptions): GesturePlan {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Cues: face, head, gaze, blink, breath, torso
+  // ─────────────────────────────────────────────────────────────
+  const lastCue: Partial<Record<CueKind, number>> = {};
+  const addCue = (
+    kind: CueKind,
+    onset: number,
+    attack: number,
+    hold: number,
+    release: number,
+    intensity: number,
+    extra: Partial<Pick<SpeechCue, "side" | "dir" | "yaw" | "pitch">> = {},
+    minGap = 0,
+  ): boolean => {
+    if (onset - (lastCue[kind] ?? -1e9) < minGap) return false;
+    lastCue[kind] = onset;
+    cues.push({
+      kind,
+      startMs: onset,
+      peakMs: onset + attack,
+      holdUntilMs: onset + attack + hold,
+      endMs: onset + attack + hold + release,
+      intensity: clamp(intensity, 0, 1),
+      side: extra.side ?? 1,
+      dir: extra.dir ?? 0,
+      yaw: extra.yaw ?? 0,
+      pitch: extra.pitch ?? 0,
+    });
+    return true;
+  };
+
+  for (const [sIdx, range] of sentenceRange) {
+    const first = tokens[range.first];
+    const last = tokens[range.last];
+    const nWords = range.last - range.first + 1;
+    const question = sentenceIsQuestion(sIdx);
+    const exclaim = /!/.test(last.punct);
+
+    // Breath before a sentence of any length.
+    if (nWords >= 5) addCue("inhale", first.startMs - 380, 0, 0, 0, 1);
+
+    // Speakers look away as they start a thought and come back to the listener at the end.
+    if (nWords >= 6 && !question && rng() < 0.38) {
+      const firstPhrase = phraseRange.get(first.phrase)!;
+      const away = clamp(tokens[firstPhrase.last].endMs - first.startMs, 700, 1700);
+      const side = randSide();
+      const up = rng() < 0.6;
+      const yaw = side * (0.18 + rng() * 0.12);
+      const pitch = up ? 0.04 + rng() * 0.06 : -(0.05 + rng() * 0.04);
+      if (addCue("lookAway", first.startMs - 120, 130, away, 200, 0.8 + rng() * 0.2, { side, yaw, pitch }, 2500)) {
+        addCue("blink", first.startMs - 120 + 130 + away + 40, 0, 0, 0, 1, {}, 800);
+      }
+    }
+
+    // Statement ends: a small nod of finality. Question ends: raised brows + tilt while waiting.
+    if (!question && nWords >= 4 && rng() < 0.3) {
+      addCue("nod", last.startMs - 40, 140, 70, 320, 0.4 + rng() * 0.3, {}, 900);
+    }
+    if (question) {
+      let from = range.last;
+      for (let i = range.last; i >= range.first && range.last - i < 8; i--) {
+        from = i;
+        if (QUESTION_WORDS.has(tokens[i].norm) && range.last - i <= 6) break;
+      }
+      const onset = tokens[from].startMs - 200;
+      const hold = last.endMs + 250 - (onset + 250);
+      addCue("browRaise", onset, 250, Math.max(300, hold), 500, 0.6 + rng() * 0.3, { side: randSide() }, 1500);
+      if (rng() < 0.6) addCue("headTilt", onset + 50, 350, Math.max(300, hold - 100), 600, 0.5 + rng() * 0.4, { side: randSide() }, 2500);
+      addCue("lean", onset, 400, Math.max(300, hold - 150), 700, 0.5, { dir: 1 }, 1200);
+      addCue("blink", last.endMs + 120, 0, 0, 0, 1, {}, 800);
+    }
+    if (exclaim) addCue("browFlash", last.startMs - 220, 180, 160, 500, 0.7, {}, 1400);
+  }
+
+  tokens.forEach((t, i) => {
+    const next = tokens[i + 1];
+    const phr = phraseRange.get(t.phrase)!;
+    const phraseEnd = tokens[phr.last].endMs;
+
+    // Blinks land on phrase boundaries and real pauses.
+    const endsPhrase = /[,;:.!?—–…]/.test(t.punct) || t.gapAfterMs >= 260;
+    if (endsPhrase && next && rng() < 0.4) {
+      addCue("blink", t.endMs + 80, 0, 0, 0, 1, {}, 1800);
+    }
+
+    // Pauses mid-sentence read as thinking: glance away, then back.
+    if (next && t.gapAfterMs >= 550 && !/[.!?]/.test(t.punct) && rng() < 0.55) {
+      const side = randSide();
+      const dur = clamp(t.gapAfterMs + 120, 500, 1400);
+      if (addCue("lookAway", t.endMs - 40, 130, dur, 200, 0.7, { side, yaw: side * (0.16 + rng() * 0.1), pitch: 0.05 + rng() * 0.05 }, 2500)) {
+        addCue("blink", t.endMs - 40 + 130 + dur + 30, 0, 0, 0, 1, {}, 800);
+      }
+    }
+
+    const apex = apexOf(t);
+    const norm = t.norm;
+
+    // Warm wording.
+    if (GREETING.has(norm)) {
+      addCue("smile", t.startMs - 300, 220, Math.min(2200, phraseEnd - t.startMs + 300), 800, 0.85, {}, 2500);
+      addCue("nod", t.startMs - 60, 160, 80, 380, 0.7, {}, 900);
+    } else if (POSITIVE.has(norm)) {
+      addCue("smile", t.startMs - 250, 220, Math.min(2200, Math.max(700, phraseEnd - t.startMs)), 800, 0.5 + rng() * 0.25, {}, 2000);
+      if (rng() < 0.35) addCue("browFlash", apex - 200, 170, 120, 420, 0.4, {}, 1400);
+    }
+
+    // Serious / negative wording.
+    if (NEGATIVE.has(norm)) {
+      addCue("furrow", t.startMs - 160, 220, Math.min(1800, Math.max(600, phraseEnd - t.startMs)), 650, 0.5 + rng() * 0.25, {}, 2000);
+      addCue("lean", t.startMs - 200, 350, 500, 700, 0.35, { dir: 1 }, 1200);
+    }
+
+    // Uncertainty.
+    if (UNCERTAIN.has(norm)) {
+      addCue("browInner", t.startMs - 200, 240, Math.min(1400, Math.max(500, phraseEnd - t.startMs)), 500, 0.6, {}, 1800);
+      if (rng() < 0.7) addCue("headTilt", t.startMs - 100, 300, 800, 600, 0.6, { side: randSide() }, 2500);
+      addCue("shrug", t.startMs - 150, 260, 600, 600, 0.7, {}, 3000);
+      addCue("lean", t.startMs - 150, 350, 500, 700, 0.3, { dir: -1 }, 1200);
+    }
+
+    // Surprise.
+    if (SURPRISE.has(norm)) {
+      addCue("browRaise", t.startMs - 220, 180, Math.min(900, Math.max(400, t.endMs - t.startMs + 200)), 500, 0.85, { side: 1 }, 1800);
+    }
+  });
+
+  // Cues that ride on the gestures: nods, brow flashes and a lean on stressed beats.
+  for (const e of events) {
+    if (e.role !== "lead") continue;
+    if (e.kind === "emphasis") {
+      if (rng() < 0.65) addCue("nod", e.apexMs - 130, 150, 70, 360, 0.55 + 0.4 * e.intensity, {}, 900);
+      if (rng() < 0.5) addCue("browFlash", e.apexMs - 200, 170, 140, 480, 0.55 + 0.3 * e.intensity, {}, 1400);
+      if (rng() < 0.5) addCue("lean", e.apexMs - 300, 300, 250, 700, 0.4 + 0.3 * e.intensity, { dir: 1 }, 1200);
+    } else if (e.kind === "beat") {
+      if (rng() < 0.3) addCue("nod", e.apexMs - 120, 140, 60, 320, 0.3 + 0.3 * e.intensity, {}, 900);
+      if (rng() < 0.2) addCue("browFlash", e.apexMs - 190, 160, 100, 420, 0.35, {}, 1400);
+    } else if (e.kind === "enumerate") {
+      addCue("nod", e.apexMs - 120, 140, 60, 320, 0.4, {}, 700);
+    }
+  }
+
   events.sort((a, b) => a.startMs - b.startMs);
-  const maxSpanMs = events.reduce((m, e) => Math.max(m, e.endMs - e.startMs), 0);
+  cues.sort((a, b) => a.startMs - b.startMs);
+
+  const maxSpanMs = Math.max(
+    events.reduce((m, e) => Math.max(m, e.endMs - e.startMs), 0),
+    cues.reduce((m, c) => Math.max(m, c.endMs - c.startMs), 0),
+  );
 
   return {
     events,
+    cues,
     words: tokens.map((t) => ({ text: t.raw, startMs: t.startMs, endMs: t.endMs })),
     durationMs: Math.max(opts.durationMs ?? 0, speechEnd),
     tempo,
@@ -657,34 +952,44 @@ export function planFallbackGestures(durationMs = 60000, seed = 1234): GesturePl
   let t = 400;
   let lastHand: HandSide = "left";
   while (t < durationMs) {
-    const r = rng();
-    const kind: GestureKind = r < 0.55 ? "beat" : r < 0.8 ? "present" : "emphasis";
-    let hand: HandSide = rng() < 0.62 ? "right" : "left";
-    if (hand === lastHand && rng() < 0.4) hand = hand === "left" ? "right" : "left";
-    const timing = KIND_TIMING[kind];
-    const hold = kind === "present" ? t + 700 + rng() * 900 : t;
-    const start = t - timing.prep;
-    const end = hold + timing.retract;
-    if (occ.canPlace(hand, kind, start, end, t)) {
-      occ.add(hand, { start, end, kind });
-      events.push({
-        kind,
-        hand,
-        role: "lead",
-        apexMs: t,
-        holdUntilMs: hold,
-        startMs: start,
-        endMs: end,
-        intensity: 0.4 + rng() * 0.45,
-        step: 0,
-      });
-      lastHand = hand;
+    // Gesture units with real rests in between: 1–3 gestures, then a pause.
+    const unit = 1 + Math.floor(rng() * 3);
+    const unitHand: HandSide = rng() < 0.65 ? "right" : "left";
+    for (let k = 0; k < unit && t < durationMs; k++) {
+      const r = rng();
+      const kind: GestureKind = r < 0.55 ? "beat" : r < 0.8 ? "present" : "emphasis";
+      let hand: HandSide = rng() < 0.85 ? unitHand : unitHand === "left" ? "right" : "left";
+      if (hand === lastHand && rng() < 0.2) hand = hand === "left" ? "right" : "left";
+      const timing = KIND_TIMING[kind];
+      const hold = kind === "present" ? t + 700 + rng() * 900 : t;
+      const start = t - timing.prep;
+      const coreEnd = hold + timing.retract;
+      if (occ.canPlace(hand, kind, start, coreEnd, t)) {
+        occ.add(hand, { start, end: coreEnd, kind });
+        const intensity = 0.4 + rng() * 0.45;
+        events.push({
+          kind,
+          hand,
+          role: "lead",
+          apexMs: t,
+          holdUntilMs: hold,
+          startMs: start,
+          endMs: hold + Math.max(timing.retract, RAISE_LINGER_MS + RAISE_FALL_MS),
+          intensity,
+          step: 0,
+          level: clamp(levelFor(kind, intensity), 0.3, 1),
+          jitter: [(rng() - 0.5) * 0.05, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.06],
+        });
+        lastHand = hand;
+      }
+      t += 700 + rng() * 900;
     }
-    t += 650 + rng() * 1500;
+    t += 1800 + rng() * 2600; // hands rest between units
   }
   events.sort((a, b) => a.startMs - b.startMs);
   return {
     events,
+    cues: [],
     words: [],
     durationMs,
     tempo: 1,

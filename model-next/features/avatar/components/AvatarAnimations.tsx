@@ -5,9 +5,10 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AnimationLoader } from "@/components/shared";
 import { useAvatarBehavior } from "./AvatarBehaviorContext";
-import { AvatarHandGestureDriver } from "../services/AvatarHandGestureDriver";
+import { AvatarBodyLanguageDriver } from "../services/AvatarBodyLanguageDriver";
 import { planGestures } from "../services/gesturePlanner";
 import { getSynchronizedEpochMs } from "../services/clockSync";
+import { createSpeechLayer } from "../types/behavior.types";
 import type { LipSyncData } from "../types/lipSync.types";
 
 interface AvatarAnimationsProps {
@@ -32,26 +33,20 @@ export function AvatarAnimations({
 }: AvatarAnimationsProps) {
   const currentTargetAnim = animation || "weight shift";
   const behaviorRef = useAvatarBehavior();
-  const gestureDriverRef = useRef<AvatarHandGestureDriver | null>(null);
+  // Owns gestures, face / head / gaze cues, blinks, breaths and body language for this avatar.
+  const [body] = useState(() => new AvatarBodyLanguageDriver());
 
-  if (!gestureDriverRef.current) {
-    gestureDriverRef.current = new AvatarHandGestureDriver();
-  }
-
-  // Deterministic gesture timeline for the sentence being spoken.
+  // Deterministic behaviour plan for the sentence being spoken (same text -> same plan on every device).
   const gesturePlan = useMemo(() => {
     if (!speechText && !lipSyncData?.words?.length) return null;
     return planGestures({ text: speechText, lipSync: lipSyncData });
   }, [speechText, lipSyncData]);
 
-  const targetEpochRef = useRef(targetEpochMs);
+  // Hand the plan to the driver together with the synchronized moment its audio starts.
   useEffect(() => {
-    targetEpochRef.current = targetEpochMs;
-  }, [targetEpochMs]);
-
-  useEffect(() => {
-    gestureDriverRef.current?.setSpeech(gesturePlan);
-  }, [gesturePlan]);
+    if (!gesturePlan) return;
+    body.speak(gesturePlan, targetEpochMs, getSynchronizedEpochMs());
+  }, [body, gesturePlan, targetEpochMs]);
 
   const [loadedAnimMap, setLoadedAnimMap] = useState<Map<string, string>>(() => {
     const initial = new Map<string, string>();
@@ -81,28 +76,29 @@ export function AvatarAnimations({
     return mixerRef.current;
   };
 
-  // Keep this frame order: restore offsets -> advance FBX -> add hand gestures.
+  // Keep this frame order: restore offsets -> advance FBX -> add body language on top.
   useFrame((state, delta) => {
-    const driver = gestureDriverRef.current;
-    driver?.setRoot(group.current);
-    driver?.removePreviousOffsets();
+    body.setRoot(group.current);
+    body.removePreviousOffsets();
     mixerRef.current?.update(Math.min(delta, 0.1));
-    if (!driver) return;
-    const epoch = targetEpochRef.current;
-    driver.update(
+    const behavior = behaviorRef.current;
+    let layer = behavior.speech;
+    if (!layer) {
+      layer = createSpeechLayer();
+      behavior.speech = layer;
+    }
+    body.update(
       state.clock.getElapsedTime(),
       delta,
-      behaviorRef.current.state === "talking",
-      epoch !== undefined ? getSynchronizedEpochMs() - epoch : undefined,
+      getSynchronizedEpochMs(),
+      behavior.state === "talking",
+      layer,
     );
-    const behavior = behaviorRef.current;
-    if (behavior.prosody) behavior.prosody.emphasis = driver.prosodyEmphasis;
-    else behavior.prosody = { emphasis: driver.prosodyEmphasis };
   });
 
   useEffect(() => {
     return () => {
-      gestureDriverRef.current?.dispose();
+      body.dispose();
       const root = group.current;
       const mixer = mixerRef.current;
       const actions = actionsRef.current;
@@ -117,7 +113,7 @@ export function AvatarAnimations({
         currentAnimNameRef.current = "None";
       }
     };
-  }, [group]);
+  }, [group, body]);
 
   useEffect(() => {
     if (!currentTargetAnim || currentTargetAnim.toLowerCase() === "none") return;
