@@ -121,9 +121,21 @@ export async function POST(
     return NextResponse.json(result);
   } catch (error: unknown) {
     console.error("❌ [API /classroom/generate-script] Error:", error);
+    const rawMsg = (error as Error)?.message || "Script generation failed.";
+    const isHighDemand =
+      rawMsg.includes("503") ||
+      rawMsg.includes("high demand") ||
+      rawMsg.includes("UNAVAILABLE") ||
+      rawMsg.includes("RESOURCE_EXHAUSTED") ||
+      rawMsg.includes("Service Unavailable");
+
+    const userFriendlyMessage = isHighDemand
+      ? "The AI model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again in a few moments."
+      : rawMsg;
+
     return NextResponse.json(
-      { error: (error as Error)?.message || "Script generation failed." },
-      { status: 500 }
+      { error: userFriendlyMessage },
+      { status: isHighDemand ? 503 : 500 }
     );
   }
 }

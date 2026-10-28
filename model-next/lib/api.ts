@@ -62,6 +62,18 @@ export async function fetchApi<T = unknown>(
       } catch {}
     }
 
+    // Sanitize 503 / UNAVAILABLE errors into clean user-facing messages
+    if (
+      response.status === 503 ||
+      errorMessage.includes("503") ||
+      errorMessage.includes("high demand") ||
+      errorMessage.includes("UNAVAILABLE") ||
+      errorMessage.includes("Service Unavailable")
+    ) {
+      errorMessage =
+        "The AI model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again in a few moments.";
+    }
+
     throw new ApiError(errorMessage, response.status, errorData);
   }
 

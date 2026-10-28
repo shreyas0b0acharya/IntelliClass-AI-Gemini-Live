@@ -2,7 +2,7 @@
 
 import React, { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 import { Volume2, VolumeX, Loader2, RotateCcw } from "lucide-react";
@@ -21,14 +21,60 @@ import {
   AVATAR_MODEL_PATHS,
   type AvatarModelId,
 } from "@/config";
-import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
+import { useCachedAsset } from "../hooks/useCachedAssetUrl";
+
+// ─────────────────────────────────────────────
+// Error Boundary to prevent 3D loader uncaught crashes
+// ─────────────────────────────────────────────
+interface SceneErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
+
+class SceneErrorBoundary extends React.Component<
+  SceneErrorBoundaryProps,
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: SceneErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.warn("[LandingHeroAvatarStage] 3D Scene suppressed error:", error.message, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        this.props.fallback || (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-[#86868b] dark:text-[#a1a1a6] p-6 text-center">
+            <Loader2 className="w-6 h-6 animate-spin text-[#0071e3]" />
+            <p className="text-xs font-medium">Reconnecting 3D avatar scene...</p>
+            <button
+              type="button"
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="mt-1 text-xs px-3.5 py-1.5 rounded-full bg-[#0071e3]/10 text-[#0071e3] hover:bg-[#0071e3]/20 font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─────────────────────────────────────────────
 // 1. Standing Chalkboard 3D Component
 // ─────────────────────────────────────────────
-function StandingChalkboard() {
-  const cachedUrl = useCachedAssetUrl(STANDING_CHALKBOARD_MODEL_PATH);
-  const { scene } = useGLTF(cachedUrl);
+function StandingChalkboardInner({ modelUrl }: { modelUrl: string }) {
+  const { scene } = useGLTF(modelUrl);
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
 
   return (
@@ -41,9 +87,11 @@ function StandingChalkboard() {
   );
 }
 
-useGLTF.preload(STANDING_CHALKBOARD_MODEL_PATH);
-useGLTF.preload(AVATAR_MODEL_PATHS[DEFAULT_FEMALE_AVATAR_MODEL]);
-useGLTF.preload(AVATAR_MODEL_PATHS[DEFAULT_MALE_AVATAR_MODEL]);
+function StandingChalkboard() {
+  const { url: cachedUrl } = useCachedAsset(STANDING_CHALKBOARD_MODEL_PATH);
+  if (!cachedUrl) return null;
+  return <StandingChalkboardInner modelUrl={cachedUrl} />;
+}
 
 // ─────────────────────────────────────────────
 // 2. Persona Audio & Script Config (Static Assets)
@@ -88,6 +136,7 @@ export function LandingHeroAvatarStage() {
   const [lipSyncCache, setLipSyncCache] = useState<Record<string, HeadTTSData>>({});
   const [activeLipSync, setActiveLipSync] = useState<HeadTTSData | undefined>(undefined);
   const [mounted, setMounted] = useState(false);
+  const { active: isAssetLoading, progress } = useProgress();
 
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const currentPersona = PERSONA_CONFIGS[selectedModel];
@@ -219,6 +268,16 @@ export function LandingHeroAvatarStage() {
           <span>Drag to rotate</span>
         </div>
 
+        {/* Loading progress pill while 3D assets are compiling or downloading */}
+        {mounted && isAssetLoading && (
+          <div className="absolute top-3 left-3 z-10 pointer-events-none animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 dark:bg-black/85 text-white backdrop-blur-md text-xs font-medium shadow-md border border-white/10">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0071e3]" />
+              <span>Loading 3D avatar{progress > 0 ? ` (${Math.round(progress)}%)` : "..."}</span>
+            </div>
+          </div>
+        )}
+
         {/* Client-side Hydration Guard */}
         {!mounted ? (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-[#86868b]">
@@ -226,63 +285,65 @@ export function LandingHeroAvatarStage() {
             <span className="text-xs font-medium">Loading 3D classroom scene...</span>
           </div>
         ) : (
-          <Canvas
-            camera={{
-              position: [0.35, 1.55, -1.4],
-              fov: 45,
-              near: 0.1,
-              far: 50,
-            }}
-            gl={{
-              alpha: true,
-              powerPreference: "high-performance",
-              antialias: true,
-              preserveDrawingBuffer: false,
-            }}
-            className="w-full h-full cursor-grab active:cursor-grabbing"
-          >
-            {/* Studio Lighting */}
-            <ambientLight intensity={0.9} color="#f0f0f5" />
-            <directionalLight position={[3, 4, 2]} intensity={1.8} color="#ffffff" />
-            <directionalLight position={[-2, 3, -1]} intensity={0.7} color="#b0c4ff" />
-            <directionalLight position={[0, -1, 3]} intensity={0.3} color="#ffd6a5" />
+          <SceneErrorBoundary>
+            <Canvas
+              camera={{
+                position: [0.35, 1.55, -1.4],
+                fov: 45,
+                near: 0.1,
+                far: 50,
+              }}
+              gl={{
+                alpha: true,
+                powerPreference: "high-performance",
+                antialias: true,
+                preserveDrawingBuffer: false,
+              }}
+              className="w-full h-full cursor-grab active:cursor-grabbing"
+            >
+              {/* Studio Lighting */}
+              <ambientLight intensity={0.9} color="#f0f0f5" />
+              <directionalLight position={[3, 4, 2]} intensity={1.8} color="#ffffff" />
+              <directionalLight position={[-2, 3, -1]} intensity={0.7} color="#b0c4ff" />
+              <directionalLight position={[0, -1, 3]} intensity={0.3} color="#ffd6a5" />
 
-            {/* Bounded Orbit Controls */}
-            <OrbitControls
-              enableZoom={false}
-              enablePan={false}
-              minPolarAngle={Math.PI / 2.5}
-              maxPolarAngle={Math.PI / 1.8}
-              minAzimuthAngle={-Math.PI / 5}
-              maxAzimuthAngle={Math.PI / 5}
-              target={[0, 1.35, -3.8]}
-            />
+              {/* Bounded Orbit Controls */}
+              <OrbitControls
+                enableZoom={false}
+                enablePan={false}
+                minPolarAngle={Math.PI / 2.5}
+                maxPolarAngle={Math.PI / 1.8}
+                minAzimuthAngle={-Math.PI / 5}
+                maxAzimuthAngle={Math.PI / 5}
+                target={[0, 1.35, -3.8]}
+              />
 
-            {/* 1. Standing Chalkboard (Stationed for both personas) */}
-            <Suspense fallback={null}>
-              <StandingChalkboard />
-            </Suspense>
+              {/* 1. Standing Chalkboard (Stationed for both personas) */}
+              <Suspense fallback={null}>
+                <StandingChalkboard />
+              </Suspense>
 
-            {/* 2. AvatarSDK Model with Talking Mode / Lip-Sync */}
-            <Suspense fallback={null}>
-              <group position={[0.6, 0, -3.75]} rotation={[0, -0.15, 0]}>
-                <Avatar
-                  key={selectedModel}
-                  model={selectedModel}
-                  animation="weight shift"
-                  behaviorState={isPlaying ? "talking" : "idle"}
-                  scale={1.05}
-                  headFollow={true}
-                  playLipSync={isPlaying}
-                  audioPath={currentPersona.audioPath}
-                  lipSyncData={lipSyncCache[selectedModel] || activeLipSync}
-                  targetEpochMs={targetEpochMs}
-                  speechText={currentPersona.subtitle}
-                  onLipSyncEnd={handleSpeechEnded}
-                />
-              </group>
-            </Suspense>
-          </Canvas>
+              {/* 2. AvatarSDK Model with Talking Mode / Lip-Sync */}
+              <Suspense fallback={null}>
+                <group position={[0.6, 0, -3.75]} rotation={[0, -0.15, 0]}>
+                  <Avatar
+                    key={selectedModel}
+                    model={selectedModel}
+                    animation="weight shift"
+                    behaviorState={isPlaying ? "talking" : "idle"}
+                    scale={1.05}
+                    headFollow={true}
+                    playLipSync={isPlaying}
+                    audioPath={currentPersona.audioPath}
+                    lipSyncData={lipSyncCache[selectedModel] || activeLipSync}
+                    targetEpochMs={targetEpochMs}
+                    speechText={currentPersona.subtitle}
+                    onLipSyncEnd={handleSpeechEnded}
+                  />
+                </group>
+              </Suspense>
+            </Canvas>
+          </SceneErrorBoundary>
         )}
 
         {/* Live Subtitle Caption Bar (Appears when speaking) */}

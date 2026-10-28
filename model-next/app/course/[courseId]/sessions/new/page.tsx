@@ -253,7 +253,7 @@ export default function NewSessionPage({
 
       // 3. Generate Lecture Script with AI Grounding
       const modelPersonaName = gender === "female" ? "Dr. Clara" : "Prof. Arthur";
-      setStatusMessage("AI Professor is generating structured lesson script & visual cues via Gemini 2.5 Flash...");
+      setStatusMessage("AI Professor is generating structured lesson script & visual cues via Gemini 3.8 Flash...");
       console.log(`🤖 [New Session] Calling generateSessionScript for session ${session.id} (Model Persona: "${modelPersonaName}")...`);
       const scriptRes = await api.generateSessionScript(session.id, {
         courseId,
@@ -273,8 +273,16 @@ export default function NewSessionPage({
       toast.success("AI Curriculum Script prepared! Please review and confirm to enter the live classroom.");
     } catch (err: unknown) {
       console.error("❌ [New Session] Create session error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to create session";
-      toast.error(msg);
+      let msg = err instanceof Error ? err.message : "Failed to create session";
+      if (
+        msg.includes("503") ||
+        msg.includes("high demand") ||
+        msg.includes("UNAVAILABLE") ||
+        msg.includes("Service Unavailable")
+      ) {
+        msg = "The AI model is currently experiencing high demand. Please try again in a few moments.";
+      }
+      toast.error(msg, { duration: 7000 });
       setIsSubmitting(false);
       setStatusMessage("");
     }

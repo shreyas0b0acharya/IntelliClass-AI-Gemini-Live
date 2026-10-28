@@ -12,15 +12,46 @@ import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
 import { useDeviceTier } from "../hooks/useDeviceTier";
 import { DEFAULT_AVATAR_MODEL, getClassroomModelPath, STAGE_BACKDROP_TEXTURE_PATH } from "@/config";
-import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
+import { useCachedAsset } from "../hooks/useCachedAssetUrl";
+
+function ClassroomStageInner({ modelUrl }: { modelUrl: string }) {
+  const { scene } = useGLTF(modelUrl);
+  return <primitive object={scene} />;
+}
 
 function ClassroomStage() {
   const { capabilities } = useDeviceTier();
   const classroomModelPath = getClassroomModelPath(capabilities.lodLevel);
-  const cachedUrl = useCachedAssetUrl(classroomModelPath);
-  const { scene } = useGLTF(cachedUrl);
+  const { url: cachedUrl } = useCachedAsset(classroomModelPath);
+  if (!cachedUrl) return null;
+  return <ClassroomStageInner modelUrl={cachedUrl} />;
+}
 
-  return <primitive object={scene} />;
+function StageBackdropPlaneInner({
+  textureUrl,
+  receiveShadow,
+}: {
+  textureUrl: string;
+  receiveShadow?: boolean;
+}) {
+  const texture = useTexture(textureUrl);
+  return (
+    <mesh receiveShadow={receiveShadow} position={[0, 1.8, -4.3]}>
+      <planeGeometry args={[8.9, 4.8]} />
+      <meshBasicMaterial map={texture} />
+    </mesh>
+  );
+}
+
+function StageBackdropPlane({ receiveShadow }: { receiveShadow?: boolean }) {
+  const { url: cachedBackdropUrl } = useCachedAsset(STAGE_BACKDROP_TEXTURE_PATH);
+  if (!cachedBackdropUrl) return null;
+  return (
+    <StageBackdropPlaneInner
+      textureUrl={cachedBackdropUrl}
+      receiveShadow={receiveShadow}
+    />
+  );
 }
 
 interface ExperienceProps {
@@ -51,8 +82,6 @@ export function Experience({
   speechText,
 }: ExperienceProps) {
   const { capabilities } = useDeviceTier();
-  const cachedBackdropUrl = useCachedAssetUrl(STAGE_BACKDROP_TEXTURE_PATH);
-  const texture = useTexture(cachedBackdropUrl);
 
   return (
     <>
@@ -102,10 +131,7 @@ export function Experience({
       )}
 
       {/* Stage backdrop projection plane */}
-      <mesh receiveShadow={capabilities.shadows} position={[0, 1.8, -4.3]}>
-        <planeGeometry args={[8.9, 4.8]} />
-        <meshBasicMaterial map={texture} />
-      </mesh>
+      <StageBackdropPlane receiveShadow={capabilities.shadows} />
     </>
   );
 }

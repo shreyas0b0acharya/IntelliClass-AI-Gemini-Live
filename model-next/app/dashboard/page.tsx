@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses";
-import { SessionCodeInput, StatusBadge } from "@/components/shared";
+import { SessionCodeInput, StatusBadge, CopyCodeBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -238,9 +238,9 @@ export default function DashboardPage() {
                       {session.topic}
                     </h3>
                     {session.meeting_code && (
-                      <span className="inline-block font-mono text-xs font-bold text-foreground dark:text-foreground bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5">
-                        {session.meeting_code}
-                      </span>
+                      <div>
+                        <CopyCodeBadge code={session.meeting_code} />
+                      </div>
                     )}
                   </div>
 
@@ -413,14 +413,14 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-bold text-foreground dark:text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
                     {session.topic}
                   </h3>
-                  <div className="flex items-center gap-2 pt-0.5">
+                  <div className="flex flex-col gap-1.5 pt-1">
                     {session.meeting_code && (
-                      <span className="font-mono text-xs font-semibold text-foreground dark:text-foreground bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
-                        {session.meeting_code}
-                      </span>
+                      <div>
+                        <CopyCodeBadge code={session.meeting_code} />
+                      </div>
                     )}
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 whitespace-nowrap">
+                      <Clock className="h-3 w-3 shrink-0 opacity-70" />
                       {new Date(session.created_at).toLocaleString("en-US", {
                         month: "short",
                         day: "numeric",

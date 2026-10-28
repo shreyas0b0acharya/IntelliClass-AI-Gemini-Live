@@ -5,6 +5,7 @@ import type { CourseFile, MediaAsset } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   Maximize2,
   Sparkles,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,16 +87,19 @@ export function MaterialViewerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
- <DialogContent className="sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[80vw] max-w-[96vw] sm:max-w-[92vw] md:max-w-[88vw] lg:max-w-[80vw] h-[90vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover shadow-2xl"
+      >
         {/* Header */}
- <DialogHeader className=" shrink-0 ">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <DialogHeader className="shrink-0 p-4 sm:p-5 px-6 border-b border-border/50 bg-card/40 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-xs">
                 <FileText className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
- <DialogTitle className=" max-w-md">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-bold truncate">
                   {file.file_name}
                 </DialogTitle>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -108,24 +113,26 @@ export function MaterialViewerModal({
             </div>
 
             {/* Actions & Tab Switcher */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
               {matchedDiagrams.length > 0 && (
                 <div className="flex items-center bg-black/5 dark:bg-white/10 p-0.5 rounded-xl text-xs font-semibold">
                   <button
                     onClick={() => setActiveTab("document")}
-                    className={`px-3 py-1 rounded-lg transition-all ${activeTab === "document"
+                    className={`px-3 py-1 rounded-lg transition-all ${
+                      activeTab === "document"
                         ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
-                      }`}
+                    }`}
                   >
                     PDF Document
                   </button>
                   <button
                     onClick={() => setActiveTab("diagrams")}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${activeTab === "diagrams"
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                      activeTab === "diagrams"
                         ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
-                      }`}
+                    }`}
                   >
                     <ImageIcon className="h-3 w-3 text-primary" />
                     <span>Visuals ({matchedDiagrams.length})</span>
@@ -139,7 +146,7 @@ export function MaterialViewerModal({
                     asChild
                     variant="outline"
                     size="sm"
- className="h-8 hidden sm:flex "
+                    className="h-8 hidden sm:flex rounded-xl"
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer" download={file.file_name} className="inline-flex items-center gap-1.5">
                       <Download className="h-3.5 w-3.5" />
@@ -151,7 +158,7 @@ export function MaterialViewerModal({
                     asChild
                     size="sm"
                     variant="default"
- className="h-8 "
+                    className="h-8 rounded-xl shadow-xs"
                   >
                     <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -160,6 +167,18 @@ export function MaterialViewerModal({
                   </Button>
                 </>
               )}
+
+              <DialogClose asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </DialogClose>
             </div>
           </div>
         </DialogHeader>

@@ -109,15 +109,32 @@ Style Rules:
       `🧠 [Q&A Flow] Answering question from ${input.studentName}: "${input.question}" (mode=${mode}, contextLen=${context.length})`
     );
 
-    const { text } = await ai.generate({
-      model: googleAI.model("gemini-3.6-flash"),
-      system: systemInstruction,
-      prompt: prompt,
-      config: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-      },
-    });
+    const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
+    let text = "";
+    let lastError: unknown = null;
+
+    for (const modelName of FALLBACK_MODELS) {
+      try {
+        const response = await ai.generate({
+          model: googleAI.model(modelName),
+          system: systemInstruction,
+          prompt: prompt,
+          config: {
+            maxOutputTokens: 2048,
+            temperature: 0.7,
+          },
+        });
+        text = response.text;
+        if (text) break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`⚠️ [Q&A Flow] ${modelName} failed, attempting next fallback model:`, err);
+      }
+    }
+
+    if (!text && lastError) {
+      throw lastError;
+    }
 
     const cleanAnswer = text
       .replace(/[*#`_~]/g, "")

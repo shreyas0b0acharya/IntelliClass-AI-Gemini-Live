@@ -30,14 +30,15 @@ import { AvatarNostrils } from "./AvatarNostrils";
 import { AvatarLips } from "./AvatarLips";
 import { AvatarSpeechFace } from "./AvatarSpeechFace";
 import { useDeviceTier } from "../hooks/useDeviceTier";
-import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
+import { useCachedAsset } from "../hooks/useCachedAssetUrl";
 
 function AvatarLipSync(props: LipSyncProps) {
   useLipSync(props);
   return null;
 }
 
-export function Avatar({
+function AvatarInner({
+  modelUrl,
   model = DEFAULT_AVATAR_MODEL,
   animation = "weight shift",
   behaviorState = "idle",
@@ -51,10 +52,8 @@ export function Avatar({
   targetEpochMs,
   sequence,
   speechText,
-}: AvatarProps) {
+}: AvatarProps & { modelUrl: string }) {
   const modelName = (model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
-  const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
-  const cachedUrl = useCachedAssetUrl(canonicalUrl);
   const { capabilities } = useDeviceTier();
 
   const [isReady, setIsReady] = useState(false);
@@ -67,7 +66,7 @@ export function Avatar({
     return () => clearTimeout(timer);
   }, [modelName]);
 
-  const { scene } = useDreiGLTF(cachedUrl);
+  const { scene } = useDreiGLTF(modelUrl);
 
   /*
    * Clone the model so every avatar instance
@@ -334,6 +333,24 @@ export function Avatar({
       </AvatarBehaviorController>
     </group>
   );
+}
+
+export function Avatar(props: AvatarProps) {
+  const modelName = (props.model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
+  const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
+  const { url: cachedUrl, isLoading, error } = useCachedAsset(canonicalUrl);
+
+  // While resolving from CacheStorage or fetching into CacheStorage, do NOT run useGLTF prematurely
+  if (isLoading || !cachedUrl) {
+    return null;
+  }
+
+  if (error) {
+    console.warn(`[Avatar] Failed to load cached model ${canonicalUrl}:`, error);
+    return null;
+  }
+
+  return <AvatarInner key={cachedUrl} modelUrl={cachedUrl} {...props} />;
 }
 
 export default Avatar;

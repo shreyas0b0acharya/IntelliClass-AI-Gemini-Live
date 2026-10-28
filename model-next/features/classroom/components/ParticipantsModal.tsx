@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ClassroomParticipant } from "../types/classroom";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -61,16 +62,19 @@ export function ParticipantsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
- <DialogContent className="sm:max-w-md overflow-hidden ">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[94vw] sm:w-[90vw] md:max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl"
+      >
         {/* Header */}
- <DialogHeader className="">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+        <DialogHeader className="shrink-0 p-5 pb-3 border-b border-border/50 bg-card/40 backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-xs">
                 <Users className="h-4 w-4" />
               </div>
-              <div>
- <DialogTitle className="">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-bold tracking-tight text-foreground truncate">
                   Classroom People
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -79,33 +83,47 @@ export function ParticipantsModal({
               </div>
             </div>
 
-            {isLecturer && waitingStudents.length > 0 && (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={onAdmitAll}
- className=" h-8 inline-flex items-center "
-              >
-                <UserCheck className="h-3.5 w-3.5" />
-                <span>Admit All ({waitingStudents.length})</span>
-              </Button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {isLecturer && waitingStudents.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={onAdmitAll}
+                  className="h-8 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all shrink-0"
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>Admit All ({waitingStudents.length})</span>
+                </Button>
+              )}
+
+              <DialogClose asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </DialogClose>
+            </div>
           </div>
 
           {/* Search bar */}
           <div className="relative mt-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search participants by name..."
- className="h-9 "
+              className="h-9 pl-9 pr-3 text-xs rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
             />
           </div>
         </DialogHeader>
 
         {/* Participant List Content */}
-        <div className="p-6 pt-4 max-h-[60vh] overflow-y-auto space-y-6">
+        <div className="p-5 pt-4 max-h-[60vh] flex-1 min-h-0 overflow-y-auto space-y-6">
           {/* Waiting Room Requests (Lecturer Admission Controls) */}
           {isLecturer && waitingStudents.length > 0 && (
             <div className="space-y-2.5">

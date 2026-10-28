@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar, SessionCodeInput } from "@/components/shared";
 import { useAuth } from "@/features/auth";
 import { Button } from "@/components/ui/button";
-import { LandingHeroAvatarStage } from "@/features/avatar";
+import dynamic from "next/dynamic";
 import {
   ArrowRight,
   ChevronRight,
@@ -19,7 +19,21 @@ import {
   ShieldCheck,
   KeyRound,
   Presentation,
+  Loader2,
 } from "lucide-react";
+
+const LandingHeroAvatarStage = dynamic(
+  () => import("@/features/avatar").then((m) => m.LandingHeroAvatarStage),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[440px] sm:h-[480px] md:h-[500px] flex flex-col items-center justify-center gap-3 text-muted-foreground bg-muted/10 rounded-3xl border border-border/40 select-none">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="text-xs font-medium">Loading 3D classroom scene...</span>
+      </div>
+    ),
+  }
+);
 
 interface FeatureCardProps {
   icon: React.ReactNode;

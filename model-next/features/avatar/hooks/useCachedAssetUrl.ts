@@ -3,31 +3,74 @@
 import { useState, useEffect } from "react";
 import { assetStorage } from "../services/assetStorage";
 
+export interface CachedAssetResult {
+  url: string | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
 /**
- * React hook that returns a persistent local blob Object URL for a given 3D asset.
- * If already cached in browser CacheStorage / IndexedDB, returns immediately.
- * Otherwise, downloads once from Supabase Storage CDN, commits to CacheStorage, and yields the blob URL.
+ * React hook that resolves a persistent cached Object URL for a 3D asset.
+ * Guarantees that:
+ * 1. If cached in CacheStorage / memory, it returns the cached blob URL without making any network request.
+ * 2. If not yet cached, it fetches ONCE into CacheStorage (with local fallback if CDN is unreachable),
+ *    and then provides the cached blob URL.
+ * 3. Does NOT return an unverified network URL prematurely, preventing Three.js loaders from
+ *    bypassing CacheStorage or throwing unhandled fetch errors while the model is downloading.
  */
-export function useCachedAssetUrl(targetUrl?: string): string {
-  const [resolvedUrl, setResolvedUrl] = useState<string>(() => {
-    if (!targetUrl) return "";
-    return assetStorage.getSynchronousObjectUrl(targetUrl) || targetUrl;
+export function useCachedAsset(targetUrl?: string): CachedAssetResult {
+  const [state, setState] = useState<CachedAssetResult>(() => {
+    if (!targetUrl) return { url: null, isLoading: false, error: null };
+    const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
+    if (syncUrl) {
+      return { url: syncUrl, isLoading: false, error: null };
+    }
+    return { url: null, isLoading: true, error: null };
   });
 
   useEffect(() => {
-    if (!targetUrl) return;
+    if (!targetUrl) {
+      setState({ url: null, isLoading: false, error: null });
+      return;
+    }
+
     let isCurrent = true;
 
-    assetStorage.getAssetUrl(targetUrl).then((url) => {
-      if (isCurrent && url !== resolvedUrl) {
-        setResolvedUrl(url);
-      }
-    });
+    // Check memory first
+    const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
+    if (syncUrl) {
+      setState({ url: syncUrl, isLoading: false, error: null });
+      return;
+    }
+
+    setState({ url: null, isLoading: true, error: null });
+
+    assetStorage
+      .getAssetUrl(targetUrl)
+      .then((resolved) => {
+        if (!isCurrent) return;
+        setState({ url: resolved, isLoading: false, error: null });
+      })
+      .catch((err) => {
+        if (!isCurrent) return;
+        console.warn(`[useCachedAsset] Error resolving asset ${targetUrl}:`, err);
+        // Fallback to targetUrl rather than breaking
+        setState({ url: targetUrl, isLoading: false, error: err });
+      });
 
     return () => {
       isCurrent = false;
     };
-  }, [targetUrl, resolvedUrl]);
+  }, [targetUrl]);
 
-  return resolvedUrl || targetUrl || "";
+  return state;
+}
+
+/**
+ * Legacy compatibility hook returning resolved string.
+ * Returns in-memory URL if cached, or targetUrl as fallback.
+ */
+export function useCachedAssetUrl(targetUrl?: string): string {
+  const { url } = useCachedAsset(targetUrl);
+  return url || targetUrl || "";
 }
