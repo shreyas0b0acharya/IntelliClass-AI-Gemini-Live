@@ -34,10 +34,60 @@ export function resolveAvatarModel(
   if (avatarModel === "women-avatarsdk" || avatarModel === "men-avatarsdk") {
     return avatarModel;
   }
+  if (
+    avatarModel === "women" ||
+    avatarModel === "female" ||
+    avatarModel?.toLowerCase().includes("women") ||
+    avatarModel?.toLowerCase().includes("clara")
+  ) {
+    return DEFAULT_FEMALE_AVATAR_MODEL;
+  }
+  if (
+    avatarModel === "men" ||
+    avatarModel === "male" ||
+    avatarModel?.toLowerCase().includes("men") ||
+    avatarModel?.toLowerCase().includes("arthur")
+  ) {
+    return DEFAULT_MALE_AVATAR_MODEL;
+  }
 
   // Explicit voiceGender metadata from API
   if (voiceGender === "female") return DEFAULT_FEMALE_AVATAR_MODEL;
   if (voiceGender === "male") return DEFAULT_MALE_AVATAR_MODEL;
+
+  // Infer gender from voiceId prefix or known names if voiceGender is omitted
+  if (voiceId) {
+    const vid = voiceId.toLowerCase();
+    if (
+      vid.startsWith("af_") ||
+      vid.startsWith("bf_") ||
+      vid.includes("female") ||
+      vid.includes("bella") ||
+      vid.includes("sarah") ||
+      vid.includes("clara") ||
+      vid.includes("nicole") ||
+      vid.includes("sky") ||
+      vid.includes("alice") ||
+      vid.includes("emma")
+    ) {
+      return DEFAULT_FEMALE_AVATAR_MODEL;
+    }
+    if (
+      vid.startsWith("am_") ||
+      vid.startsWith("bm_") ||
+      vid.includes("male") ||
+      vid.includes("fenrir") ||
+      vid.includes("adam") ||
+      vid.includes("arthur") ||
+      vid.includes("brian") ||
+      vid.includes("eric") ||
+      vid.includes("michael") ||
+      vid.includes("daniel") ||
+      vid.includes("george")
+    ) {
+      return DEFAULT_MALE_AVATAR_MODEL;
+    }
+  }
 
   return DEFAULT_AVATAR_MODEL;
 }

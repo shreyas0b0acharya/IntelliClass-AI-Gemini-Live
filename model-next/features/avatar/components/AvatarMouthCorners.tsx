@@ -29,7 +29,16 @@ export function AvatarMouthCorners({
   useFrame((_, delta) => {
     const hMesh = headRef.current;
     const eMesh = eyelashesRef.current;
-    const targets = behaviorRef.current.mouthCorners;
+    const isTalking = behaviorRef.current.state === "talking";
+    const random = behaviorRef.current.mouthCorners;
+    const speech = behaviorRef.current.speech;
+    const targets = {
+      ...random,
+      mouthSmileLeft: Math.min(1, random.mouthSmileLeft + (speech?.smileLeft ?? 0)),
+      mouthSmileRight: Math.min(1, random.mouthSmileRight + (speech?.smileRight ?? 0)),
+      mouthPressLeft: isTalking ? 0 : Math.min(1, random.mouthPressLeft + (speech?.mouthPress ?? 0)),
+      mouthPressRight: isTalking ? 0 : Math.min(1, random.mouthPressRight + (speech?.mouthPress ?? 0)),
+    };
 
     const smoothing = 1 - Math.exp(-6.5 * Math.min(delta, 0.1));
     const meshes = [hMesh, eMesh];

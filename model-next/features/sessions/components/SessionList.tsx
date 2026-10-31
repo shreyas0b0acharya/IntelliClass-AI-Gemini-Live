@@ -7,7 +7,7 @@ import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
 import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
-import { StatusBadge } from "@/components/shared";
+import { StatusBadge, CopyCodeBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -123,9 +123,7 @@ function SessionCard({
               {session.topic}
             </h4>
             <StatusBadge status={session.status} stoppedReason={session.stopped_reason} />
-            <span className="font-mono text-xs bg-black/5 dark:bg-white/10 text-foreground dark:text-foreground px-2 py-0.5 rounded-md border border-black/5 dark:border-white/5 font-semibold">
-              {meetingCode}
-            </span>
+            <CopyCodeBadge code={meetingCode} />
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium flex-wrap">
             <span className="flex items-center gap-1">

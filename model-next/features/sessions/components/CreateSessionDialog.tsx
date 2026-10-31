@@ -159,8 +159,16 @@ function CreateSessionModalContent({
       router.push(`/classroom/${sessionId}`);
     } catch (err: unknown) {
       console.error("Create session error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to generate classroom session.";
-      toast.error(msg);
+      let msg = err instanceof Error ? err.message : "Failed to generate classroom session.";
+      if (
+        msg.includes("503") ||
+        msg.includes("high demand") ||
+        msg.includes("UNAVAILABLE") ||
+        msg.includes("Service Unavailable")
+      ) {
+        msg = "The AI model is currently experiencing high demand. Please try again in a few moments.";
+      }
+      toast.error(msg, { duration: 7000 });
     } finally {
       setIsGenerating(false);
       setStatusStep("");

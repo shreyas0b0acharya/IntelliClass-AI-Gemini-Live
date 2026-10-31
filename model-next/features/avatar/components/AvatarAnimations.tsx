@@ -1,19 +1,25 @@
 "use client";
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AnimationLoader } from "@/components/shared";
+import { useAvatarBehavior } from "./AvatarBehaviorContext";
+import { AvatarBodyLanguageDriver } from "../services/AvatarBodyLanguageDriver";
+import { planGestures } from "../services/gesturePlanner";
+import { getSynchronizedEpochMs } from "../services/clockSync";
+import { createSpeechLayer } from "../types/behavior.types";
+import type { LipSyncData } from "../types/lipSync.types";
 
 interface AvatarAnimationsProps {
   modelName: string;
   animation?: string;
   group: React.RefObject<THREE.Group | null>;
   onReady?: () => void;
+  /** Spoken text + word timings let gestures follow the actual speech. */
+  speechText?: string;
+  lipSyncData?: LipSyncData;
+  targetEpochMs?: number;
 }
 
 export function AvatarAnimations({
@@ -21,27 +27,44 @@ export function AvatarAnimations({
   animation = "weight shift",
   group,
   onReady,
+  speechText,
+  lipSyncData,
+  targetEpochMs,
 }: AvatarAnimationsProps) {
   const currentTargetAnim = animation || "weight shift";
+  const behaviorRef = useAvatarBehavior();
+  // Owns gestures, face / head / gaze cues, blinks, breaths and body language for this avatar.
+  const [body] = useState(() => new AvatarBodyLanguageDriver());
 
-  // Only load animations that are actively requested or predicted
+  // Deterministic behaviour plan for the sentence being spoken (same text -> same plan on every device).
+  const gesturePlan = useMemo(() => {
+    if (!speechText && !lipSyncData?.words?.length) return null;
+    return planGestures({ text: speechText, lipSync: lipSyncData });
+  }, [speechText, lipSyncData]);
+
+  // Hand the plan to the driver together with the synchronized moment its audio starts.
+  useEffect(() => {
+    if (!gesturePlan) return;
+    body.speak(gesturePlan, targetEpochMs, getSynchronizedEpochMs());
+  }, [body, gesturePlan, targetEpochMs]);
+
   const [loadedAnimMap, setLoadedAnimMap] = useState<Map<string, string>>(() => {
-    const initialMap = new Map<string, string>();
-    initialMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
-    return initialMap;
+    const initial = new Map<string, string>();
+    initial.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
+    return initial;
   });
 
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsRef = useRef<Map<string, THREE.AnimationAction>>(new Map());
   const currentActionRef = useRef<THREE.AnimationAction | null>(null);
   const currentAnimNameRef = useRef<string | null>(null);
-
   const onReadyRef = useRef(onReady);
+  const animationRef = useRef(currentTargetAnim);
+
   useEffect(() => {
     onReadyRef.current = onReady;
   }, [onReady]);
 
-  const animationRef = useRef(currentTargetAnim);
   useEffect(() => {
     animationRef.current = currentTargetAnim;
   }, [currentTargetAnim]);
@@ -53,56 +76,57 @@ export function AvatarAnimations({
     return mixerRef.current;
   };
 
-  /*
-   * Drive animation mixer updates on every frame
-   */
-  useFrame((_, delta) => {
-    mixerRef.current?.update(delta);
+  // Keep this frame order: restore offsets -> advance FBX -> add body language on top.
+  useFrame((state, delta) => {
+    body.setRoot(group.current);
+    body.removePreviousOffsets();
+    mixerRef.current?.update(Math.min(delta, 0.1));
+    const behavior = behaviorRef.current;
+    let layer = behavior.speech;
+    if (!layer) {
+      layer = createSpeechLayer();
+      behavior.speech = layer;
+    }
+    body.update(
+      state.clock.getElapsedTime(),
+      delta,
+      getSynchronizedEpochMs(),
+      behavior.state === "talking",
+      layer,
+    );
   });
 
-  /*
-   * Clean up mixer on unmount
-   */
   useEffect(() => {
-    const root = group.current;
-    const actions = actionsRef.current;
-    const mixer = mixerRef.current;
-
     return () => {
-      if (mixer && root) {
+      body.dispose();
+      const root = group.current;
+      const mixer = mixerRef.current;
+      const actions = actionsRef.current;
+      if (mixer) {
         mixer.stopAllAction();
-        actions.forEach((action) => {
-          mixer.uncacheAction(action.getClip(), root);
-        });
+        if (root) {
+          actions.forEach((action) => mixer.uncacheAction(action.getClip(), root));
+        }
         actions.clear();
         mixerRef.current = null;
         currentActionRef.current = null;
         currentAnimNameRef.current = "None";
       }
     };
-  }, [group]);
+  }, [group, body]);
 
-  /*
-   * On-demand dynamic loading: when target animation changes, load ONLY that clip
-   */
   useEffect(() => {
-    if (!currentTargetAnim || currentTargetAnim.toLowerCase() === "none") {
-      return;
-    }
-
+    if (!currentTargetAnim || currentTargetAnim.toLowerCase() === "none") return;
     queueMicrotask(() => {
-      setLoadedAnimMap((prev) => {
-        if (prev.has(currentTargetAnim)) return prev;
-        const nextMap = new Map(prev);
-        nextMap.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
-        return nextMap;
+      setLoadedAnimMap((previous) => {
+        if (previous.has(currentTargetAnim)) return previous;
+        const next = new Map(previous);
+        next.set(currentTargetAnim, `/animations/${modelName}/${currentTargetAnim}.fbx`);
+        return next;
       });
     });
   }, [currentTargetAnim, modelName]);
 
-  /*
-   * Play an animation action with smooth cross-fading
-   */
   const playAction = (targetAnim: string, isFirst = false) => {
     if (!targetAnim || targetAnim.toLowerCase() === "none") {
       if (currentActionRef.current) {
@@ -116,29 +140,24 @@ export function AvatarAnimations({
 
     const mixer = getMixer();
     const nextAction = actionsRef.current.get(targetAnim);
-
     if (!nextAction || !mixer) return;
 
     if (
       currentAnimNameRef.current === targetAnim &&
       currentActionRef.current?.isRunning()
-    ) {
-      return;
-    }
+    ) return;
 
-    const prevAction = currentActionRef.current;
+    const previousAction = currentActionRef.current;
     currentActionRef.current = nextAction;
     currentAnimNameRef.current = targetAnim;
 
-    if (isFirst || !prevAction) {
+    if (isFirst || !previousAction) {
       nextAction.reset().play();
       mixer.update(0);
       onReadyRef.current?.();
     } else {
       nextAction.reset().fadeIn(0.3).play();
-      if (prevAction !== nextAction) {
-        prevAction.fadeOut(0.3);
-      }
+      if (previousAction !== nextAction) previousAction.fadeOut(0.3);
     }
   };
 
@@ -147,9 +166,6 @@ export function AvatarAnimations({
     playActionRef.current = playAction;
   });
 
-  /*
-   * Handle clip loaded from FBX without interrupting currently playing animation
-   */
   const handleClipLoad = (clip: THREE.AnimationClip) => {
     const root = group.current;
     const mixer = getMixer();
@@ -167,25 +183,18 @@ export function AvatarAnimations({
       return;
     }
 
-    // If this is the target animation and nothing is active yet, play it immediately!
     if (clip.name === targetAnim && !currentActionRef.current) {
       playActionRef.current(clip.name, true);
     }
   };
 
-  /*
-   * Handle animation prop changes (e.g. user switching gestures)
-   */
   useEffect(() => {
-    const targetAnim = currentTargetAnim || "None";
-    playActionRef.current(targetAnim, false);
+    playActionRef.current(currentTargetAnim || "None", false);
   }, [currentTargetAnim]);
-
-  const animEntries = Array.from(loadedAnimMap.entries());
 
   return (
     <React.Suspense fallback={null}>
-      {animEntries.map(([name, path]) => (
+      {Array.from(loadedAnimMap.entries()).map(([name, path]) => (
         <AnimationLoader
           key={`${modelName}-${name}`}
           path={path}

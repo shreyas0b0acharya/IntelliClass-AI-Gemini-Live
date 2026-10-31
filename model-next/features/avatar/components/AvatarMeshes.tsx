@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/immutability */
 
 import { useMemo } from "react";
+import * as THREE from "three";
 import type { AvatarGLTFResult } from "../types/avatar.types";
 
 interface AvatarMeshesProps {
@@ -49,136 +50,41 @@ export function AvatarMeshes({
       materials.AvatarRightEyeball.roughness = 0.2;
       materials.AvatarRightEyeball.envMapIntensity = 0.3;
     }
-  }, [materials]);
+    if (nodes.AvatarHead) nodes.AvatarHead.frustumCulled = false;
+    if (nodes.AvatarTeethLower) nodes.AvatarTeethLower.frustumCulled = false;
+    if (nodes.AvatarTeethUpper) nodes.AvatarTeethUpper.frustumCulled = false;
+    if (nodes.AvatarEyelashes) nodes.AvatarEyelashes.frustumCulled = false;
+  }, [materials, nodes]);
+
+  const wolf3d = nodes as unknown as Record<string, THREE.Object3D | undefined>;
+
   return (
     <>
       <primitive object={nodes.Hips} />
 
-      {nodes.AvatarBody && (
-        <skinnedMesh
-          geometry={nodes.AvatarBody.geometry}
-          material={materials.AvatarBody}
-          skeleton={nodes.AvatarBody.skeleton}
-          frustumCulled={false}
-        />
-      )}
+      {nodes.AvatarBody && <primitive object={nodes.AvatarBody} />}
+      {nodes.AvatarLeftCornea && <primitive object={nodes.AvatarLeftCornea} />}
+      {nodes.AvatarLeftEyeball && <primitive object={nodes.AvatarLeftEyeball} />}
+      {nodes.AvatarRightCornea && <primitive object={nodes.AvatarRightCornea} />}
+      {nodes.AvatarRightEyeball && <primitive object={nodes.AvatarRightEyeball} />}
+      {nodes.AvatarTeethUpper && <primitive object={nodes.AvatarTeethUpper} />}
+      {nodes.outfit && <primitive object={nodes.outfit} />}
+      {nodes.outfit_bottom && <primitive object={nodes.outfit_bottom} />}
+      {nodes.outfit_shoes && <primitive object={nodes.outfit_shoes} />}
+      {nodes.outfit_top && <primitive object={nodes.outfit_top} />}
+      {nodes.AvatarEyelashes && <primitive object={nodes.AvatarEyelashes} />}
+      {nodes.AvatarHead && <primitive object={nodes.AvatarHead} />}
+      {nodes.AvatarTeethLower && <primitive object={nodes.AvatarTeethLower} />}
 
-      {nodes.AvatarLeftCornea && (
-        <skinnedMesh
-          geometry={nodes.AvatarLeftCornea.geometry}
-          material={materials.AvatarLeftCornea}
-          skeleton={nodes.AvatarLeftCornea.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarLeftEyeball && (
-        <skinnedMesh
-          geometry={nodes.AvatarLeftEyeball.geometry}
-          material={materials.AvatarLeftEyeball}
-          skeleton={nodes.AvatarLeftEyeball.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarRightCornea && (
-        <skinnedMesh
-          geometry={nodes.AvatarRightCornea.geometry}
-          material={materials.AvatarRightCornea}
-          skeleton={nodes.AvatarRightCornea.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarRightEyeball && (
-        <skinnedMesh
-          geometry={nodes.AvatarRightEyeball.geometry}
-          material={materials.AvatarRightEyeball}
-          skeleton={nodes.AvatarRightEyeball.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarTeethUpper && (
-        <skinnedMesh
-          geometry={nodes.AvatarTeethUpper.geometry}
-          material={materials.AvatarTeethUpper}
-          skeleton={nodes.AvatarTeethUpper.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.outfit && (
-        <skinnedMesh
-          geometry={nodes.outfit.geometry}
-          material={materials.outfit}
-          skeleton={nodes.outfit.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.outfit_bottom && (
-        <skinnedMesh
-          geometry={nodes.outfit_bottom.geometry}
-          material={materials.outfit_bottom}
-          skeleton={nodes.outfit_bottom.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.outfit_shoes && (
-        <skinnedMesh
-          geometry={nodes.outfit_shoes.geometry}
-          material={materials.outfit_shoes}
-          skeleton={nodes.outfit_shoes.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.outfit_top && (
-        <skinnedMesh
-          geometry={nodes.outfit_top.geometry}
-          material={materials.outfit_top}
-          skeleton={nodes.outfit_top.skeleton}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarEyelashes && (
-        <skinnedMesh
-          name="AvatarEyelashes"
-          geometry={nodes.AvatarEyelashes.geometry}
-          material={materials.AvatarEyelashes}
-          skeleton={nodes.AvatarEyelashes.skeleton}
-          morphTargetDictionary={nodes.AvatarEyelashes.morphTargetDictionary}
-          morphTargetInfluences={nodes.AvatarEyelashes.morphTargetInfluences}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarHead && (
-        <skinnedMesh
-          name="AvatarHead"
-          geometry={nodes.AvatarHead.geometry}
-          material={materials.AvatarHead}
-          skeleton={nodes.AvatarHead.skeleton}
-          morphTargetDictionary={nodes.AvatarHead.morphTargetDictionary}
-          morphTargetInfluences={nodes.AvatarHead.morphTargetInfluences}
-          frustumCulled={false}
-        />
-      )}
-
-      {nodes.AvatarTeethLower && (
-        <skinnedMesh
-          name="AvatarTeethLower"
-          geometry={nodes.AvatarTeethLower.geometry}
-          material={materials.AvatarTeethLower}
-          skeleton={nodes.AvatarTeethLower.skeleton}
-          morphTargetDictionary={nodes.AvatarTeethLower.morphTargetDictionary}
-          morphTargetInfluences={nodes.AvatarTeethLower.morphTargetInfluences}
-          frustumCulled={false}
-        />
-      )}
+      {/* ReadyPlayerMe / Wolf3D fallback */}
+      {wolf3d.Wolf3D_Body && <primitive object={wolf3d.Wolf3D_Body} />}
+      {wolf3d.Wolf3D_Glasses && <primitive object={wolf3d.Wolf3D_Glasses} />}
+      {wolf3d.Wolf3D_Hair && <primitive object={wolf3d.Wolf3D_Hair} />}
+      {wolf3d.Wolf3D_Head && <primitive object={wolf3d.Wolf3D_Head} />}
+      {wolf3d.Wolf3D_Teeth && <primitive object={wolf3d.Wolf3D_Teeth} />}
+      {wolf3d.Wolf3D_Outfit_Top && <primitive object={wolf3d.Wolf3D_Outfit_Top} />}
+      {wolf3d.Wolf3D_Outfit_Bottom && <primitive object={wolf3d.Wolf3D_Outfit_Bottom} />}
+      {wolf3d.Wolf3D_Outfit_Footwear && <primitive object={wolf3d.Wolf3D_Outfit_Footwear} />}
     </>
   );
 }

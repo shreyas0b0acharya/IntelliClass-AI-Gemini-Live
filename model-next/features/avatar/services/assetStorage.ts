@@ -51,6 +51,7 @@ const IDB_VERSION = 1;
 
 class AssetStorageService {
   private objectUrlCache = new Map<string, string>();
+  private inFlightRequests = new Map<string, Promise<string>>();
   private idbPromise: Promise<IDBDatabase> | null = null;
   private isAudioStreaming = false;
   private syncAbortController: AbortController | null = null;
@@ -176,59 +177,116 @@ class AssetStorageService {
       return this.objectUrlCache.get(originalUrl)!;
     }
 
+    // 2. Coalesce duplicate concurrent in-flight requests for the same asset
+    if (this.inFlightRequests.has(originalUrl)) {
+      return this.inFlightRequests.get(originalUrl)!;
+    }
+
+    const fetchPromise = this.resolveAndCacheAsset(originalUrl);
+    this.inFlightRequests.set(originalUrl, fetchPromise);
+
     try {
-      // 2. Check-Before-Trust: Check if binary exists in CacheStorage
+      return await fetchPromise;
+    } finally {
+      this.inFlightRequests.delete(originalUrl);
+    }
+  }
+
+  private async resolveAndCacheAsset(originalUrl: string): Promise<string> {
+    const CDN_BASE = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
+    const localEquivalent = originalUrl.startsWith(CDN_BASE)
+      ? originalUrl.replace(CDN_BASE, "")
+      : originalUrl.startsWith("/")
+      ? originalUrl
+      : `/${originalUrl}`;
+    const cdnEquivalent = originalUrl.startsWith(CDN_BASE)
+      ? originalUrl
+      : `${CDN_BASE}${originalUrl.startsWith("/") ? "" : "/"}${originalUrl}`;
+
+    try {
+      // 1. Check-Before-Trust: Check if binary exists in CacheStorage
       const cache = await this.getCache();
       if (cache) {
         let match = await cache.match(originalUrl);
-
-        // Check alternate equivalent URL (CDN vs local path)
-        const CDN_BASE = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
-        if (!match) {
-          if (originalUrl.startsWith(CDN_BASE)) {
-            const localEquivalent = originalUrl.replace(CDN_BASE, "");
-            match = await cache.match(localEquivalent);
-          } else if (originalUrl.startsWith("/")) {
-            const cdnEquivalent = `${CDN_BASE}${originalUrl}`;
-            match = await cache.match(cdnEquivalent);
-          }
+        if (!match && localEquivalent) {
+          match = await cache.match(localEquivalent);
+        }
+        if (!match && cdnEquivalent) {
+          match = await cache.match(cdnEquivalent);
         }
 
         if (match) {
           const blob = await match.blob();
           const objectUrl = URL.createObjectURL(blob);
           this.objectUrlCache.set(originalUrl, objectUrl);
+          if (localEquivalent) this.objectUrlCache.set(localEquivalent, objectUrl);
+          if (cdnEquivalent) this.objectUrlCache.set(cdnEquivalent, objectUrl);
           return objectUrl;
         }
 
-        // On-demand fetch & cache if not present (Download once, store forever)
-        try {
-          const res = await fetch(originalUrl);
-          if (res.ok) {
-            const blob = await res.blob();
+        // 2. Not in CacheStorage: Download once and store forever
+        let responseBlob: Blob | null = null;
+
+        // Check if local file exists on same origin first (eliminates Supabase latency/resets)
+        if (localEquivalent) {
+          try {
+            const localRes = await fetch(localEquivalent);
+            if (localRes.ok) {
+              responseBlob = await localRes.blob();
+            }
+          } catch {
+            // Local file not reachable, fall through to CDN
+          }
+        }
+
+        // If local file not found or failed, try remote CDN
+        if (!responseBlob) {
+          try {
+            const remoteRes = await fetch(cdnEquivalent);
+            if (remoteRes.ok) {
+              responseBlob = await remoteRes.blob();
+            } else {
+              console.warn(`[AssetStorage] CDN returned ${remoteRes.status} for ${cdnEquivalent}`);
+            }
+          } catch (fetchErr) {
+            console.warn(`[AssetStorage] CDN fetch failed for ${cdnEquivalent}:`, fetchErr);
+          }
+        }
+
+        if (responseBlob) {
+          // Commit to CacheStorage under original, local, and CDN URLs
+          try {
             await cache.put(
               originalUrl,
-              new Response(blob, {
+              new Response(responseBlob.slice(0), {
                 headers: { "Content-Type": "application/octet-stream" },
               })
             );
-            const objectUrl = URL.createObjectURL(blob);
-            this.objectUrlCache.set(originalUrl, objectUrl);
-            return objectUrl;
-          }
-        } catch {
-          // If remote CDN failed, try local fallback if applicable
-          if (originalUrl.startsWith(CDN_BASE)) {
-            const localFallback = originalUrl.replace(CDN_BASE, "");
-            const localRes = await fetch(localFallback);
-            if (localRes.ok) {
-              const blob = await localRes.blob();
-              await cache.put(originalUrl, new Response(blob));
-              const objectUrl = URL.createObjectURL(blob);
-              this.objectUrlCache.set(originalUrl, objectUrl);
-              return objectUrl;
+            if (localEquivalent && localEquivalent !== originalUrl) {
+              await cache.put(
+                localEquivalent,
+                new Response(responseBlob.slice(0), {
+                  headers: { "Content-Type": "application/octet-stream" },
+                })
+              );
             }
+            if (cdnEquivalent && cdnEquivalent !== originalUrl) {
+              await cache.put(
+                cdnEquivalent,
+                new Response(responseBlob.slice(0), {
+                  headers: { "Content-Type": "application/octet-stream" },
+                })
+              );
+            }
+          } catch (cacheErr) {
+            console.warn("[AssetStorage] Failed to write binary to CacheStorage:", cacheErr);
           }
+
+          const objectUrl = URL.createObjectURL(responseBlob);
+          this.objectUrlCache.set(originalUrl, objectUrl);
+          if (localEquivalent) this.objectUrlCache.set(localEquivalent, objectUrl);
+          if (cdnEquivalent) this.objectUrlCache.set(cdnEquivalent, objectUrl);
+          return objectUrl;
         }
       }
     } catch (err) {

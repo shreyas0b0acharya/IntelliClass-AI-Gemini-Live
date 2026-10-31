@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MediaItemDisplay } from "../hooks/useClassroom";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -175,24 +176,40 @@ export function ProjectionBoard({
       {/* Lightbox Full Zoom Modal */}
       {isZoomed && (
         <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
- <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden flex flex-col ">
-            <div className="p-4 px-6 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
- <DialogTitle className=" flex items-center ">
-                <ImageIcon className="h-4 w-4 text-primary" />
+          <DialogContent
+            showCloseButton={false}
+            className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[80vw] max-w-[96vw] sm:max-w-[92vw] md:max-w-[88vw] lg:max-w-[80vw] max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover shadow-2xl"
+          >
+            <div className="p-4 px-6 border-b border-border/50 bg-card/40 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+              <DialogTitle className="text-sm font-semibold flex items-center gap-2 min-w-0 flex-1">
+                <ImageIcon className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate max-w-lg">{media.label || "Projected Visual Diagram"}</span>
               </DialogTitle>
 
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
- className="h-8 "
-              >
-                <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
-                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
-                  <span>Open Full Asset</span>
-                </a>
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-xl"
+                >
+                  <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                    <span>Open Full Asset</span>
+                  </a>
+                </Button>
+                <DialogClose asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                    aria-label="Close dialog"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </Button>
+                </DialogClose>
+              </div>
             </div>
 
             <div className="p-4 sm:p-6 flex-1 flex items-center justify-center overflow-hidden bg-black/95 rounded-b-3xl">

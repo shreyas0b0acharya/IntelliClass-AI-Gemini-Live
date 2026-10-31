@@ -26,7 +26,13 @@ export function AvatarCheeks({ head, eyelashes }: AvatarCheeksProps) {
   useFrame((_, delta) => {
     const hMesh = headRef.current;
     const eMesh = eyelashesRef.current;
-    const targets = behaviorRef.current.cheeks;
+    const random = behaviorRef.current.cheeks;
+    const speech = behaviorRef.current.speech;
+    const targets = {
+      ...random,
+      cheekSquintLeft: Math.min(1, random.cheekSquintLeft + (speech?.cheekSquintLeft ?? 0)),
+      cheekSquintRight: Math.min(1, random.cheekSquintRight + (speech?.cheekSquintRight ?? 0)),
+    };
 
     const smoothing = 1 - Math.exp(-6.5 * Math.min(delta, 0.1));
     const meshes = [hMesh, eMesh];

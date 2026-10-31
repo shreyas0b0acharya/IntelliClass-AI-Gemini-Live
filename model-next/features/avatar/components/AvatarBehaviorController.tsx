@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AvatarBehaviorContext } from "./AvatarBehaviorContext";
-import type { BehaviorState, BehaviorStore } from "../types/behavior.types";
+import { createSpeechLayer, type BehaviorState, type BehaviorStore } from "../types/behavior.types";
 
 interface AvatarBehaviorControllerProps {
   behaviorState?: BehaviorState;
@@ -17,12 +17,14 @@ export function AvatarBehaviorController({
   isSpeaking = false,
   children,
 }: AvatarBehaviorControllerProps) {
-  // Current effective state: TTS playback takes conversational speaking role when active
-  const currentMode: BehaviorState = isSpeaking ? "talking" : behaviorState;
+  // Initial mode for the store. The live mode is resolved inside useFrame so a
+  // tiny gap between sentence audio chunks does not reset conversational motion.
+  const initialMode: BehaviorState = isSpeaking ? "talking" : behaviorState;
+  const lastSpeakingAt = useRef(Number.NEGATIVE_INFINITY);
 
   // Central Behavior Store Ref
   const store = useRef<BehaviorStore>({
-    state: currentMode,
+    state: initialMode,
     breathing: {
       chestExpansion: 0,
       shoulderLift: 0,
@@ -82,6 +84,8 @@ export function AvatarBehaviorController({
       mouthClose: 0,
       mouthPucker: 0,
     },
+    // Written by the speech driver (gestures, expressions, glances); read by the face/head/eye components.
+    speech: createSpeechLayer(),
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -98,6 +102,10 @@ export function AvatarBehaviorController({
     amplitude: 1.0,
     totalCycle: 4.25,
   });
+
+  // Requests from the speech planner (edge-triggered counters)
+  const lastBlinkRequest = useRef(0);
+  const lastInhaleRequest = useRef(0);
 
   // Blink state machine
   const nextBlinkAt = useRef(2.5);
@@ -140,7 +148,41 @@ export function AvatarBehaviorController({
     const t = state.clock.getElapsedTime();
     const safeDelta = Math.min(delta, 0.1);
     const s = store.current;
+
+    if (isSpeaking) lastSpeakingAt.current = t;
+    const withinSpeechBoundaryGrace = t - lastSpeakingAt.current < 0.35;
+    const currentMode: BehaviorState =
+      isSpeaking || withinSpeechBoundaryGrace ? "talking" : behaviorState;
     s.state = currentMode;
+
+    // While real speech is being planned, the planner supplies the meaningful blinks, glances,
+    // brow movements and head nods; the random "living" layer backs off so they do not fight.
+    const speech = s.speech;
+    const speechOn = currentMode === "talking" && !!speech && speech.active > 0.5;
+
+    if (speech) {
+      if (speech.inhaleRequest !== lastInhaleRequest.current) {
+        lastInhaleRequest.current = speech.inhaleRequest;
+        // A quick breath in before a sentence, then a long exhale while it is spoken.
+        const inhale = THREE.MathUtils.randFloat(0.55, 0.75);
+        const holdIn = 0.05;
+        const exhale = THREE.MathUtils.clamp(speech.exhaleSec, 1.6, 5);
+        const holdOut = 0.1;
+        breathParams.current = {
+          inhale,
+          holdIn,
+          exhale,
+          holdOut,
+          amplitude: THREE.MathUtils.randFloat(1.0, 1.2),
+          totalCycle: inhale + holdIn + exhale + holdOut,
+        };
+        breathTimer.current = 0;
+      }
+      if (speech.blinkRequest !== lastBlinkRequest.current) {
+        lastBlinkRequest.current = speech.blinkRequest;
+        if (blinkPhase.current === "idle") nextBlinkAt.current = t;
+      }
+    }
 
     // ═════════════════════════════════════════════════════════════
     // 1. BREATHING ENGINE (Rule 4: Variable Non-Sine Human Rhythm)
@@ -232,7 +274,9 @@ export function AvatarBehaviorController({
         } else {
           // Schedule next normal blink window (based on mode)
           const interval = currentMode === "talking"
-            ? THREE.MathUtils.randFloat(2.0, 4.2)
+            ? speechOn
+              ? THREE.MathUtils.randFloat(4.5, 8.0)
+              : THREE.MathUtils.randFloat(2.0, 4.2)
             : currentMode === "listening"
             ? THREE.MathUtils.randFloat(2.5, 5.0)
             : THREE.MathUtils.randFloat(3.2, 6.0);
@@ -266,8 +310,9 @@ export function AvatarBehaviorController({
           targetPitch = THREE.MathUtils.randFloat(-0.02, 0.04);
         }
       } else if (currentMode === "talking") {
-        // TALKING: 75% viewer engagement, 25% expressive glances
-        if (rand < 0.75) {
+        // TALKING: 75% viewer engagement, 25% expressive glances (fewer random ones when the
+        // planner already schedules meaningful glances)
+        if (rand < (speechOn ? 0.9 : 0.75)) {
           targetYaw = THREE.MathUtils.randFloatSpread(0.06);
           targetPitch = THREE.MathUtils.randFloatSpread(0.04);
         } else {
@@ -360,7 +405,8 @@ export function AvatarBehaviorController({
       const speechYaw = Math.sin(t * 1.4 + 1.2) * 0.014 + Math.sin(t * 2.8 + 2.1) * 0.007;
       const speechRoll = Math.sin(t * 1.7 + 2.4) * 0.015 + Math.cos(t * 3.2) * 0.008;
 
-      s.head.drift.set(speechNod, speechYaw, speechRoll);
+      const driftScale = speechOn ? 0.45 : 1;
+      s.head.drift.set(speechNod * driftScale, speechYaw * driftScale, speechRoll * driftScale);
     } else {
       // Calm living drift for idle & listening
       s.head.drift.set(
@@ -403,10 +449,18 @@ export function AvatarBehaviorController({
           next.browDownRight = THREE.MathUtils.randFloat(0.08, 0.14);
         }
 
+        if (speechOn) {
+          // The planner raises brows on stressed words and questions; keep the random ones gentle and rare.
+          next.browInnerUp *= 0.5;
+          next.browOuterUpLeft *= 0.5;
+          next.browOuterUpRight *= 0.5;
+          next.browDownLeft *= 0.5;
+          next.browDownRight *= 0.5;
+        }
         s.eyebrows = next;
         const hold = THREE.MathUtils.randFloat(0.8, 1.6);
         eyebrowResetAt.current = t + hold;
-        nextEyebrowAt.current = t + THREE.MathUtils.randFloat(1.8, 3.8);
+        nextEyebrowAt.current = t + THREE.MathUtils.randFloat(1.8, 3.8) * (speechOn ? 1.8 : 1);
       } else if (currentMode === "listening") {
         // Inquisitive attentive single brow lift or subtle inner lift
         if (rand < 0.50) {
@@ -555,14 +609,16 @@ export function AvatarBehaviorController({
         mouthRollUpper: 0, mouthClose: 0, mouthPucker: 0,
       };
 
-      if (rand < 0.40) {
-        const press = THREE.MathUtils.randFloat(0.08, 0.14);
-        next.mouthPressLeft = press;
-        next.mouthPressRight = press;
-      } else if (rand < 0.70) {
-        next.mouthRollLower = THREE.MathUtils.randFloat(0.06, 0.11);
-      } else {
-        next.mouthPucker = THREE.MathUtils.randFloat(0.05, 0.09);
+      if (currentMode !== "talking") {
+        if (rand < 0.40) {
+          const press = THREE.MathUtils.randFloat(0.08, 0.14);
+          next.mouthPressLeft = press;
+          next.mouthPressRight = press;
+        } else if (rand < 0.70) {
+          next.mouthRollLower = THREE.MathUtils.randFloat(0.06, 0.11);
+        } else {
+          next.mouthPucker = THREE.MathUtils.randFloat(0.05, 0.09);
+        }
       }
 
       s.lips = next;

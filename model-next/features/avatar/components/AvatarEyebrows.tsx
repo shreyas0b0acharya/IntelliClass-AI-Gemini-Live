@@ -29,7 +29,17 @@ export function AvatarEyebrows({
   useFrame((_, delta) => {
     const hMesh = headRef.current;
     const eMesh = eyelashesRef.current;
-    const targets = behaviorRef.current.eyebrows;
+    const random = behaviorRef.current.eyebrows;
+    const speech = behaviorRef.current.speech;
+    // Context-driven brows (emphasis flashes, question raise, concern, furrow) ride on top of the
+    // random living behaviour; they are added to the TARGET so the smoothing below stays in charge.
+    const targets = {
+      browInnerUp: Math.min(1, random.browInnerUp + (speech?.browInnerUp ?? 0)),
+      browOuterUpLeft: Math.min(1, random.browOuterUpLeft + (speech?.browOuterUpLeft ?? 0)),
+      browOuterUpRight: Math.min(1, random.browOuterUpRight + (speech?.browOuterUpRight ?? 0)),
+      browDownLeft: Math.min(1, random.browDownLeft + (speech?.browDownLeft ?? 0)),
+      browDownRight: Math.min(1, random.browDownRight + (speech?.browDownRight ?? 0)),
+    };
 
     const smoothing = 1 - Math.exp(-7.5 * Math.min(delta, 0.1));
     const meshes = [hMesh, eMesh];

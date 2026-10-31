@@ -16,6 +16,7 @@ interface AvatarStageProps {
   onLipSyncEnd: () => void;
   targetEpochMs?: number;
   sequence?: number;
+  speechText?: string;
   subtitle?: string;
   activeMedia?: MediaItemDisplay | null;
   userQuestion?: string;
@@ -34,6 +35,7 @@ export function AvatarStage({
   onLipSyncEnd,
   targetEpochMs,
   sequence,
+  speechText,
   subtitle,
   activeMedia,
   userQuestion,
@@ -128,6 +130,7 @@ export function AvatarStage({
           onLipSyncEnd={onLipSyncEnd}
           targetEpochMs={targetEpochMs}
           sequence={sequence}
+          speechText={speechText}
         />
       </Canvas>
     </div>

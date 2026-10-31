@@ -28,15 +28,17 @@ import { AvatarCheeks } from "./AvatarCheeks";
 import { AvatarMouthCorners } from "./AvatarMouthCorners";
 import { AvatarNostrils } from "./AvatarNostrils";
 import { AvatarLips } from "./AvatarLips";
+import { AvatarSpeechFace } from "./AvatarSpeechFace";
 import { useDeviceTier } from "../hooks/useDeviceTier";
-import { useCachedAssetUrl } from "../hooks/useCachedAssetUrl";
+import { useCachedAsset } from "../hooks/useCachedAssetUrl";
 
 function AvatarLipSync(props: LipSyncProps) {
   useLipSync(props);
   return null;
 }
 
-export function Avatar({
+function AvatarInner({
+  modelUrl,
   model = DEFAULT_AVATAR_MODEL,
   animation = "weight shift",
   behaviorState = "idle",
@@ -49,10 +51,9 @@ export function Avatar({
   onLipSyncEnd,
   targetEpochMs,
   sequence,
-}: AvatarProps) {
+  speechText,
+}: AvatarProps & { modelUrl: string }) {
   const modelName = (model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
-  const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
-  const cachedUrl = useCachedAssetUrl(canonicalUrl);
   const { capabilities } = useDeviceTier();
 
   const [isReady, setIsReady] = useState(false);
@@ -65,7 +66,7 @@ export function Avatar({
     return () => clearTimeout(timer);
   }, [modelName]);
 
-  const { scene } = useDreiGLTF(cachedUrl);
+  const { scene } = useDreiGLTF(modelUrl);
 
   /*
    * Clone the model so every avatar instance
@@ -195,6 +196,14 @@ export function Avatar({
   const group = useRef<THREE.Group>(null);
   const isAnimated = Boolean(animation && animation.toLowerCase() !== "none");
 
+  const headMesh =
+    nodes.AvatarHead ||
+    (nodes as unknown as Record<string, THREE.SkinnedMesh>).Wolf3D_Head;
+
+  const teethLowerMesh =
+    nodes.AvatarTeethLower ||
+    (nodes as unknown as Record<string, THREE.SkinnedMesh>).Wolf3D_Teeth;
+
   return (
     <group
       ref={group}
@@ -204,7 +213,7 @@ export function Avatar({
     >
       <AvatarBehaviorController
         behaviorState={behaviorState}
-        isSpeaking={playLipSync}
+        isSpeaking={Boolean(playLipSync || behaviorState === "talking")}
       >
         <group name="AvatarRoot">
           {/* On-demand single animation clip loader */}
@@ -214,12 +223,15 @@ export function Avatar({
             animation={animation}
             group={group}
             onReady={() => setIsReady(true)}
+            speechText={speechText}
+            lipSyncData={lipSyncData}
+            targetEpochMs={targetEpochMs}
           />
 
           {/* BLINKING */}
           {capabilities.enableProceduralFace && (
             <AvatarBlink
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -227,7 +239,7 @@ export function Avatar({
           {/* EYEBROWS */}
           {capabilities.enableProceduralFace && (
             <AvatarEyebrows
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -235,7 +247,7 @@ export function Avatar({
           {/* CHEEKS */}
           {capabilities.enableProceduralFace && (
             <AvatarCheeks
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -243,7 +255,7 @@ export function Avatar({
           {/* MOUTH CORNERS */}
           {capabilities.enableProceduralFace && (
             <AvatarMouthCorners
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
@@ -251,14 +263,22 @@ export function Avatar({
           {/* NOSTRILS */}
           {capabilities.enableProceduralFace && (
             <AvatarNostrils
-              head={nodes.AvatarHead}
+              head={headMesh}
               eyelashes={nodes.AvatarEyelashes}
             />
           )}
 
           {/* LIPS */}
           {capabilities.enableProceduralFace && (
-            <AvatarLips head={nodes.AvatarHead} />
+            <AvatarLips head={headMesh} />
+          )}
+
+          {/* SPEECH-DRIVEN FACE EXTRAS (eye widening / narrowing, lip-corner frown) */}
+          {capabilities.enableProceduralFace && (
+            <AvatarSpeechFace
+              head={headMesh}
+              eyelashes={nodes.AvatarEyelashes}
+            />
           )}
 
           {/* HEAD, NECK & BODY TRACKING */}
@@ -293,19 +313,19 @@ export function Avatar({
             />
           )}
 
-          {/* HEADTTS LIP SYNC */}
-          {audioPath && lipSyncData && (
-            <AvatarLipSync
-              head={nodes.AvatarHead}
-              teethLower={nodes.AvatarTeethLower}
-              audioPath={audioPath}
-              lipSyncData={lipSyncData}
-              play={playLipSync}
-              onEnded={onLipSyncEnd}
-              targetEpochMs={targetEpochMs}
-              sequence={sequence}
-            />
-          )}
+          {/* HEADTTS LIP SYNC
+              Keep the driver mounted across speech chunks so morph targets can
+              ease back to neutral instead of snapping during the idle gap. */}
+          <AvatarLipSync
+            head={headMesh}
+            teethLower={teethLowerMesh}
+            audioPath={audioPath}
+            lipSyncData={lipSyncData}
+            play={Boolean(playLipSync || behaviorState === "talking")}
+            onEnded={onLipSyncEnd}
+            targetEpochMs={targetEpochMs}
+            sequence={sequence}
+          />
 
           {/* MODEL MESHES */}
           <AvatarMeshes nodes={nodes} materials={materials} />
@@ -313,6 +333,24 @@ export function Avatar({
       </AvatarBehaviorController>
     </group>
   );
+}
+
+export function Avatar(props: AvatarProps) {
+  const modelName = (props.model || DEFAULT_AVATAR_MODEL) as AvatarModelId;
+  const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
+  const { url: cachedUrl, isLoading, error } = useCachedAsset(canonicalUrl);
+
+  // While resolving from CacheStorage or fetching into CacheStorage, do NOT run useGLTF prematurely
+  if (isLoading || !cachedUrl) {
+    return null;
+  }
+
+  if (error) {
+    console.warn(`[Avatar] Failed to load cached model ${canonicalUrl}:`, error);
+    return null;
+  }
+
+  return <AvatarInner key={cachedUrl} modelUrl={cachedUrl} {...props} />;
 }
 
 export default Avatar;

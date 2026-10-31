@@ -15,6 +15,8 @@ export interface AvatarProps {
   onLipSyncEnd?: () => void;
   targetEpochMs?: number;
   sequence?: number;
+  /** Text being spoken; lets gestures follow the words, questions and emphasis. */
+  speechText?: string;
 }
 
 export type AvatarNode = THREE.SkinnedMesh | THREE.Bone;

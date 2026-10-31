@@ -260,14 +260,14 @@ export default function ClassroomPage({
 
       {/* Course Materials Browser Modal */}
       <Dialog open={showMaterialsModal} onOpenChange={setShowMaterialsModal}>
- <DialogContent className="sm:max-w-xl ">
+        <DialogContent className="sm:max-w-xl ">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-chart-2/10 flex items-center justify-center text-chart-2">
                 <FileText className="h-5 w-5" />
               </div>
               <div>
- <DialogTitle className="">Course Syllabus Materials</DialogTitle>
+                <DialogTitle className="">Course Syllabus Materials</DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Browse and view textbooks and reference PDFs for this course
                 </p>
@@ -305,7 +305,7 @@ export default function ClassroomPage({
                         onClick={() => {
                           setSelectedViewFile(file);
                         }}
- className="h-8 shrink-0 inline-flex items-center "
+                        className="h-8 shrink-0 inline-flex items-center "
                       >
                         <Eye className="h-3.5 w-3.5" />
                         <span>View PDF</span>
@@ -409,7 +409,7 @@ export default function ClassroomPage({
                 onClick={classroom.requestRejoin}
                 variant="default"
                 size="sm"
- className=" h-9 "
+                className=" h-9 "
               >
                 <span>Ask to Join Again</span>
               </Button>
@@ -417,7 +417,7 @@ export default function ClassroomPage({
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/course/${courseId}`)}
- className=" h-9 "
+                className=" h-9 "
               >
                 <span>Return to Course Space</span>
               </Button>
@@ -442,7 +442,7 @@ export default function ClassroomPage({
                 onClick={classroom.restartSession}
                 variant="default"
                 size="sm"
- className=" h-10 inline-flex items-center"
+                className=" h-10 inline-flex items-center"
               >
                 <Play className="h-3.5 w-3.5" />
                 <span>Restart Broadcast</span>
@@ -451,7 +451,7 @@ export default function ClassroomPage({
                 onClick={() => router.push(`/course/${courseId}`)}
                 variant="outline"
                 size="sm"
- className=" h-10 "
+                className=" h-10 "
               >
                 <span>Return to Course</span>
               </Button>
@@ -475,7 +475,7 @@ export default function ClassroomPage({
               onClick={() => router.replace("/")}
               variant="default"
               size="sm"
- className="mt-3 h-10 "
+              className="mt-3 h-10 "
             >
               <span>Return to Home</span>
             </Button>
@@ -509,7 +509,8 @@ export default function ClassroomPage({
                 lipSyncData={classroom.currentSpeech?.lipSyncData}
                 targetEpochMs={classroom.currentSpeech?.targetEpochMs}
                 sequence={classroom.currentSpeech?.sequence}
-                onLipSyncEnd={() => classroom.handleAudioEnd(classroom.currentSpeech?.requestId)}
+                speechText={classroom.currentSpeech?.text}
+                onLipSyncEnd={() => {}}
                 subtitle={classroom.currentSubtitle}
                 activeMedia={classroom.activeMedia || store.activeMedia}
                 userQuestion={classroom.userQuestion}
