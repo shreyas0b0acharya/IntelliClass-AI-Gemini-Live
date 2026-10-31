@@ -11,6 +11,23 @@ import { getSynchronizedEpochMs } from "../services/clockSync";
 // Mesh helpers
 // ─────────────────────────────────────────────
 
+function findMorphIndex(dict: Record<string, number>, name: string): number | undefined {
+  if (dict[name] !== undefined) return dict[name];
+  if (dict[`viseme_${name}`] !== undefined) return dict[`viseme_${name}`];
+  const stripped = name.replace(/^viseme_/, "");
+  if (dict[stripped] !== undefined) return dict[stripped];
+  if (name === "ih" || name === "I") {
+    return dict["ih"] ?? dict["viseme_I"] ?? dict["I"] ?? dict["viseme_ih"];
+  }
+  if (name === "oh" || name === "O") {
+    return dict["oh"] ?? dict["viseme_O"] ?? dict["O"] ?? dict["viseme_oh"];
+  }
+  if (name === "ou" || name === "U") {
+    return dict["ou"] ?? dict["viseme_U"] ?? dict["U"] ?? dict["viseme_ou"];
+  }
+  return undefined;
+}
+
 function resetMeshMorphs(mesh: THREE.SkinnedMesh | undefined) {
   if (!mesh || !mesh.morphTargetDictionary || !mesh.morphTargetInfluences) {
     return;
@@ -20,13 +37,13 @@ function resetMeshMorphs(mesh: THREE.SkinnedMesh | undefined) {
   const inf = mesh.morphTargetInfluences;
 
   for (const viseme of VISEMES) {
-    const idx = dict[viseme];
+    const idx = findMorphIndex(dict, viseme);
     if (idx !== undefined) {
       inf[idx] = 0;
     }
   }
 
-  const jawIdx = dict["jawOpen"];
+  const jawIdx = dict["jawOpen"] ?? dict["mouthOpen"];
   if (jawIdx !== undefined) {
     inf[jawIdx] = 0;
   }
@@ -47,24 +64,30 @@ function updateSingleMeshMorphs(
   const dict = mesh.morphTargetDictionary;
   const inf = mesh.morphTargetInfluences;
 
+  // Hard clamp jaw target to realistic conversational maximum
+  const clampedTargetJaw = Math.min(targetJaw, LIP_SYNC_CONFIG.maxJawSpeech);
+
   for (const viseme of VISEMES) {
-    const idx = dict[viseme];
+    const idx = findMorphIndex(dict, viseme);
     if (idx !== undefined) {
       const target = targetMorphs[viseme] ?? 0;
       inf[idx] = THREE.MathUtils.damp(inf[idx], target, smoothingSpeed, delta);
     }
   }
 
-  const jawIdx = dict["jawOpen"];
+  const jawIdx = dict["jawOpen"] ?? dict["mouthOpen"];
   if (jawIdx !== undefined) {
-    // Asymmetric jaw smoothing: snappy attack when opening, smooth release when closing
+    // Asymmetric jaw smoothing: responsive attack, smooth organic release to prevent jitter
     const currentJaw = inf[jawIdx];
-    const speed = targetJaw > currentJaw ? smoothingSpeed * 1.35 : smoothingSpeed * 0.75;
-    inf[jawIdx] = THREE.MathUtils.damp(currentJaw, targetJaw, speed, delta);
+    const speed =
+      clampedTargetJaw > currentJaw
+        ? smoothingSpeed * LIP_SYNC_CONFIG.attackMultiplier
+        : smoothingSpeed * LIP_SYNC_CONFIG.releaseMultiplier;
+    inf[jawIdx] = THREE.MathUtils.damp(currentJaw, clampedTargetJaw, speed, delta);
   }
 
   // Ensure mouthClose and mouthPress are dampened to 0 while speaking so lips are never clamped shut
-  if (isSpeaking || targetJaw > 0.02) {
+  if (isSpeaking || clampedTargetJaw > 0.02) {
     const clampedMorphs = [
       "mouthClose",
       "mouthPressLeft",
@@ -125,13 +148,7 @@ function syncTeethWithHead(
     const tIdx = tDict[name];
     if (tIdx === undefined) continue;
 
-    const hIdx =
-      hDict[name] !== undefined
-        ? hDict[name]
-        : hDict[`viseme_${name}`] !== undefined
-        ? hDict[`viseme_${name}`]
-        : hDict[name.replace(/^viseme_/, "")];
-
+    const hIdx = findMorphIndex(hDict, name);
     if (hIdx !== undefined) {
       tInf[tIdx] = hInf[hIdx];
     }
@@ -227,18 +244,19 @@ export function useLipSync({
       data?.vdurations?.length ?? 0
     );
 
-    // ── Fallback: If no pre-computed viseme data or viseme array empty, drive lively conversational syllable cadence ──
+    // ── Fallback: If no pre-computed viseme data or viseme array empty, drive gentle conversational cadence ──
     if (!data || count === 0) {
       const t = state.clock.getElapsedTime();
-      // Conversational syllable cadence (~3.5 Hz primary rhythm + modulation)
-      const syllable = Math.max(0, Math.sin(t * 14.0) * 0.65 + Math.sin(t * 7.5) * 0.35);
-      const emphasis = Math.sin(t * 3.2) > 0.2 ? 1.25 : 0.85;
-      const targetJaw = THREE.MathUtils.clamp(syllable * 0.48 * emphasis, 0.12, 0.60);
+      // Conversational syllable cadence (~3.2 Hz natural speaking rhythm + subtle sub-harmonics)
+      const syllable = Math.max(0, Math.sin(t * 12.0) * 0.6 + Math.sin(t * 6.5) * 0.4);
+      const emphasis = Math.sin(t * 2.8) > 0.3 ? 1.15 : 0.85;
+      // Gentle conversational jaw drop: 0.02 to 0.22 max (never wide gaping)
+      const targetJaw = THREE.MathUtils.clamp(syllable * 0.18 * emphasis, 0.02, 0.22);
 
       const targetMorphs: Record<string, number> = {
-        aa: THREE.MathUtils.clamp(syllable * 0.55, 0.08, 0.65),
-        E: THREE.MathUtils.clamp(Math.sin(t * 16.0) * 0.40, 0, 0.45),
-        ou: THREE.MathUtils.clamp(Math.cos(t * 11.0) * 0.35, 0, 0.40),
+        aa: THREE.MathUtils.clamp(syllable * 0.22, 0.02, 0.24),
+        E: THREE.MathUtils.clamp(Math.sin(t * 14.0) * 0.15, 0, 0.18),
+        ou: THREE.MathUtils.clamp(Math.cos(t * 9.0) * 0.12, 0, 0.15),
       };
 
       updateMeshMorphs(headMesh, teethMesh, targetMorphs, targetJaw, LIP_SYNC_CONFIG.smoothingSpeed, delta, true);
@@ -274,33 +292,49 @@ export function useLipSync({
     const isWithinSpeechWindow =
       currentTimeMs >= Math.max(0, firstVisemeStart - 50) && currentTimeMs <= lastVisemeEnd + 100;
 
-    // Base conversational jaw keeps mouth naturally parted throughout spoken phrases
-    const baseSpeechJaw = isWithinSpeechWindow ? 0.22 : 0;
-    let targetJaw = baseSpeechJaw;
+    let targetJaw = 0;
     const targetMorphs: Record<string, number> = {};
 
     for (let i = 0; i < count; i++) {
       const start = data.vtimes[i];
       const end = start + data.vdurations[i];
 
-      // Smooth coarticulation blend window (+- 30ms envelope overlap)
-      if (currentTimeMs >= start - 30 && currentTimeMs <= end + 30) {
+      // Smooth coarticulation blend window (+- 45ms envelope overlap with smooth cosine ease)
+      const blendWindowMs = 45;
+      if (currentTimeMs >= start - blendWindowMs && currentTimeMs <= end + blendWindowMs) {
         const rawViseme = data.visemes[i];
         const config = getMouthConfig(rawViseme);
         if (!config) continue;
 
         let weight = 1.0;
         if (currentTimeMs < start) {
-          weight = Math.max(0, (currentTimeMs - (start - 30)) / 30);
+          const ratio = (currentTimeMs - (start - blendWindowMs)) / blendWindowMs;
+          weight = 0.5 - 0.5 * Math.cos(ratio * Math.PI); // Smooth S-curve ease-in
         } else if (currentTimeMs > end) {
-          weight = Math.max(0, (end + 30 - currentTimeMs) / 30);
+          const ratio = (end + blendWindowMs - currentTimeMs) / blendWindowMs;
+          weight = 0.5 - 0.5 * Math.cos(ratio * Math.PI); // Smooth S-curve ease-out
         }
 
         if (config.morph) {
           const morphTarget = LIP_SYNC_CONFIG.visemeIntensity * weight;
           targetMorphs[config.morph] = Math.max(targetMorphs[config.morph] ?? 0, morphTarget);
         }
-        targetJaw = Math.max(targetJaw, config.jawOpen * weight, baseSpeechJaw);
+        targetJaw = Math.max(
+          targetJaw,
+          Math.min(config.jawOpen * weight, LIP_SYNC_CONFIG.maxJawSpeech)
+        );
+      }
+    }
+
+    // Normalize overlapping morph weights to prevent unnatural mesh inflation
+    let totalMorphWeight = 0;
+    for (const v in targetMorphs) {
+      totalMorphWeight += targetMorphs[v];
+    }
+    if (totalMorphWeight > 0.85) {
+      const scale = 0.85 / totalMorphWeight;
+      for (const v in targetMorphs) {
+        targetMorphs[v] *= scale;
       }
     }
 
