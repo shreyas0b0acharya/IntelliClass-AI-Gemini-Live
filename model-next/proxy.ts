@@ -8,33 +8,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // Refresh auth session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const createRedirectResponse = (url: URL | string) => {
+    const redirectResponse = NextResponse.redirect(new URL(url, request.url));
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
+  };
 
   const pathname = request.nextUrl.pathname;
   const searchParams = request.nextUrl.searchParams;
@@ -45,7 +25,79 @@ export async function proxy(request: NextRequest) {
     const callbackUrl = new URL("/auth/callback", request.url);
     callbackUrl.searchParams.set("code", code);
     callbackUrl.searchParams.set("next", "/reset-password");
-    return NextResponse.redirect(callbackUrl);
+    return createRedirectResponse(callbackUrl);
+  }
+
+  // Fast check: If there are no Supabase auth cookies in the request,
+  // the visitor is unauthenticated, so avoid invoking GoTrue token refresh.
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookies = allCookies.some(
+    (cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")
+  );
+
+  let user = null;
+
+  if (hasAuthCookies) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            response = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    try {
+      const { data, error: authError } = await supabase.auth.getUser();
+
+      if (authError) {
+        // If refresh token is expired, missing, or revoked, explicitly clear all Supabase auth cookies
+        const isRefreshTokenError =
+          authError.code === "refresh_token_not_found" ||
+          authError.code === "refresh_token_already_used" ||
+          authError.status === 400 ||
+          authError.message?.toLowerCase().includes("refresh token");
+
+        if (isRefreshTokenError) {
+          request.cookies.getAll().forEach((cookie) => {
+            if (cookie.name.startsWith("sb-")) {
+              request.cookies.delete(cookie.name);
+              response.cookies.set(cookie.name, "", {
+                maxAge: 0,
+                path: "/",
+              });
+            }
+          });
+        }
+      } else {
+        user = data?.user ?? null;
+      }
+    } catch {
+      // In case of unexpected rejection, clear stale auth cookies
+      request.cookies.getAll().forEach((cookie) => {
+        if (cookie.name.startsWith("sb-")) {
+          request.cookies.delete(cookie.name);
+          response.cookies.set(cookie.name, "", {
+            maxAge: 0,
+            path: "/",
+          });
+        }
+      });
+    }
   }
 
   const isAuthPage =
@@ -60,11 +112,11 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/settings");
 
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return createRedirectResponse("/dashboard");
   }
 
   if (!user && isProtectedPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return createRedirectResponse("/login");
   }
 
   return response;
