@@ -422,7 +422,7 @@ export function CreateSessionDialog({ courseId, courseTitle: _courseTitle, trigg
           </Button>
         )}
       </DialogTrigger>
- <DialogContent className="max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[94vw] sm:w-[90vw] md:w-[84vw] lg:w-[80vw] max-w-[95vw] sm:max-w-[92vw] md:max-w-[86vw] lg:max-w-[80vw] overflow-hidden max-h-[92vh] flex flex-col">
         {open && <CreateSessionModalContent courseId={courseId} onClose={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>

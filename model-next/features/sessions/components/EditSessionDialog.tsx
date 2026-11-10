@@ -81,7 +81,7 @@ export function EditSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[94vw] sm:w-[90vw] md:w-[84vw] lg:w-[80vw] max-w-[95vw] sm:max-w-[92vw] md:max-w-[86vw] lg:max-w-[80vw] max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-b from-muted/60 to-background p-6 border-b">
           <DialogHeader>
