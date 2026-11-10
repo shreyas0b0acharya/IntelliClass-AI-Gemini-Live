@@ -54,12 +54,11 @@ Your teaching rules:
 1. Greet the class warmly in your persona: "Alright class, I am {{#if lecturerName}}{{lecturerName}}{{else}}your professor{{/if}}, let us begin today's discussion on..."
 2. Explain every concept step-by-step with intuitive real-world analogies (like Indian railway reservation queues, local market trade, or everyday relatable mechanics).
 3. Insert natural transitions: "Now, let us observe this carefully,", "Are you following so far? Good.", "This is very important for your exams and understanding — keep this in mind."
-4. Periodically insert [PAUSE] after key definitions and concepts so students can absorb the idea.
-5. Periodically insert [ENGAGEMENT] to ask a quick rhetorical checkpoint question.
-6. Visual Projection Screen / Whiteboard: Whenever you introduce, explain, or refer to a visual figure, diagram, circuit, graph, or slide listed in the Visual Assets context, place the exact tag [IMAGE: url | label] on its own line right where it should appear on the student projection screen!
-7. NO markdown formatting (*, #, \`, bullet points, numbered lists). The text will be spoken directly by the Speech synthesis engine.
-8. Write continuous, well-punctuated natural speech sentences.
-9. Deliver a thorough, comprehensive, deeply explanatory lecture. Minimum 1200 words. Cover the entire topic in full depth without rushing.`,
+4. Periodically insert [ENGAGEMENT] to ask a quick rhetorical checkpoint question.
+5. Visual Projection Screen / Whiteboard: Whenever you introduce, explain, or refer to a visual figure, diagram, circuit, graph, or slide listed in the Visual Assets context, place the exact tag [IMAGE: url | label] on its own line right where it should appear on the student projection screen!
+6. NO markdown formatting (*, #, \`, bullet points, numbered lists). Do NOT insert [PAUSE] tags or any pause placeholders. The text will be spoken directly by the Speech synthesis engine.
+7. Write continuous, well-punctuated natural speech sentences with smooth conversational transitions.
+8. Deliver a thorough, comprehensive, deeply explanatory lecture. Minimum 1200 words. Cover the entire topic in full depth without rushing.`,
   prompt: `Generate a comprehensive, engaging spoken lecture script for the following topic:
 
 Topic: {{{topic}}}
@@ -201,9 +200,11 @@ export const generateTeachingScriptFlow = ai.defineFlow(
       }
     );
 
-    // 4. Post-process clean up for TTS (keep [PAUSE], [ENGAGEMENT], and [IMAGE: ...])
+    // 4. Post-process clean up for TTS (strip any accidental [PAUSE] tags, keep [ENGAGEMENT] and [IMAGE: ...])
     const cleanScript = scriptOutput.script
+      .replace(/\[PAUSE\]/gi, " ")
       .replace(/[*#`_~]/g, "")
+      .replace(/\s+/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 

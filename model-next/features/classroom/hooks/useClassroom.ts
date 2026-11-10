@@ -266,31 +266,6 @@ export function useClassroom(sessionId: string) {
         return;
       }
 
-      // ── Pause item ───────────────────────────────────────────────────
-      if (item.type === "pause") {
-        setCurrentSubtitle("...");
-        syncStore().setCurrentSubtitle("...");
-        sequenceRef.current++;
-        const durationMs = Math.round(item.durationMs || 1200);
-        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
-
-        broadcastEventRef.current?.({
-          type: "SCHEDULED_PLAY",
-          sequence: sequenceRef.current,
-          driverLeaseVersion: driverLeaseVersionRef.current,
-          executionId: `${sessionId}_${item.id}_seq${sequenceRef.current}_${targetEpochMs}`,
-          itemId: item.id,
-          targetEpochMs,
-          leadTimeMs: LEAD_TIME_MS,
-          audioUrl: "",
-          durationMs,
-          lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
-          text: "...",
-        });
-        scheduleAdvance(durationMs);
-        return;
-      }
-
       // ── Engagement item ──────────────────────────────────────────────
       if (item.type === "engagement") {
         const promptText = item.prompt || "Let us pause and reflect...";
@@ -517,7 +492,7 @@ export function useClassroom(sessionId: string) {
 
       // ── SCHEDULED_PLAY ─────────────────────────────────────────────
       if (event.type === "SCHEDULED_PLAY") {
-        if (lastSeqRef.current === -1 || event.sequence >= lastSeqRef.current) {
+        if (lastSeqRef.current === -1 || event.sequence > lastSeqRef.current) {
           lastSeqRef.current = event.sequence;
         } else {
           console.warn(
@@ -555,7 +530,7 @@ export function useClassroom(sessionId: string) {
           }
         }
 
-        // Non-audio scheduled items (media/pause/engagement) — just advance subtitle
+        // Non-audio scheduled items (media/engagement) — just advance subtitle
         if (!event.audioUrl) {
           setCurrentSubtitle(event.text || "");
           syncStore().setCurrentSubtitle(event.text || "");

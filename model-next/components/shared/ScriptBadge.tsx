@@ -54,3 +54,4 @@ export function ScriptBadge({
 
   return null;
 }
+

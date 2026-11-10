@@ -83,11 +83,12 @@ export function LectureScriptModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Sync editedScript whenever modal opens or rawScript updates
+  // Sync editedScript whenever modal opens or rawScript updates (stripping legacy [PAUSE] tags)
   useEffect(() => {
     if (open) {
-      setEditedScript(rawScript || "");
-      if (!rawScript || rawScript.trim().length === 0) {
+      const sanitized = (rawScript || "").replace(/\[PAUSE\]/gi, " ").trim();
+      setEditedScript(sanitized);
+      if (!sanitized || sanitized.length === 0) {
         setViewMode("edit");
       } else {
         setViewMode("cards");
@@ -357,16 +358,9 @@ export function LectureScriptModal({
               <div className="space-y-4 max-w-6xl mx-auto h-full flex flex-col">
                 <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
                   <span>
-                    Fine-tune the lecture script below. Insert pauses or engagement checkpoints to pace the AI avatar.
+                    Fine-tune the lecture script below. Insert engagement checkpoints or visual assets to pace the AI avatar.
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => insertTag("[PAUSE]")}
-                      className="px-2 py-0.5 rounded-md bg-chart-1/10 text-chart-1 hover:bg-chart-1/20 font-mono text-[11px] font-semibold transition-colors cursor-pointer"
-                    >
-                      + [PAUSE]
-                    </button>
                     <button
                       type="button"
                       onClick={() => insertTag("[ENGAGEMENT]")}
@@ -495,18 +489,6 @@ export function LectureScriptModal({
                         >
                           {item.text}
                         </p>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === "pause") {
-                    return (
-                      <div
-                        key={item.id}
-                        className="px-4 py-2.5 rounded-xl bg-black/[0.015] dark:bg-white/[0.02] border border-dashed border-black/10 dark:border-white/10 flex items-center gap-2 text-xs text-muted-foreground"
-                      >
-                        <Clock className="h-3.5 w-3.5 text-chart-4" />
-                        <span>Pause &bull; {item.durationMs || 1200}ms pause for student comprehension</span>
                       </div>
                     );
                   }

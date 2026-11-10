@@ -9,8 +9,8 @@ export const CLASSROOM_TIMINGS = {
   DRIVER_LEASE_RENEW_INTERVAL_MS: 5000,  // Renew heartbeats every 5 seconds
 
   // Web Audio scheduling and prefetch
-  LEAD_TIME_MS: 350,                     // Target buffer ahead of real-time playhead
-  AUTO_ADVANCE_DELAY_MS: 80,             // Micro-pause between sentences for natural flow
+  LEAD_TIME_MS: 650,                     // Target buffer ahead of real-time playhead (robust for network/decode)
+  AUTO_ADVANCE_DELAY_MS: 120,            // Micro-pause between sentences for natural flow
   PREFETCH_LOOKAHEAD_COUNT: 3,           // How many items ahead the conductor prefetches
   SEEK_SYNC_MIN_REMAINING_MS: 200,       // Min remaining audio duration to schedule playback on catch-up
 

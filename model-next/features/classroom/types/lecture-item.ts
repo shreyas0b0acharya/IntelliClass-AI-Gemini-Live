@@ -10,9 +10,13 @@ export type LectureSpeechItem = BaseLectureItem & {
   text: string;
 };
 
+/**
+ * @deprecated Pause items have been removed in favor of continuous natural speech.
+ * Retained solely for backward compatibility with external type consumers.
+ */
 export type LecturePauseItem = BaseLectureItem & {
   type: "pause";
-  durationMs: number;
+  durationMs?: number;
 };
 
 export type LectureEngagementItem = BaseLectureItem & {
@@ -34,7 +38,6 @@ export type LectureVideoItem = BaseLectureItem & {
 
 export type LectureItem =
   | LectureSpeechItem
-  | LecturePauseItem
   | LectureEngagementItem
   | LectureImageItem
   | LectureVideoItem;
@@ -54,9 +57,9 @@ export function parseLectureScript(script: string): ParsedLecture {
     return { items, speechItems, mediaMap };
   }
 
-  // Tokenize pauses, engagement, and media tags in order
+  // Tokenize engagement and media tags while cleanly stripping legacy [PAUSE] tags
   const processed = script
-    .replace(/\[PAUSE\]/gi, "|||PAUSE|||")
+    .replace(/\[PAUSE\]/gi, " ")
     .replace(/\[ENGAGEMENT\]/gi, "|||ENGAGEMENT|||")
     .replace(/\[IMAGE:\s*([^\]]+)\]/gi, "|||IMAGE:$1|||")
     .replace(/\[VIDEO:\s*([^\]]+)\]/gi, "|||VIDEO:$1|||");
@@ -67,17 +70,6 @@ export function parseLectureScript(script: string): ParsedLecture {
   for (const chunk of rawChunks) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
-
-    if (trimmed === "PAUSE") {
-      const pauseItem: LecturePauseItem = {
-        id: `pause_${orderIndex}`,
-        type: "pause",
-        durationMs: 1200,
-        order: orderIndex++,
-      };
-      items.push(pauseItem);
-      continue;
-    }
 
     if (trimmed === "ENGAGEMENT") {
       const engItem: LectureEngagementItem = {

@@ -2,7 +2,7 @@
 //
 // Singleton Web Audio manager.
 // Provides hardware-clock-scheduled playback via scheduleAudioPlayback(),
-// which is the core primitive for multi-device synchronization.
+// with retry-resilient decoding, zero-loss late recovery, and HTML5 Audio fallback.
 
 import { getSynchronizedEpochMs, syncNow } from "./clockSync";
 
@@ -56,11 +56,41 @@ export function getMasterVolume(): number {
 }
 
 // ─────────────────────────────────────────────
-// Audio buffer cache (keyed by URL)
+// Audio buffer cache (keyed by URL) with auto-retry
 // ─────────────────────────────────────────────
 const audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 
+/**
+ * Robust fetch helper with retry & exponential backoff for audio streams.
+ * Protects against disk-write race conditions in /api/media/audio.
+ */
+async function fetchAudioWithRetry(url: string, maxAttempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+      // If 404 or server busy, allow small pause for file flush
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, attempt * 180));
+      } else {
+        lastError = new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, attempt * 180));
+      }
+    }
+  }
+  throw new Error(`Failed to load audio from ${url} after ${maxAttempts} attempts (${lastError})`);
+}
+
 export async function getOrDecodeAudioBuffer(audioPath: string): Promise<AudioBuffer> {
+  if (!audioPath) {
+    throw new Error("Cannot decode empty audioPath");
+  }
+
   const ctx = getAudioContext();
 
   // Always ensure context is running before decoding
@@ -74,18 +104,26 @@ export async function getOrDecodeAudioBuffer(audioPath: string): Promise<AudioBu
   if (cached) return cached;
 
   const decodePromise = (async () => {
-    const response = await fetch(audioPath);
-    if (!response.ok) {
-      throw new Error(`Failed to load audio: ${response.status} ${audioPath}`);
-    }
+    const response = await fetchAudioWithRetry(audioPath);
     const arrayBuffer = await response.arrayBuffer();
 
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new Error(`Empty audio buffer received for ${audioPath}`);
+    }
+
     return new Promise<AudioBuffer>((resolve, reject) => {
-      ctx.decodeAudioData(
-        arrayBuffer.slice(0),
-        (buffer) => resolve(buffer),
-        (error) => reject(error)
-      );
+      try {
+        const promise = ctx.decodeAudioData(
+          arrayBuffer.slice(0),
+          (buffer) => resolve(buffer),
+          (error) => reject(error)
+        );
+        if (promise && typeof promise.then === "function") {
+          promise.then(resolve).catch(reject);
+        }
+      } catch (err) {
+        reject(err);
+      }
     });
   })().catch((err) => {
     // Evict on failure so next attempt retries the network
@@ -135,27 +173,19 @@ export function preloadAudioBuffer(audioPath: string): void {
 }
 
 // ─────────────────────────────────────────────
-// Hardware-clock-scheduled playback
+// Hardware-clock-scheduled playback with HTML5 Fallback
 // ─────────────────────────────────────────────
 
-/**
- * Schedule sample-accurate audio playback at a synchronized epoch timestamp.
- *
- * For in-sync devices (targetEpochMs is in the future):
- *   source.start(ctx.currentTime + delaySeconds, offsetSeconds)
- *
- * For late joiners (targetEpochMs is in the past):
- *   offsetSeconds = how far into the buffer to seek
- *   source.start(ctx.currentTime, offsetSeconds)   ← immediate, mid-buffer
- */
 const activeScheduledSources = new Set<AudioBufferSourceNode>();
+const activeHtmlAudioElements = new Set<HTMLAudioElement>();
 
 /**
- * Immediately stops and disconnects all actively playing or scheduled Web Audio sources.
- * Call this on component unmount, navigation, or when the user leaves the screen.
+ * Immediately stops and disconnects all actively playing or scheduled Web Audio sources
+ * and active HTML5 Audio fallback elements.
  */
 export function stopAllAudio(): void {
   if (typeof window === "undefined") return;
+
   activeScheduledSources.forEach((source) => {
     try {
       source.onended = null;
@@ -164,18 +194,28 @@ export function stopAllAudio(): void {
     } catch {}
   });
   activeScheduledSources.clear();
+
+  activeHtmlAudioElements.forEach((audio) => {
+    try {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.src = "";
+      audio.load();
+    } catch {}
+  });
+  activeHtmlAudioElements.clear();
 }
 
 /**
- * Schedules a preloaded audio buffer to play at an exact synchronized wall-clock epoch.
+ * Schedules audio playback at an exact synchronized wall-clock epoch.
  *
- * @param audioPath     URL of the .wav file (must already be in cache for precision)
- * @param targetEpochMs Synchronized wall-clock ms when audio should START on all devices
- * @param onEnded       Called when audio naturally ends; also called on any error path
- *                      so the lecture sequencer never stalls.
- * @param offsetMs      Additional buffer seek offset in ms (used by SEEK_SYNC). Default 0.
- *
- * @returns The AudioBufferSourceNode (for cancellation), or null if scheduling failed.
+ * Guarantees zero dropped audio:
+ * - For in-sync playback: schedules sample-accurately at future timestamp.
+ * - For normal playback running behind targetEpochMs (network or clock skew):
+ *   NEVER skips or truncates the sentence! Plays full audio immediately from start.
+ * - For explicit late joiners (offsetMs > 0): seeks accurately to the live playhead.
+ * - If Web Audio API fails: automatically falls back to HTML5 Audio element.
  */
 export async function scheduleAudioPlayback(
   audioPath: string,
@@ -183,22 +223,28 @@ export async function scheduleAudioPlayback(
   onEnded: () => void,
   offsetMs: number = 0,
 ): Promise<AudioBufferSourceNode | null> {
+  if (!audioPath || !audioPath.trim()) {
+    onEnded();
+    return null;
+  }
+
+  let endedFired = false;
+  const safeOnEnded = () => {
+    if (endedFired) return;
+    endedFired = true;
+    onEnded();
+  };
+
+  // Primary: Web Audio API
   try {
     const ctx = getAudioContext();
 
-    // CRITICAL: Must resume BEFORE reading ctx.currentTime.
-    // If the tab was backgrounded, ctx.currentTime freezes and
-    // source.start(frozenTime + delay) will never fire.
     if (ctx.state !== "running") {
       try {
         await ctx.resume();
-        // Re-sync clock after a potential long suspension
         void syncNow();
       } catch (e) {
-        console.warn("[Audio] Could not resume AudioContext:", e);
-        // Cannot schedule — call onEnded so the sequencer advances
-        onEnded();
-        return null;
+        console.warn("[Audio] AudioContext resume failed:", e);
       }
     }
 
@@ -207,27 +253,35 @@ export async function scheduleAudioPlayback(
     const syncedNow = getSynchronizedEpochMs();
     const delta = targetEpochMs - syncedNow; // positive = future, negative = past
 
-    let startAt: number;         // AudioContext time to start
-    let bufferOffsetSec: number; // how far into the buffer (seconds)
+    let startAt: number;
+    let bufferOffsetSec = 0;
 
     if (delta >= 0) {
-      // Normal case: target is in the future — schedule ahead
+      // Normal case: target is in future — schedule ahead sample-accurately
       startAt = ctx.currentTime + delta / 1000;
-      bufferOffsetSec = offsetMs / 1000;
+      bufferOffsetSec = Math.max(0, offsetMs / 1000);
     } else {
-      // Late joiner: target is in the past — seek into buffer and play immediately
-      const lateByMs = -delta; // how many ms late we are
-      bufferOffsetSec = (offsetMs + lateByMs) / 1000;
-      startAt = ctx.currentTime; // as-soon-as-possible
+      // Audio is ready after targetEpochMs (e.g. network fetch took longer than lead time)
+      startAt = ctx.currentTime;
+
+      if (offsetMs > 0) {
+        // Explicit seek requested (e.g. late joiner catch-up mid-sentence)
+        const lateBySec = (-delta) / 1000;
+        bufferOffsetSec = (offsetMs / 1000) + lateBySec;
+        if (bufferOffsetSec >= buffer.duration - 0.05) {
+          console.warn("[Audio] Seek offset past buffer end — skipping expired seek segment");
+          safeOnEnded();
+          return null;
+        }
+      } else {
+        // Normal sequential sentence playback:
+        // NEVER discard or chop the sentence! Play the entire sentence from the start!
+        bufferOffsetSec = 0;
+      }
     }
 
-    // Guard: don't seek beyond buffer end
-    const bufferDurationSec = buffer.duration;
-    if (bufferOffsetSec >= bufferDurationSec - 0.05) {
-      console.warn("[Audio] Seek offset past buffer end — skipping segment");
-      onEnded();
-      return null;
-    }
+    // Hard clamp to prevent Web Audio RangeError
+    bufferOffsetSec = Math.max(0, Math.min(bufferOffsetSec, Math.max(0, buffer.duration - 0.02)));
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -237,23 +291,72 @@ export async function scheduleAudioPlayback(
 
     source.onended = () => {
       activeScheduledSources.delete(source);
-      onEnded();
+      safeOnEnded();
     };
 
-    // Web Audio spec: start(when, offset, duration?)
     source.start(startAt, bufferOffsetSec);
 
     console.log(
       `[Audio] Scheduled playback: delta=${delta.toFixed(1)}ms ` +
       `bufferOffset=${(bufferOffsetSec * 1000).toFixed(1)}ms ` +
+      `duration=${(buffer.duration * 1000).toFixed(0)}ms ` +
       `startAt=${startAt.toFixed(3)}s`
     );
 
     return source;
-  } catch (err) {
-    console.error("[Audio] scheduleAudioPlayback failed:", err);
-    // Always call onEnded on error so the sequencer never stalls
-    onEnded();
-    return null;
+  } catch (webAudioErr) {
+    console.warn("[Audio] Web Audio scheduling error, falling back to HTML5 Audio element:", webAudioErr);
+
+    // Fallback: HTML5 Audio Element
+    try {
+      const audio = new Audio(audioPath);
+      audio.volume = getMasterVolume();
+      activeHtmlAudioElements.add(audio);
+
+      audio.onended = () => {
+        activeHtmlAudioElements.delete(audio);
+        safeOnEnded();
+      };
+
+      audio.onerror = (e) => {
+        console.error("[Audio] Fallback HTML5 Audio error:", e);
+        activeHtmlAudioElements.delete(audio);
+        safeOnEnded();
+      };
+
+      if (offsetMs > 0) {
+        audio.currentTime = offsetMs / 1000;
+      }
+
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch((playErr) => {
+          console.warn("[Audio] Fallback HTML5 Audio autoplay failed:", playErr);
+          activeHtmlAudioElements.delete(audio);
+          safeOnEnded();
+        });
+      }
+
+      // Return a compatible duck-typed object so caller can cancel if needed
+      const fallbackSourceNode = {
+        stop: () => {
+          try {
+            audio.onended = null;
+            audio.onerror = null;
+            audio.pause();
+            audio.src = "";
+          } catch {}
+          activeHtmlAudioElements.delete(audio);
+        },
+        disconnect: () => {},
+        onended: null,
+      } as unknown as AudioBufferSourceNode;
+
+      return fallbackSourceNode;
+    } catch (fallbackErr) {
+      console.error("[Audio] All audio playback pipelines failed:", fallbackErr);
+      safeOnEnded();
+      return null;
+    }
   }
 }
