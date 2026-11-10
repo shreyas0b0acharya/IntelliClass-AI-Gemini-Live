@@ -6,9 +6,9 @@ import { supabase } from "@/lib/supabase/client";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
-import { ManageScriptDialog } from "./ManageScriptDialog";
+import { LectureScriptModal } from "@/features/classroom";
 import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
-import { StatusBadge, CopyCodeBadge } from "@/components/shared";
+import { StatusBadge, CopyCodeBadge, ScriptBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -137,27 +137,11 @@ function SessionCard({
             <span>&bull;</span>
             <span>{voiceLabel}</span>
             <span>&bull;</span>
-            {session.script ? (
-              <button
-                type="button"
-                onClick={() => onManageScript(session)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-full"
-                title="Click to view/edit lecture script"
-              >
-                <FileText className="h-3 w-3" />
-                <span>Script Ready ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onManageScript(session)}
-                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full"
-                title="Click to add or paste a lecture script"
-              >
-                <FileText className="h-3 w-3" />
-                <span>No Script</span>
-              </button>
-            )}
+            <ScriptBadge
+              script={session.script}
+              onClick={() => onManageScript(session)}
+              isLecturer={isLecturer}
+            />
             {isLive && (
               <>
                 <span>&bull;</span>
@@ -534,17 +518,22 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
           open={Boolean(editTarget)}
           onOpenChange={(open) => !open && setEditTarget(null)}
           onUpdated={handleUpdated}
+          onOpenScript={(s) => setScriptTarget(s)}
         />
       )}
 
-      {/* View / Edit / Delete Script Dialog */}
+      {/* Unified Lecture Script & Curriculum Modal */}
       {scriptTarget && (
-        <ManageScriptDialog
-          session={scriptTarget}
+        <LectureScriptModal
           open={Boolean(scriptTarget)}
           onOpenChange={(open) => !open && setScriptTarget(null)}
-          onUpdated={handleUpdated}
+          topic={scriptTarget.topic}
           isLecturer={isLecturer}
+          status={scriptTarget.status}
+          rawScript={scriptTarget.script || ""}
+          sessionId={scriptTarget.id}
+          meetingCode={scriptTarget.meeting_code}
+          onUpdated={handleUpdated}
         />
       )}
 

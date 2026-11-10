@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import type { ClassroomSession } from "@/lib/supabase/types";
 
 export interface LectureScriptModalProps {
   open: boolean;
@@ -56,6 +57,7 @@ export interface LectureScriptModalProps {
   meetingCode?: string;
   onSaveScript?: (newScript: string) => Promise<void>;
   onDeleteScript?: () => Promise<void>;
+  onUpdated?: (updated: ClassroomSession) => void;
   onStartSession?: () => void;
 }
 
@@ -72,6 +74,7 @@ export function LectureScriptModal({
   meetingCode,
   onSaveScript,
   onDeleteScript,
+  onUpdated,
   onStartSession,
 }: LectureScriptModalProps) {
   const [viewMode, setViewMode] = useState<"cards" | "edit">("cards");
@@ -123,7 +126,12 @@ export function LectureScriptModal({
       if (onSaveScript) {
         await onSaveScript(editedScript.trim());
       } else if (sessionId) {
-        await api.updateClassroomSession(sessionId, { script: editedScript.trim() });
+        const { session: updated } = await api.updateClassroomSession(sessionId, {
+          script: editedScript.trim(),
+        });
+        if (onUpdated && updated) {
+          onUpdated(updated);
+        }
       }
       toast.success("Lecture script saved successfully!");
       setViewMode("cards");
@@ -140,7 +148,12 @@ export function LectureScriptModal({
       if (onDeleteScript) {
         await onDeleteScript();
       } else if (sessionId) {
-        await api.updateClassroomSession(sessionId, { script: "" });
+        const { session: updated } = await api.updateClassroomSession(sessionId, {
+          script: "",
+        });
+        if (onUpdated && updated) {
+          onUpdated(updated);
+        }
       }
       setEditedScript("");
       toast.success("Lecture script deleted.");

@@ -7,8 +7,8 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses";
-import { ManageScriptDialog } from "@/features/sessions";
-import { SessionCodeInput, StatusBadge, CopyCodeBadge } from "@/components/shared";
+import { LectureScriptModal } from "@/features/classroom";
+import { SessionCodeInput, StatusBadge, CopyCodeBadge, ScriptBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -288,27 +288,11 @@ export default function DashboardPage() {
                       {session.meeting_code && (
                         <CopyCodeBadge code={session.meeting_code} />
                       )}
-                      {session.script ? (
-                        <button
-                          type="button"
-                          onClick={() => setScriptTarget(session)}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
-                          title="View / Edit / Delete generated lecture script"
-                        >
-                          <FileText className="h-3 w-3" />
-                          <span>Script ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
-                        </button>
-                      ) : isLecturer ? (
-                        <button
-                          type="button"
-                          onClick={() => setScriptTarget(session)}
-                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md"
-                          title="Add or paste lecture script"
-                        >
-                          <FileText className="h-3 w-3" />
-                          <span>No Script</span>
-                        </button>
-                      ) : null}
+                      <ScriptBadge
+                        script={session.script}
+                        onClick={() => setScriptTarget(session)}
+                        isLecturer={isLecturer}
+                      />
                     </div>
                   </div>
 
@@ -497,27 +481,11 @@ export default function DashboardPage() {
                       {session.meeting_code && (
                         <CopyCodeBadge code={session.meeting_code} />
                       )}
-                      {session.script ? (
-                        <button
-                          type="button"
-                          onClick={() => setScriptTarget(session)}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
-                          title="View / Edit / Delete generated lecture script"
-                        >
-                          <FileText className="h-3 w-3" />
-                          <span>Script ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
-                        </button>
-                      ) : isLecturer ? (
-                        <button
-                          type="button"
-                          onClick={() => setScriptTarget(session)}
-                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md"
-                          title="Add or paste lecture script"
-                        >
-                          <FileText className="h-3 w-3" />
-                          <span>No Script</span>
-                        </button>
-                      ) : null}
+                      <ScriptBadge
+                        script={session.script}
+                        onClick={() => setScriptTarget(session)}
+                        isLecturer={isLecturer}
+                      />
                     </div>
                     <span className="text-xs text-muted-foreground flex items-center gap-1.5 whitespace-nowrap">
                       <Clock className="h-3 w-3 shrink-0 opacity-70" />
@@ -578,14 +546,18 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* View / Edit / Delete Script Modal */}
+      {/* Unified Lecture Script & Curriculum Modal */}
       {scriptTarget && (
-        <ManageScriptDialog
-          session={scriptTarget}
+        <LectureScriptModal
           open={Boolean(scriptTarget)}
           onOpenChange={(open) => !open && setScriptTarget(null)}
-          onUpdated={handleScriptUpdated}
+          topic={scriptTarget.topic}
           isLecturer={isLecturer}
+          status={scriptTarget.status}
+          rawScript={scriptTarget.script || ""}
+          sessionId={scriptTarget.id}
+          meetingCode={scriptTarget.meeting_code}
+          onUpdated={handleScriptUpdated}
         />
       )}
 

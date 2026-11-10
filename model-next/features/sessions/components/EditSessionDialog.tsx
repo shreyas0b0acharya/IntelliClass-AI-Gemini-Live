@@ -5,7 +5,6 @@ import { api } from "@/lib/api";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
-import { Pencil, Save, Loader2, FileText, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Save, Loader2, FileText, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditSessionDialogProps {
@@ -25,6 +24,7 @@ interface EditSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdated: (updated: ClassroomSession) => void;
+  onOpenScript?: (session: ClassroomSession) => void;
 }
 
 const VOICE_MAP: Record<string, string> = {
@@ -42,13 +42,12 @@ export function EditSessionDialog({
   open,
   onOpenChange,
   onUpdated,
+  onOpenScript,
 }: EditSessionDialogProps) {
   const [topic, setTopic] = useState(session.topic);
   const [voiceGender, setVoiceGender] = useState(
     VOICE_MAP[session.voice_id || DEFAULT_MALE_VOICE_ID] ?? "male"
   );
-  const [script, setScript] = useState(session.script || "");
-  const [showScriptSection, setShowScriptSection] = useState(Boolean(session.script));
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -64,7 +63,6 @@ export function EditSessionDialog({
       const { session: updated } = await api.updateSessionMeta(session.id, {
         topic: topic.trim(),
         voice_id: newVoiceId,
-        script: script.trim(),
       });
       toast.success("Session updated successfully.");
       onUpdated(updated);
@@ -76,8 +74,6 @@ export function EditSessionDialog({
       setSaving(false);
     }
   };
-
-  const wordCount = script.split(/\s+/).filter(Boolean).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,54 +142,41 @@ export function EditSessionDialog({
             </RadioGroup>
           </div>
 
-          {/* Lecture Script Section */}
+          {/* Lecture Script Link to Unified Modal */}
           <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setShowScriptSection((v) => !v)}
-                className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
-              >
-                <FileText className="h-4 w-4 text-primary" />
-                <span>Lecture Script</span>
-                <span className="text-[11px] font-normal text-muted-foreground">
-                  ({wordCount > 0 ? `${wordCount} words` : "No script"})
-                </span>
-                {showScriptSection ? (
-                  <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </button>
+            <Label>Lecture Curriculum Script</Label>
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-black/5 dark:border-white/10 bg-muted/30">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-foreground">Curriculum Script</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {session.script
+                      ? `${session.script.split(/\s+/).filter(Boolean).length} words ready for broadcast`
+                      : "No script generated yet"}
+                  </div>
+                </div>
+              </div>
 
-              {script && (
-                <button
+              {onOpenScript && (
+                <Button
                   type="button"
-                  onClick={() => setScript("")}
-                  className="text-[11px] text-destructive hover:underline inline-flex items-center gap-1 cursor-pointer"
-                  title="Clear script text"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onOpenScript(session);
+                  }}
+                  className="h-8.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shrink-0 cursor-pointer"
                 >
-                  <Trash2 className="h-3 w-3" />
-                  <span>Clear</span>
-                </button>
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <span>Open Script Inspector</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
               )}
             </div>
-
-            {showScriptSection && (
-              <div className="space-y-2 animate-in fade-in duration-200">
-                <Textarea
-                  value={script}
-                  onChange={(e) => setScript(e.target.value)}
-                  placeholder="Paste or edit the lecture script text here... Use [PAUSE] for pauses."
-                  rows={6}
-                  className="text-xs font-sans leading-relaxed resize-y"
-                  disabled={saving}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Tip: Insert <code className="text-primary font-bold bg-primary/10 px-1 rounded">[PAUSE]</code> to let students absorb complex topics.
-                </p>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="pt-2">

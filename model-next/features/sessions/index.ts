@@ -2,5 +2,6 @@
 
 export { CreateSessionDialog } from "./components/CreateSessionDialog";
 export { EditSessionDialog } from "./components/EditSessionDialog";
-export { ManageScriptDialog } from "./components/ManageScriptDialog";
 export { SessionList } from "./components/SessionList";
+export { LectureScriptModal } from "@/features/classroom";
+export { LectureScriptModal as ManageScriptDialog } from "@/features/classroom";
