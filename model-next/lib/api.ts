@@ -297,6 +297,7 @@ export const api = {
       avatar_model?: string;
       speech_speed?: number;
       tts_provider?: string;
+      script?: string;
     }
   ) => {
     return fetchApi<{ session: ClassroomSession }>(`/api/classroom/${sessionId}`, {

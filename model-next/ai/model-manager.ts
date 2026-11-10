@@ -2,11 +2,11 @@ import "server-only";
 
 // Ordered hierarchy of preferred generation models from best & stable to fast fallbacks
 export const PREFERRED_MODELS: readonly string[] = [
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-flash-lite-latest",
   "gemini-3.8-flash",
   "gemini-3.7-flash",
-  "gemini-3.6-flash",
   "gemini-flash-latest",
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite",

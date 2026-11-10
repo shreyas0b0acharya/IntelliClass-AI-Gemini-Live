@@ -7,9 +7,20 @@ import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses";
+import { ManageScriptDialog } from "@/features/sessions";
 import { SessionCodeInput, StatusBadge, CopyCodeBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Presentation,
   Radio,
@@ -20,7 +31,11 @@ import {
   ArrowRight,
   BookOpen,
   FolderOpen,
+  FileText,
+  Trash2,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user, profile, isLecturer, isLoading: isAuthLoading } = useAuth();
@@ -33,6 +48,38 @@ export default function DashboardPage() {
     (ClassroomSession & { courseTitle?: string })[]
   >([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [scriptTarget, setScriptTarget] = useState<ClassroomSession | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClassroomSession | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleScriptUpdated = (updated: ClassroomSession) => {
+    setActiveSessions((prev) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+    );
+    setRecentSessions((prev) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+    );
+    if (scriptTarget && scriptTarget.id === updated.id) {
+      setScriptTarget(updated);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteSession(deleteTarget.id);
+      setActiveSessions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      setRecentSessions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      toast.success("Session deleted.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete session.";
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (isAuthLoading || !user) {
@@ -237,30 +284,62 @@ export default function DashboardPage() {
                     <h3 className="text-sm font-bold text-foreground dark:text-foreground line-clamp-2 leading-snug">
                       {session.topic}
                     </h3>
-                    {session.meeting_code && (
-                      <div>
+                    <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                      {session.meeting_code && (
                         <CopyCodeBadge code={session.meeting_code} />
-                      </div>
-                    )}
+                      )}
+                      {session.script ? (
+                        <button
+                          type="button"
+                          onClick={() => setScriptTarget(session)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
+                          title="View / Edit / Delete generated lecture script"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>Script ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
+                        </button>
+                      ) : isLecturer ? (
+                        <button
+                          type="button"
+                          onClick={() => setScriptTarget(session)}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md"
+                          title="Add or paste lecture script"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>No Script</span>
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
-                  {/* Bottom Action (Standardized h-10 rounded-full) */}
-                  <Button
-                    size="sm"
-                    asChild
-                    variant="default"
- className={`w-full h-10 shrink-0 ${
-                      isLive
- ? " "
-                        : ""
-                    }`}
-                  >
-                    <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-2">
-                      <Play className="h-3.5 w-3.5 fill-current" />
-                      <span>{isLive ? "Enter Live Studio" : "Resume Studio"}</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
+                  {/* Bottom Action */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      asChild
+                      variant="default"
+                      className="flex-1 h-10"
+                    >
+                      <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-1.5">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        <span>{isLive ? "Enter Live Studio" : "Resume Studio"}</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+
+                    {isLecturer && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setScriptTarget(session)}
+                        className="h-10 w-10 shrink-0 rounded-xl border-black/10 dark:border-white/10 hover:text-primary"
+                        title="View / Edit / Delete Script"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -414,11 +493,32 @@ export default function DashboardPage() {
                     {session.topic}
                   </h3>
                   <div className="flex flex-col gap-1.5 pt-1">
-                    {session.meeting_code && (
-                      <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {session.meeting_code && (
                         <CopyCodeBadge code={session.meeting_code} />
-                      </div>
-                    )}
+                      )}
+                      {session.script ? (
+                        <button
+                          type="button"
+                          onClick={() => setScriptTarget(session)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
+                          title="View / Edit / Delete generated lecture script"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>Script ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
+                        </button>
+                      ) : isLecturer ? (
+                        <button
+                          type="button"
+                          onClick={() => setScriptTarget(session)}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md"
+                          title="Add or paste lecture script"
+                        >
+                          <FileText className="h-3 w-3" />
+                          <span>No Script</span>
+                        </button>
+                      ) : null}
+                    </div>
                     <span className="text-xs text-muted-foreground flex items-center gap-1.5 whitespace-nowrap">
                       <Clock className="h-3 w-3 shrink-0 opacity-70" />
                       {new Date(session.created_at).toLocaleString("en-US", {
@@ -432,24 +532,101 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Bottom Action (Standardized h-10 rounded-full) */}
-                <Button
-                  size="sm"
-                  asChild
-                  variant="secondary"
- className="w-full h-10 shrink-0 "
-                >
-                  <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-2">
-                    <Play className="h-3 w-3 fill-current" />
-                    <span>Enter Studio</span>
-                    <ArrowRight className="h-3 w-3 opacity-70 group-hover:opacity-100" />
-                  </Link>
-                </Button>
+                {/* Bottom Action */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    asChild
+                    variant="secondary"
+                    className="flex-1 h-10"
+                  >
+                    <Link href={`/classroom/${session.id}`} className="inline-flex items-center justify-center gap-1.5">
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span>Enter Studio</span>
+                      <ArrowRight className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100" />
+                    </Link>
+                  </Button>
+
+                  {isLecturer && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setScriptTarget(session)}
+                        className="h-10 w-10 shrink-0 rounded-xl border-black/10 dark:border-white/10 hover:text-primary"
+                        title="View / Edit / Delete Script"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setDeleteTarget(session)}
+                        className="h-10 w-10 shrink-0 rounded-xl border-black/10 dark:border-white/10 text-muted-foreground hover:text-destructive hover:border-destructive/30"
+                        title="Delete Session"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* View / Edit / Delete Script Modal */}
+      {scriptTarget && (
+        <ManageScriptDialog
+          session={scriptTarget}
+          open={Boolean(scriptTarget)}
+          onOpenChange={(open) => !open && setScriptTarget(null)}
+          onUpdated={handleScriptUpdated}
+          isLecturer={isLecturer}
+        />
+      )}
+
+      {/* Delete Session Confirmation Dialog */}
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="overflow-hidden max-w-sm rounded-2xl">
+          <div className="p-6 border-b border-black/5 dark:border-white/10">
+            <AlertDialogHeader>
+              <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-3">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <AlertDialogTitle>Delete Session?</AlertDialogTitle>
+              <AlertDialogDescription className="mt-1">
+                <span className="font-semibold text-foreground">&ldquo;{deleteTarget?.topic}&rdquo;</span> will be permanently deleted along with all its messages and data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter className="flex-col sm:flex-col gap-2 p-4">
+            <AlertDialogAction
+              onClick={handleDeleteSession}
+              disabled={deleting}
+              className="w-full h-10 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  <span>Yes, Delete Session</span>
+                </>
+              )}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={deleting} className="w-full h-10 mt-0">
+              Cancel
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

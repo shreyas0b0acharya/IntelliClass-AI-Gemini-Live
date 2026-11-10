@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { ClassroomSession } from "@/lib/supabase/types";
 import { api } from "@/lib/api";
 import { EditSessionDialog } from "./EditSessionDialog";
+import { ManageScriptDialog } from "./ManageScriptDialog";
 import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
 import { StatusBadge, CopyCodeBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
   Loader2,
   Copy,
   Pause,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +53,7 @@ interface SessionCardProps {
   onEdit: (s: ClassroomSession) => void;
   onDelete: (s: ClassroomSession) => void;
   onRestart: (s: ClassroomSession) => void;
+  onManageScript: (s: ClassroomSession) => void;
   restarting: string | null;
 }
 
@@ -60,6 +63,7 @@ function SessionCard({
   onEdit,
   onDelete,
   onRestart,
+  onManageScript,
   restarting,
 }: SessionCardProps) {
   const isLive = session.status === "running";
@@ -132,6 +136,28 @@ function SessionCard({
             </span>
             <span>&bull;</span>
             <span>{voiceLabel}</span>
+            <span>&bull;</span>
+            {session.script ? (
+              <button
+                type="button"
+                onClick={() => onManageScript(session)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-full"
+                title="Click to view/edit lecture script"
+              >
+                <FileText className="h-3 w-3" />
+                <span>Script Ready ({session.script.split(/\s+/).filter(Boolean).length}w)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onManageScript(session)}
+                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full"
+                title="Click to add or paste a lecture script"
+              >
+                <FileText className="h-3 w-3" />
+                <span>No Script</span>
+              </button>
+            )}
             {isLive && (
               <>
                 <span>&bull;</span>
@@ -154,7 +180,7 @@ function SessionCard({
             variant="ghost"
             size="icon-xs"
             onClick={handleCopyLink}
- className="h-8 w-8 "
+            className="h-8 w-8 "
             title="Copy student join link"
           >
             <Copy className="h-3.5 w-3.5" />
@@ -166,8 +192,17 @@ function SessionCard({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                onClick={() => onManageScript(session)}
+                className="h-8 w-8 text-foreground hover:text-primary"
+                title="View & Edit Lecture Script"
+              >
+                <FileText className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => onEdit(session)}
- className="h-8 w-8 "
+                className="h-8 w-8 "
                 title="Edit session"
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -261,6 +296,7 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
   const [sessions, setSessions] = useState<ClassroomSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [editTarget, setEditTarget] = useState<ClassroomSession | null>(null);
+  const [scriptTarget, setScriptTarget] = useState<ClassroomSession | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClassroomSession | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [restarting, setRestarting] = useState<string | null>(null);
@@ -413,6 +449,7 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
     onEdit: handleEdit,
     onDelete: setDeleteTarget,
     onRestart: handleRestart,
+    onManageScript: (session: ClassroomSession) => setScriptTarget(session),
     restarting,
   };
 
@@ -497,6 +534,17 @@ export function SessionList({ courseId, isLecturer = false }: SessionListProps) 
           open={Boolean(editTarget)}
           onOpenChange={(open) => !open && setEditTarget(null)}
           onUpdated={handleUpdated}
+        />
+      )}
+
+      {/* View / Edit / Delete Script Dialog */}
+      {scriptTarget && (
+        <ManageScriptDialog
+          session={scriptTarget}
+          open={Boolean(scriptTarget)}
+          onOpenChange={(open) => !open && setScriptTarget(null)}
+          onUpdated={handleUpdated}
+          isLecturer={isLecturer}
         />
       )}
 
