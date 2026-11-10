@@ -240,7 +240,7 @@ export default function HomePage() {
             </div>
 
             {/* Monochromatic Link */}
-            <div className="flex items-center justify-center lg:justify-start gap-6 text-sm sm:text-base">
+            {/* <div className="flex items-center justify-center lg:justify-start gap-6 text-sm sm:text-base">
               <Link
                 href="/showcase"
                 className="text-primary hover:underline flex items-center gap-1 font-medium group"
@@ -248,7 +248,7 @@ export default function HomePage() {
                 Explore 3D Avatar Lab in real time
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </Link>
-            </div>
+            </div> */}
           </div>
 
           {/* Right Column: Interactive 3D Stage with Standing Chalkboard & Avatar Switcher */}
