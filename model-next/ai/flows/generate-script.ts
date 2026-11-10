@@ -3,6 +3,7 @@ import { ai } from "@/ai/genkit";
 import { z } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { executeWithModelFallback, getPrimaryModel } from "@/ai/model-manager";
 
 export const SourceSelectionSchema = z.object({
   fileName: z.string(),
@@ -25,12 +26,13 @@ export const GenerateTeachingScriptOutputSchema = z.object({
   topic: z.string(),
   script: z.string(),
   chunksUsed: z.number(),
+  modelUsed: z.string().optional(),
 });
 export type GenerateTeachingScriptOutput = z.infer<typeof GenerateTeachingScriptOutputSchema>;
 
 const generateTeachingScriptPrompt = ai.definePrompt({
   name: "generateTeachingScriptPrompt",
-  model: googleAI.model("gemini-3.8-flash"),
+  model: googleAI.model(getPrimaryModel()),
   input: {
     schema: z.object({
       topic: z.string(),
@@ -175,69 +177,29 @@ export const generateTeachingScriptFlow = ai.defineFlow(
       ? selectedChunks.join("\n\n---\n\n")
       : `Provide deep, comprehensive foundational knowledge and practical real-world intuition on ${input.topic}.`;
 
-    console.log(`🤖 [Script Generator] Invoking Gemini 3.8 Flash with ${selectedChunks.length} grounding chunks (${context.length} chars of context)...`);
-    const startTime = Date.now();
+    console.log(`🤖 [Script Generator] Initiating generation with ${selectedChunks.length} grounding chunks (${context.length} chars of context)...`);
 
-    // 3. Call Prompt with retry on high-demand spikes
-    let scriptOutput: { script: string } | null = null;
-    let lastError: unknown = null;
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`🤖 [Script Generator] Attempt ${attempt} invoking Gemini 3.8 Flash...`);
-        const { output } = await generateTeachingScriptPrompt({
-          topic: input.topic,
-          lecturerName: input.lecturerName,
-          context,
-          visualAssetsContext: visualAssetsContext || undefined,
-          customPrompt: input.customPrompt,
-        });
-
-        if (output?.script) {
-          scriptOutput = output;
-          break;
-        }
-      } catch (err: unknown) {
-        lastError = err;
-        const msg = err instanceof Error ? err.message : String(err);
-        const isHighDemand =
-          msg.includes("503") ||
-          msg.includes("high demand") ||
-          msg.includes("UNAVAILABLE") ||
-          msg.includes("RESOURCE_EXHAUSTED") ||
-          msg.includes("Service Unavailable") ||
-          msg.includes("429");
-
-        console.warn(`⚠️ [Script Generator] Attempt ${attempt} returned error: ${msg}`);
-
-        if (isHighDemand && attempt < 3) {
-          const backoffMs = attempt * 2000;
-          console.log(`⏳ [Script Generator] Temporary spike detected. Retrying in ${backoffMs / 1000}s...`);
-          await new Promise((r) => setTimeout(r, backoffMs));
-          continue;
-        }
-        break;
-      }
-    }
-
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-
-    if (!scriptOutput?.script) {
-      console.error(`❌ [Script Generator] Model output failed after ${elapsed}s:`, lastError);
-      const rawMsg = lastError instanceof Error ? lastError.message : String(lastError);
-      if (
-        rawMsg.includes("503") ||
-        rawMsg.includes("high demand") ||
-        rawMsg.includes("UNAVAILABLE") ||
-        rawMsg.includes("RESOURCE_EXHAUSTED") ||
-        rawMsg.includes("Service Unavailable")
-      ) {
-        throw new Error(
-          "The AI model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again in a few moments."
+    // 3. Call Prompt with automatic dynamic model fallback
+    const { result: scriptOutput, usedModel } = await executeWithModelFallback(
+      "Script Generator",
+      async (modelName) => {
+        const { output } = await generateTeachingScriptPrompt(
+          {
+            topic: input.topic,
+            lecturerName: input.lecturerName,
+            context,
+            visualAssetsContext: visualAssetsContext || undefined,
+            customPrompt: input.customPrompt,
+          },
+          { model: googleAI.model(modelName) }
         );
+
+        if (!output?.script) {
+          throw new Error(`Model ${modelName} returned an empty script response.`);
+        }
+        return output;
       }
-      throw lastError instanceof Error ? lastError : new Error("Failed to generate lecture script from model.");
-    }
+    );
 
     // 4. Post-process clean up for TTS (keep [PAUSE], [ENGAGEMENT], and [IMAGE: ...])
     const cleanScript = scriptOutput.script
@@ -246,13 +208,14 @@ export const generateTeachingScriptFlow = ai.defineFlow(
       .trim();
 
     const wordCount = cleanScript.split(/\s+/).length;
-    console.log(`✅ [Script Generator] Generated lecture script in ${elapsed}s! (${wordCount} words, ${cleanScript.length} characters)`);
+    console.log(`✅ [Script Generator] Successfully created lecture script! (${wordCount} words, ${cleanScript.length} characters, model: ${usedModel})`);
 
     return {
       status: "success",
       topic: input.topic,
       script: cleanScript,
       chunksUsed: selectedChunks.length,
+      modelUsed: usedModel,
     };
   }
 );

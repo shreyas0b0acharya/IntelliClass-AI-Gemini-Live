@@ -3,6 +3,7 @@ import { ai } from "@/ai/genkit";
 import { z } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { executeWithModelFallback } from "@/ai/model-manager";
 
 export const StudentAIQuestionAnsweringInputSchema = z.object({
   question: z.string().describe("The student's question."),
@@ -109,12 +110,9 @@ Style Rules:
       `🧠 [Q&A Flow] Answering question from ${input.studentName}: "${input.question}" (mode=${mode}, contextLen=${context.length})`
     );
 
-    const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
-    let text = "";
-    let lastError: unknown = null;
-
-    for (const modelName of FALLBACK_MODELS) {
-      try {
+    const { result: text } = await executeWithModelFallback(
+      "Q&A Flow",
+      async (modelName) => {
         const response = await ai.generate({
           model: googleAI.model(modelName),
           system: systemInstruction,
@@ -124,17 +122,12 @@ Style Rules:
             temperature: 0.7,
           },
         });
-        text = response.text;
-        if (text) break;
-      } catch (err) {
-        lastError = err;
-        console.warn(`⚠️ [Q&A Flow] ${modelName} failed, attempting next fallback model:`, err);
+        if (!response.text) {
+          throw new Error(`Empty response received from ${modelName}`);
+        }
+        return response.text;
       }
-    }
-
-    if (!text && lastError) {
-      throw lastError;
-    }
+    );
 
     const cleanAnswer = text
       .replace(/[*#`_~]/g, "")
