@@ -46,6 +46,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+  const [navigatingHref, setNavigatingHref] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setNavigatingHref(null);
+  }, [pathname]);
+
+  const handleLinkClick = (href: string) => {
+    if (pathname !== href) {
+      setNavigatingHref(href);
+    }
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
     if (isAuthLoading || !user) {
@@ -100,11 +114,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [user, isAuthLoading, refreshTrigger]);
 
-  const handleLinkClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -112,12 +121,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
  <SidebarHeader className="">
         <Link
           href="/dashboard"
-          onClick={handleLinkClick}
+          onClick={() => handleLinkClick("/dashboard")}
           className={`flex items-center gap-2.5 rounded-xl transition-colors ${isCollapsed ? "justify-center" : ""
             }`}
         >
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 bg-primary shadow-xs">
-            <Sparkles className="h-4 w-4" />
+            {navigatingHref === "/dashboard" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
@@ -142,11 +155,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuButton
                   asChild
                   tooltip="Dashboard Overview"
-                  isActive={pathname === "/dashboard"}
+                  isActive={pathname === "/dashboard" || navigatingHref === "/dashboard"}
                 >
-                  <Link href="/dashboard" onClick={handleLinkClick}>
-                    <LayoutDashboard className="h-4 w-4 shrink-0" />
+                  <Link href="/dashboard" onClick={() => handleLinkClick("/dashboard")}>
+                    {navigatingHref === "/dashboard" ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <LayoutDashboard className="h-4 w-4 shrink-0" />
+                    )}
                     <span>Dashboard Overview</span>
+                    {!isCollapsed && navigatingHref === "/dashboard" && (
+                      <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary" />
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -155,11 +175,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenuButton
                   asChild
                   tooltip="Account & Role Settings"
-                  isActive={pathname === "/settings"}
+                  isActive={pathname === "/settings" || navigatingHref === "/settings"}
                 >
-                  <Link href="/settings" onClick={handleLinkClick}>
-                    <Settings className="h-4 w-4 shrink-0" />
+                  <Link href="/settings" onClick={() => handleLinkClick("/settings")}>
+                    {navigatingHref === "/settings" ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <Settings className="h-4 w-4 shrink-0" />
+                    )}
                     <span>Account &amp; Role</span>
+                    {!isCollapsed && navigatingHref === "/settings" && (
+                      <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary" />
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -169,11 +196,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     tooltip="AI Avatar & Voice Studio"
-                    isActive={pathname === "/settings/avatar"}
+                    isActive={pathname === "/settings/avatar" || navigatingHref === "/settings/avatar"}
                   >
-                    <Link href="/settings/avatar" onClick={handleLinkClick}>
-                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                    <Link href="/settings/avatar" onClick={() => handleLinkClick("/settings/avatar")}>
+                      {navigatingHref === "/settings/avatar" ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                      )}
                       <span>AI Avatar &amp; Voice</span>
+                      {!isCollapsed && navigatingHref === "/settings/avatar" && (
+                        <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary" />
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -220,55 +254,82 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 )
               ) : (
                 courses.map((course) => {
-                  const isCourseActive = pathname.startsWith(`/course/${course.id}`);
-                  return (
-                    <SidebarMenuItem key={course.id}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={course.title}
-                        isActive={isCourseActive}
-                      >
-                        <Link href={`/course/${course.id}`} onClick={handleLinkClick}>
-                          <BookOpen className="h-4 w-4 shrink-0" />
-                          <span className="truncate">{course.title}</span>
-                          {!isCollapsed && isCourseActive && (
-                            <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
+                const isCourseActive = pathname.startsWith(`/course/${course.id}`);
+                const isCourseNavigating = navigatingHref?.startsWith(`/course/${course.id}`);
+                const isSessionsNavigating = navigatingHref === `/course/${course.id}`;
+                const isMaterialsNavigating = navigatingHref === `/course/${course.id}?tab=materials`;
 
-                      {/* Sub-tree structure for Course: Sessions & Materials */}
-                      {!isCollapsed && isCourseActive && (
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}`}>
-                              <Link
-                                href={`/course/${course.id}`}
-                                onClick={handleLinkClick}
-                                className="flex items-center gap-2"
-                              >
-                                <Presentation className="h-3.5 w-3.5" />
-                                <span>Sessions &amp; Broadcasts</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={pathname.includes("tab=materials")}>
-                              <Link
-                                href={`/course/${course.id}?tab=materials`}
-                                onClick={handleLinkClick}
-                                className="flex items-center gap-2"
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                <span>Materials</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })
+                return (
+                  <SidebarMenuItem key={course.id}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={course.title}
+                      isActive={isCourseActive || isCourseNavigating}
+                      className={isCourseNavigating ? "bg-sidebar-accent/70 text-sidebar-accent-foreground" : ""}
+                    >
+                      <Link href={`/course/${course.id}`} onClick={() => handleLinkClick(`/course/${course.id}`)}>
+                        {isCourseNavigating ? (
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                        ) : (
+                          <BookOpen className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="truncate">{course.title}</span>
+                        {!isCollapsed && (
+                          isCourseNavigating ? (
+                            <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                          ) : isCourseActive ? (
+                            <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                          ) : null
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+
+                    {/* Sub-tree structure for Course: Sessions & Materials */}
+                    {!isCollapsed && (isCourseActive || isCourseNavigating) && (
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}` || isSessionsNavigating}>
+                            <Link
+                              href={`/course/${course.id}`}
+                              onClick={() => handleLinkClick(`/course/${course.id}`)}
+                              className="flex items-center gap-2"
+                            >
+                              {isSessionsNavigating ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                              ) : (
+                                <Presentation className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              <span>Sessions &amp; Broadcasts</span>
+                              {isSessionsNavigating && (
+                                <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
+                              )}
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild isActive={pathname.includes("tab=materials") || isMaterialsNavigating}>
+                            <Link
+                              href={`/course/${course.id}?tab=materials`}
+                              onClick={() => handleLinkClick(`/course/${course.id}?tab=materials`)}
+                              className="flex items-center gap-2"
+                            >
+                              {isMaterialsNavigating ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                              ) : (
+                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              <span>Materials</span>
+                              {isMaterialsNavigating && (
+                                <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
+                              )}
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    )}
+                  </SidebarMenuItem>
+                );
+              })
               )}
             </SidebarMenu>
           </SidebarGroupContent>
