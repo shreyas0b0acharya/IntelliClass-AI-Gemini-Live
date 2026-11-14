@@ -286,7 +286,7 @@ export function useSpeechQueue({
         return;
       }
 
-      scheduleAudioPlayback(audioUrl, targetEpochMs, onEnded, offsetMs)
+      scheduleAudioPlayback(audioUrl, effectiveEpochMs, onEnded, offsetMs)
         .then((source) => {
           if (!source) {
             if (activeRequestIdRef.current === requestId) {

@@ -139,13 +139,13 @@ export async function getOrDecodeAudioBuffer(audioPath: string): Promise<AudioBu
  * Unlocks the Web Audio pipeline during a synchronous user gesture.
  * Must be called from a click/tap event handler.
  */
-export function unlockAudioContext(): void {
+export async function unlockAudioContext(): Promise<void> {
   if (typeof window === "undefined") return;
 
   try {
     const ctx = getAudioContext();
     if (ctx.state === "suspended") {
-      void ctx.resume();
+      await ctx.resume();
     }
 
     // Initialize master gain node eagerly
@@ -246,6 +246,12 @@ export async function scheduleAudioPlayback(
       } catch (e) {
         console.warn("[Audio] AudioContext resume failed:", e);
       }
+    }
+
+    // If Web Audio context remains suspended (e.g. browser autoplay restriction),
+    // immediately delegate to HTML5 Audio element fallback so audio is never silent.
+    if (ctx.state !== "running") {
+      throw new Error(`AudioContext is ${ctx.state}`);
     }
 
     const buffer = await getOrDecodeAudioBuffer(audioPath);

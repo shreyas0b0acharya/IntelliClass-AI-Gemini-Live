@@ -145,15 +145,18 @@ export default function NewSessionPage({
       const uploadRes = await api.uploadCourseFile(courseId, file);
       const uploadedFile = uploadRes.file;
 
-      setUploadProgressText("Indexing document content with vector embeddings...");
-      try {
-        await api.processCourseFile({
-          fileUrl: uploadRes.fileUrl,
-          fileName: uploadedFile.file_name,
-          courseId,
-        });
-      } catch (procErr) {
-        console.warn("Vector processing warning:", procErr);
+      // Only invoke standalone process if upload route did not already initiate vector processing
+      if (!uploadRes.isProcessingInBackground && uploadRes.totalChunks === undefined) {
+        setUploadProgressText("Indexing document content with vector embeddings...");
+        try {
+          await api.processCourseFile({
+            fileUrl: uploadRes.fileUrl,
+            fileName: uploadedFile.file_name,
+            courseId,
+          });
+        } catch (procErr) {
+          console.warn("Vector processing warning:", procErr);
+        }
       }
 
       // Add to files list and select it immediately
@@ -163,7 +166,7 @@ export default function NewSessionPage({
         [uploadedFile.file_name]: { selected: true },
       }));
 
-      // Refresh media assets so extracted images and diagrams appear immediately
+      // Refresh media assets so extracted images and diagrams appear
       try {
         const mediaRes = await api.getMediaAssets(courseId);
         if (mediaRes?.assets) {
@@ -172,6 +175,18 @@ export default function NewSessionPage({
       } catch (mediaErr) {
         console.warn("Failed to refresh media assets after direct upload:", mediaErr);
       }
+
+      // Follow-up refresh in background after diagrams are extracted
+      setTimeout(async () => {
+        try {
+          const mediaRes = await api.getMediaAssets(courseId);
+          if (mediaRes?.assets) {
+            setMediaAssets(mediaRes.assets);
+          }
+        } catch {
+          // ignore background refresh error
+        }
+      }, 5000);
 
       toast.success(`"${file.name}" uploaded and added to lecture sources!`);
       if (fileInputRef.current) fileInputRef.current.value = "";

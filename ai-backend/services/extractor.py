@@ -4,7 +4,7 @@ import tempfile
 import os
 
 def extract_pdf_text(file_url: str):
-    response = requests.get(file_url, stream=True)
+    response = requests.get(file_url, stream=True, timeout=30)
 
     if response.status_code != 200:
         raise Exception(f"Download failed: {response.status_code}")

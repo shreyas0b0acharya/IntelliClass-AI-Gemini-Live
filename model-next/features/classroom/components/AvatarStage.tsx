@@ -122,7 +122,7 @@ export function AvatarStage({
           key={model}
           model={model}
           animation="weight shift"
-          behaviorState={isSpeaking ? "talking" : "idle"}
+          behaviorState={isSpeaking ? "talking" : isThinking ? "listening" : "idle"}
           headFollow={true}
           playLipSync={isSpeaking}
           audioPath={audioPath}

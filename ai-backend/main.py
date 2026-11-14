@@ -7,12 +7,26 @@ from services.chunker import chunk_text
 from services.embedder import generate_embeddings
 from supabase import create_client, Client
 import os
+import sys
 import base64
+from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+# Ensure safe UTF-8 output on Windows consoles to prevent UnicodeEncodeError
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 load_dotenv()
+# Also check parent model-next/.env.local as fallback
+parent_env = Path(__file__).resolve().parent.parent / "model-next" / ".env.local"
+if parent_env.exists():
+    load_dotenv(parent_env, override=False)
 
 app = FastAPI(title="IntelliClass AI Backend", version="2.0.0")
 
@@ -93,7 +107,7 @@ async def extract_images(req: ExtractImagesRequest):
     import io
     import uuid as uuid_lib
 
-    print(f"🖼️ Extracting images from: {req.fileName} | Course: {req.courseId}")
+    print(f"[EXTRACT] Extracting images from: {req.fileName} | Course: {req.courseId}")
 
     try:
         pdf_response = req_lib.get(req.fileUrl, timeout=60)
@@ -133,7 +147,7 @@ async def extract_images(req: ExtractImagesRequest):
                         "img_index": img_index,
                     })
                 except Exception as img_err:
-                    print(f"  ⚠️ Could not extract xref={xref}: {img_err}")
+                    print(f"  [WARN] Could not extract xref={xref}: {img_err}")
 
         doc.close()
         
@@ -200,7 +214,7 @@ async def extract_images(req: ExtractImagesRequest):
                 if "row-level security" in err_msg.lower() or "403" in err_msg:
                     pass  # Next.js will perform authenticated upload
                 else:
-                    print(f"  ⚠️ Could not upload image {asset_id}: {upload_err}")
+                    print(f"  [WARN] Could not upload image {asset_id}: {upload_err}")
 
         return {
             "status": "success",
@@ -211,7 +225,7 @@ async def extract_images(req: ExtractImagesRequest):
         }
 
     except Exception as e:
-        print(f"❌ Image extraction error: {e}")
+        print(f"[ERROR] Image extraction error: {e}")
         return {"status": "error", "message": str(e), "images": [], "assets": []}
 
 # ─── Process PDF ───────────────────────────────────────────────────────────────
@@ -276,7 +290,7 @@ async def process(req: ProcessRequest):
         }
 
     except Exception as e:
-        print(f"❌ Process error: {e}")
+        print(f"[ERROR] Process error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ─── Create Session (Generate Teaching Script) ─────────────────────────────────
@@ -367,5 +381,5 @@ async def create_session(req: SessionRequest):
         }
 
     except Exception as e:
-        print(f"❌ Session creation error: {e}")
+        print(f"[ERROR] Session creation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

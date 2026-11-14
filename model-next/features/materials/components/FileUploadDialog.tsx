@@ -47,17 +47,21 @@ export function FileUploadDialog({ courseId, onUploaded, trigger }: FileUploadDi
       const uploadRes = await api.uploadCourseFile(courseId, file);
       const uploadedFile = uploadRes.file;
 
-      setStatusText("Indexing syllabus content & generating RAG chunks...");
-      try {
-        await api.processCourseFile({
-          fileUrl: uploadRes.fileUrl,
-          fileName: uploadedFile.file_name,
-          courseId,
-        });
-        toast.success("Document uploaded and indexed successfully!");
-      } catch (procErr) {
-        console.warn("Backend vector processing warning:", procErr);
-        toast.info("Document saved. Vector embeddings processing in background.");
+      if (!uploadRes.isProcessingInBackground && !uploadRes.totalChunks) {
+        setStatusText("Indexing syllabus content & generating RAG chunks...");
+        try {
+          await api.processCourseFile({
+            fileUrl: uploadRes.fileUrl,
+            fileName: uploadedFile.file_name,
+            courseId,
+          });
+          toast.success("Document uploaded and indexed successfully!");
+        } catch (procErr) {
+          console.warn("Backend vector processing warning:", procErr);
+          toast.info("Document saved. Vector embeddings processing in background.");
+        }
+      } else {
+        toast.success("Document uploaded! Vector embeddings are processing in background.");
       }
 
       setFile(null);

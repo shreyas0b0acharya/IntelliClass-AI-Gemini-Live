@@ -16,10 +16,10 @@ export function AudioUnlockModal({
 }: AudioUnlockModalProps) {
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     setIsUnlocking(true);
     try {
-      unlockAudioContext();
+      await unlockAudioContext();
       onUnlock();
     } catch {
       setIsUnlocking(false);

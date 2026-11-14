@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { sessionId } = await params;
-    const supabase = await createClient();
+    const { supabase } = await getAuthenticatedUser(request);
 
     const { data: messages, error } = await supabase
       .from("messages")
@@ -34,12 +34,7 @@ export async function POST(
 ) {
   try {
     const { sessionId } = await params;
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: _authError,
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await getAuthenticatedUser(request);
 
     const body = await request.json();
     const { role, message, user_id } = body;
