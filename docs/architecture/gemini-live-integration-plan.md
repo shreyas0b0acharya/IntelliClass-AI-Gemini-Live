@@ -1,165 +1,327 @@
 # IntelliClass AI: Gemini Live API Integration Plan
-## Architectural Blueprint: Real-Time Dynamic AI Professor
+## Architectural Blueprint: Real-Time Dynamic AI Professor (Revision 2.0)
 
 ---
 
 ## Executive Summary
 
-This architecture document details the end-to-end plan to transform the **IntelliClass AI Monorepo** from a rigid, pre-generated script and chunked text-to-speech (TTS) playback system into an **autonomous, conversational, real-time AI Professor powered by the Google Gemini Live API**.
+This architecture document defines the comprehensive, production-ready implementation plan to transform the **IntelliClass AI Platform** into an **autonomous, conversational, real-time AI Professor powered by the Google Gemini Live API**.
 
-Rather than relying on lengthy, monolithic scripts that take 10+ seconds to generate and freeze teaching into static audio queues, the AI Professor operates over a **lightweight, adaptive topic roadmap**. The professor streams bidirectional audio directly to students, dynamically formulates pedagogical explanations, adapts examples on the fly, answers interruptions organically in real-time, projects visual media onto the classroom board, and maintains strict curriculum progress across network interruptions, multi-tab conductor handoffs, and classroom sessions.
+Based on deep technical review and architectural corrections, this revised blueprint establishes a **clean three-pillar separation of concerns**:
+1. **Google Gemini Live API (`gemini-3.8-live`)**: The cognitive and conversational engine. Drives dynamic spoken lectures, adapts pedagogical pacing in real-time, answers interruptions naturally, and suggests curriculum transitions.
+2. **LiveKit WebRTC SFU (Media Transport Layer)**: The real-time audio distribution pipeline for shared classrooms. Handles WebRTC Opus audio fan-out from the AI Professor to 100+ students with ultra-low latency (<150ms) and orchestrates floor control for student voice participation.
+3. **Supabase PostgreSQL & Realtime (State & Event Layer)**: The authoritative application persistence and orchestration backbone. Manages learning topic progress (Covered, Current, Remaining), conductor lease arbitration, live subtitles, whiteboard diagram projections, and participant admissions.
 
----
-
-## 1. Existing Architecture Analysis
-
-The existing IntelliClass AI repository is an educational virtual classroom platform structured as a multi-tier monorepo:
-
-```
-IntelliClass-AI-MonoRepo/
-├── model-next/            # Next.js 15 (App Router), React 19, Tailwind, Three.js avatar
-│   ├── ai/                # Genkit flows, Gemini model-manager fallback
-│   ├── app/               # Routes: /course/[id], /classroom/[id], /api/...
-│   ├── features/
-│   │   ├── classroom/     # Conductor loop, useClassroom, useSpeechQueue, sync
-│   │   ├── avatar/        # Three.js 3D avatar, useLipSync, audioManager
-│   │   ├── materials/     # Document & image viewer modals
-│   │   └── settings/      # Audio, model, persona configuration
-│   ├── lib/               # Supabase clients, TTS adapters, config
-│   └── supabase-*.sql     # Database migrations
-├── ai-backend/            # Python FastAPI service
-│   ├── services/          # PyMuPDF extractor, text chunker, gemini embedder
-│   └── main.py            # /process, /extract-images, /session
-├── HeadTTS/               # Local ONNX Kokoro-82M TTS service (port 8882)
-└── benchmark/             # Performance measurements and benchmark reports
-```
-
-### 1.1 Current Teaching Lifecycle & Execution Pipeline
-
-1. **Course Material Upload & Ingestion**:
-   - The instructor uploads course PDFs via `model-next/app/course/[courseId]/materials`.
-   - `ai-backend/main.py` extracts text with PyMuPDF, chunks the text, computes vector embeddings (`googleai/gemini-embedding-001`), and stores them in Supabase's `document_chunks` table (`pgvector`).
-   - Embedded diagrams and figures are extracted to Supabase Storage `course-files` and indexed in `media_assets`.
-
-2. **Session Creation & Pre-Generated Script Generation**:
-   - In `model-next/app/course/[courseId]/sessions/new/page.tsx`, the lecturer selects course documents and enters a lecture topic.
-   - The endpoint `POST /api/classroom/[sessionId]/generate-script` calls `generateTeachingScriptFlow` (`model-next/ai/flows/generate-script.ts`).
-   - Gemini (via Genkit and `executeWithModelFallback`) generates a **rigid, 1,200+ word monolithic script** containing embedded cues: `[ENGAGEMENT]`, `[IMAGE: url | label]`.
-   - The entire raw script string is stored in `sessions.script` in Supabase.
-
-3. **Client-Side Classroom Conductor & Audio Playback**:
-   - In `model-next/features/classroom/hooks/useClassroom.ts`, the browser parses the monolithic script into discrete sequential items using `parseLectureScript`:
-     - `LectureSpeechItem` (speech sentences/phrases split to ~75 characters).
-     - `LectureImageItem` / `LectureVideoItem` (diagram projections).
-     - `LectureEngagementItem` (comprehension checkpoints).
-   - An elected lecturer browser tab holds an **Atomic Conductor Lease** (`driverTabId`, `driver_lease_expires_at`).
-   - The conductor loops sequentially through items using `scheduleAdvance()`.
-   - For every speech item, the conductor fetches synthesized audio from `/api/tts` (orchestrated by `model-next/lib/tts/ttsProviders.ts` via HeadTTS or ElevenLabs).
-   - HeadTTS generates uncompressed WAV audio + an array of pre-computed viseme timestamps (`HeadTTSData`: `visemes`, `vtimes`, `vdurations`).
-   - The conductor broadcasts a `PLAY_ITEM` event over Supabase Realtime with a future hardware-synchronized start timestamp (`targetEpochMs` calculated via SNTP in `clockSync.ts`).
-   - All admitted student tabs receive `PLAY_ITEM`, preload the audio buffer, and trigger playback at the exact target millisecond.
-
-4. **Student Q&A Interruption Handling**:
-   - A student submits a question via voice/text in the classroom chat.
-   - The conductor pauses the speech queue and cancels active audio.
-   - The conductor calls `POST /api/classroom/[sessionId]/question` -> `studentAIQuestionAnsweringFlow` (`model-next/ai/flows/answer-question.ts`).
-   - A 350ms race query performs vector search against `document_chunks`.
-   - A static REST call generates a text answer (`maxOutputTokens: 600`).
-   - The text is passed to HeadTTS/ElevenLabs to generate an audio file.
-   - The conductor broadcasts an `INTERRUPT` event, plays the Q&A audio, and resumes the lecture from the interrupted item (`resumeFromItemId`).
+Rather than relying on brittle, 1,200-word pre-baked scripts and local chunked TTS synthesis, the professor operates on a **lightweight, adaptive topic roadmap (4–8 checkpoints)**. The professor speaks and listens in real time, seamlessly handles interruptions, and maintains progress across network disconnects and multi-tab conductor handoffs.
 
 ---
 
-## 2. Current Limitations and Architectural Gaps
+## 1. Existing Architecture Analysis & Environment Specification
 
-Based on actual codebase analysis and benchmark results (`benchmark/BENCHMARK_REPORT.md`), the current design exhibits critical architectural bottlenecks:
+### 1.1 Verified Platform Stack & Repository Versions
 
-| Architecture Component | Current Implementation | Critical Bottleneck / Architectural Gap |
+A complete audit of `IntelliClass-AI-MonoRepo-gemini-live` establishes the exact dependency baseline:
+
+| Subsystem | Verified Package & Version | Role in Architecture |
 | :--- | :--- | :--- |
-| **Curriculum Generation** | Monolithic text script (1,200+ words) pre-generated via REST. | High generation latency (**3.1s to 10.3s** in benchmarks). Frequently encounters `503 UNAVAILABLE` under peak demand. Fails completely if the API times out. |
-| **Teaching Flexibility** | Linear, immutable playback of pre-baked sentences. | **Zero pedagogical dynamism.** The professor cannot elaborate, simplify, change pacing, or use alternative analogies if students struggle. |
-| **Interruption Latency** | Pipeline: Text STT -> Vector RAG -> REST text generation -> TTS synthesis -> Buffer download -> Scheduled playback. | **Severe conversational lag (5 to 12 seconds).** Benchmark reveals HeadTTS alone takes **~2.95s** to synthesize 25 words. Destroys natural conversational rhythm. |
-| **Audio Pipeline** | Server-side disk caching of WAV files in `/api/media/audio`. | Heavy local I/O overhead, potential disk-write race conditions, uncompressed WAV storage footprint. |
-| **Avatar Lip Sync** | Hard dependency on pre-computed viseme timestamp arrays (`HeadTTSData`). | Blocks live streaming audio models which output raw PCM chunks rather than pre-aligned viseme timing metadata. |
-| **Bandwidth & Compute** | Each client downloads static WAV files (384 kbps) generated by local Kokoro-82M ONNX server. | Requires dedicated CPU/GPU resources on the host machine to run HeadTTS (`localhost:8882`). |
-| **Context Retention** | Q&A flow answers doubts in isolation and blindly jumps back to `resumeFromItemId`. | The professor does not smoothly incorporate student questions into subsequent explanations or check whether the student understood the answer. |
+| **Frontend Framework** | **Next.js 16.3.0** (App Router, Turbopack) | Server-side API endpoints, authenticated routing, SSR. |
+| **UI Library** | **React 19.2.8** | Client components, state orchestration, DOM tree. |
+| **Database & Auth** | **`@supabase/supabase-js 2.112.3`** & `@supabase/ssr 0.12.4` | PostgreSQL client, Realtime channels, Row Level Security. |
+| **Static AI Engine** | **`genkit 1.41.0`** & **`@genkit-ai/google-genai 1.41.0`** | Background batch workflows (PDF text processing, roadmap generation). |
+| **Realtime Live SDK** | **`@google/genai` (Target: >= 2.3.0)** | Direct WebSocket client for bidirectional Gemini Live audio & non-blocking tools. |
+| **Media Transport** | **LiveKit Client / LiveKit Server SDK** (Target addition) | WebRTC SFU for continuous audio distribution and floor control. |
+| **3D Avatar Rendering** | **Three.js 0.180.0**, `@react-three/fiber 9.7.0`, `@react-three/drei 10.7.8` | Procedural 3D humanoid avatar with morph targets (`jawOpen`, mouth visemes). |
+| **Vector Embeddings** | **`models/gemini-embedding-001` (768 dimensions)** | Managed via `ai-backend/services/embedder.py` with PostgreSQL `pgvector`. |
+
+### 1.2 Current Classroom Execution Flow & Limitations
+
+1. **Course Ingestion**: Instructors upload PDFs. PyMuPDF extracts text; `gemini-embedding-001` generates 768-dimensional embeddings stored in Supabase `document_chunks`. Embedded figures are stored in `media_assets`.
+2. **Script Generation**: In `model-next/app/course/[courseId]/sessions/new/page.tsx`, the lecturer selects files. The server calls `/api/classroom/[sessionId]/generate-script` -> `model-next/ai/flows/generate-script.ts`. Gemini produces a rigid, 1,200+ word monolithic text script with static cue tags (`[ENGAGEMENT]`, `[IMAGE: url | label]`).
+3. **Sequential Conductor Playback**: `model-next/features/classroom/hooks/useClassroom.ts` parses the text into chunks (`LectureItem[]`), loops through them sequentially, and synthesizes audio chunk-by-chunk using HeadTTS (Kokoro-82M ONNX on port 8882) or ElevenLabs.
+4. **Student Q&A Interruption**: When a student asks a doubt, the request hits `/api/classroom/[sessionId]/ask/route.ts` -> `model-next/ai/flows/answer-question.ts`. It performs a vector similarity search, calls Gemini via REST to generate text, synthesizes audio via HeadTTS, and schedules playback.
+
+### 1.3 Real Measured Baseline Benchmarks
+
+Actual measurements from `benchmark/BENCHMARK_REPORT.md`:
+
+| Operation / Sample | Measured Wall-Clock Latency | Real-Time Factor (RTF) | Observed Failure Mode |
+| :--- | :--- | :--- | :--- |
+| **HeadTTS Short (10 words)** | **1,118.9 ms** | 0.233 | Local CPU compute overhead |
+| **HeadTTS Medium (25 words)** | **2,321.7 ms** | 0.246 | Linear synthesis delay |
+| **HeadTTS Long (50 words)** | **5,423.7 ms** | 0.272 | Cannot stream in real-time |
+| **Gemini Short Q&A REST** | **10,336 ms** (1.9 words/sec) | N/A | High generation latency under peak load |
+| **Gemini Medium Paragraph** | **3,157 ms** (4.8 words/sec) | N/A | Transient latency spikes |
+| **Gemini Full Script (1,200w)** | **Failed (503 UNAVAILABLE)** | N/A | Exceeds execution timeouts on server busy |
+
+*Takeaway*: The legacy pipeline produces an end-to-end interruption lag of **6 to 12 seconds**. This completely destroys conversational classroom teaching.
+
+---
+
+## 2. Critical Architectural Corrections
+
+### Correction A: Decouple Audio Media Transport from State Synchronization
+
+#### The Flaw of Audio via Supabase Realtime
+A naive proposal to stream 24 kHz PCM audio chunks over Supabase Broadcast fails at scale:
+- 24,000 Hz × 16-bit × Mono = **384 kbps raw uncompressed audio**.
+- 20ms audio packets generate **50 messages per second** per audio stream.
+- In a 100-student classroom, Broadcast fan-out requires **5,000 deliveries per second**.
+- Supabase Realtime default limits are **100 msg/sec on Free, 500 msg/sec on Pro, and 2,500 msg/sec on Pro without spend cap**. Broadcast fan-out counts against message quotas.
+- Packet loss over WebSockets causes severe audio dropouts, buffer starvation, and ballooning ingress costs.
+
+#### The Approved Solution: LiveKit SFU + Supabase Realtime
+Media transport and application synchronization are cleanly decoupled:
+- **LiveKit SFU (Selective Forwarding Unit)**: Handles WebRTC media transport. The conductor encodes the AI Professor's 24 kHz audio into **Opus (32–48 kbps)**, publishing an audio track to the LiveKit room. All 100+ students subscribe via low-latency WebRTC (<150ms).
+- **Supabase Realtime**: Exclusively handles application state: topic progression events, HUD sync, subtitles, hand-raise requests, whiteboard media displays, and participant presence.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        SHARED CLASSROOM MEDIA FLOW                      │
+└────────────────────────────────────────────────────────────────────────┘
+
+  [ Google Gemini Live API ] (Model: gemini-3.8-live)
+            ▲                │
+ 16kHz PCM  │                │ 24kHz PCM Audio Stream
+ User Voice │                ▼
+     ┌──────────────────────────────┐
+     │  Conductor Browser (Host)    │
+     │  - Manages Gemini WebSocket  │
+     │  - AudioWorklet Resampler    │
+     │  - Web Audio Analyser (Lips) │
+     └──────┬────────────────┬──────┘
+            │                │
+Publish AI  │ Opus WebRTC    │ Application Events (Topic change,
+Audio Track │                │ Subtitles, Whiteboard image)
+            ▼                ▼
+     ┌─────────────┐  ┌─────────────────────────────────┐
+     │ LiveKit SFU │  │  Supabase Realtime + PostgreSQL │
+     └──────┬──────┘  └──────────────┬──────────────────┘
+            │                        │
+  WebRTC    │ Opus Audio             │ Broadcast Events
+  Downlink  │ Stream                 │ (JSON < 10 msgs/min)
+            ▼                        ▼
+     ┌──────────────────────────────────────────────────┐
+     │             100+ Student Viewports               │
+     │  - Subscribes to LiveKit audio track             │
+     │  - Listens to Supabase HUD & Whiteboard events   │
+     │  - Requests mic access via Hand-Raise protocol   │
+     └──────────────────────────────────────────────────┘
+```
+
+### Correction B: Verified Gemini Session Lifecycles & Rate Limits
+
+- **Free-Tier Limits**: Rate limits in Google AI Studio are governed by **TPM (Tokens Per Minute)**, **RPM (Requests Per Minute)**, and **RPD (Requests Per Day)**. Hardcoded concurrency limits (such as "3 sessions") are not officially fixed and vary by account tier.
+- **Session Duration Boundaries**:
+  - Audio-only continuous session: **15 minutes** without context compression.
+  - Audio + video session: **2 minutes** without context compression.
+  - WebSocket connection lifetime: **~10 minutes**.
+  - Session resumption handle validity: **2 hours** after termination.
+- **Dynamic GoAway Handling**: Do not assume `GoAway` is fixed at 60 seconds. The client must read the actual `timeLeft` parameter in the `GoAway` frame and proactively initiate reconnection.
+- **Resumption Non-Availability Guard**: Google documents that session resumption can be temporarily unavailable if the connection drops while the model is actively generating tokens or executing tool calls. **The database progress state must remain independently recoverable.**
+
+### Correction C: Function-Calling Protocol Structure & Backend Authority
+
+#### Valid Live SDK Tool Response Structure
+The `@google/genai` Live SDK requires function responses structured within a `functionResponses` array, correlated with the original call `id` and `name`:
+
+```typescript
+import { FunctionResponseScheduling } from "@google/genai";
+
+session.sendToolResponse({
+  functionResponses: [
+    {
+      id: toolCall.id,
+      name: toolCall.name,
+      response: {
+        result: { acknowledged: true, currentTopicId: "topic_2" },
+      },
+      scheduling: FunctionResponseScheduling.WHEN_IDLE,
+    },
+  ],
+});
+```
+
+#### Application Authority over State Transitions
+Gemini must **never** mutate database state directly. The application layer validates and authorizes all proposed transitions:
+
+```
+Gemini Live: Calls advance_topic({ completedTopicId: "t1", nextTopicId: "t2" })
+                    │
+                    ▼
+Conductor Client: Validates nextTopicId against SessionRoadmap
+                    │
+                    ▼
+Next.js API: POST /api/classroom/[id]/advance-topic
+                    │
+                    ├── 1. Validates Conductor Lease (active_driver_tab_id, lease expiration)
+                    ├── 2. Verifies state_version (CAS increment)
+                    └── 3. Updates sessions.current_topic_id & covered_topic_ids
+                    │
+                    ▼
+Supabase Realtime: Broadcasts TOPIC_CHANGED event to all student HUDs
+                    │
+                    ▼
+Conductor Client: Returns functionResponse to Gemini -> Gemini begins teaching t2
+```
+
+### Correction D: Application-Managed Learning Progress Contract
+
+Instead of duplicating full topic arrays, the database maintains a compact, normalized state:
+
+```typescript
+export interface SessionLearningProgress {
+  roadmapVersion: string;
+  currentTopicId: string | null;
+  coveredTopicIds: string[];
+  completedAt: string | null;
+  progressVersion: number;
+}
+```
+
+- **Remaining Topics**: Derived dynamically: `roadmap.topics.filter(t => !coveredTopicIds.includes(t.id) && t.id !== currentTopicId)`.
+- **Explicit Topic Events**:
+  ```typescript
+  export type TopicEvent = 
+    | "topic_started"
+    | "topic_completed"
+    | "topic_revisited"
+    | "session_completed";
+  ```
+  *Advantage*: `session_completed` cleanly finalizes the lecture without forcing Gemini to supply an artificial `nextTopicId` when finishing the final topic.
+
+### Correction E: Backend-Secured RAG Retrieval Architecture
+
+Vector similarity search must not be exposed directly to unauthenticated client execution:
+
+```
+Gemini Live: Calls search_course_materials({ query: "pipeline data hazards" })
+                    │
+                    ▼
+Conductor Client: Invokes authenticated Next.js route:
+                  POST /api/classroom/[sessionId]/search-materials
+                    │
+                    ├── 1. Authenticates conductor session token
+                    ├── 2. Verifies course enrollment & tenancy
+                    ├── 3. Executes RPC match_documents(query_embedding, 0.65, 3, courseId)
+                    └── 4. Returns top 3 grounded text chunks
+                    │
+                    ▼
+Conductor Client: Returns functionResponse to Gemini
+                    │
+                    ▼
+Gemini Live: Spoken explanation incorporates verified course facts
+```
+
+- Initial in-context prompt: Loads **only** the lightweight roadmap, course title, target objectives, and diagram labels. Detailed textbook excerpts are fetched on-demand.
+- Timeout protection: Backend vector search is bounded by an **800ms abort signal**. If timeout occurs, Gemini gracefully falls back to general pedagogical reasoning.
+
+### Correction F: Realistic Web Audio Avatar Lip-Sync
+
+- **Acoustic Reality**: Fast Fourier Transform (FFT) frequency bands do not reliably map to linguistic phonemes (e.g., low frequency does not uniquely mean `aa`, high frequency does not uniquely mean `E`).
+- **Approved Approach**:
+  - Use time-domain PCM Root-Mean-Square (RMS) amplitude to drive jaw opening (`jawOpen` / `mouthOpen`).
+  - Apply asymmetric smoothing: **fast attack** (0.8) to snap open on speech transients, and **smooth release** (0.3) to prevent unnatural chattering.
+  - Modulate gentle conversational vowel cadence (`viseme_aa`, `viseme_E`, `viseme_ou`) scaled by audio energy.
+  - Benchmarked visual offset: Synchronized directly to the Web Audio hardware playback clock.
+
+### Correction G: Real Pricing & Privacy Specifications
+
+#### Gemini 3.8 Live Paid-Tier Rates (Google AI Studio)
+| Modality / Stream | Unit Rate | Rate per Minute |
+| :--- | :--- | :--- |
+| **Audio Input** | $3.00 / 1M tokens | **$0.005 / min** |
+| **Audio Output** | $12.00 / 1M tokens | **$0.018 / min** |
+| **Continuous Audio (Both)** | Combined in/out | **~$0.023 / min** |
+| **Text Input** | $0.75 / 1M tokens | — |
+| **Text Output** | $4.50 / 1M tokens | — |
+
+#### 30-Minute Shared Classroom Cost Scenarios
+| Classroom Activity Scenario | Audio Input | Audio Output | Estimated API Cost |
+| :--- | :---: | :---: | :---: |
+| **High Lecture / Low Interruption** | 30 min | 20 min | **$0.51** |
+| **Balanced Dialogue / Q&A** | 30 min | 15 min | **$0.42** |
+| **Continuous Professor Speaking** | 30 min | 30 min | **$0.69** |
+
+*Privacy Requirement*: Under Google's Free-Tier terms, user data and prompts may be used to train Google models. In the Paid Tier, inputs and outputs are not used for model training. **For student voices and identifiable classroom recordings, the system must enforce Paid-Tier API keys and obtain user consent.**
 
 ---
 
 ## 3. Recommended Target Architecture
 
-### 3.1 Target Paradigm: Real-Time Dynamic AI Professor
-
-The target architecture replaces the pre-generated script and multi-step TTS pipeline with a **Gemini 3.8 Live API WebSocket pipeline**. 
-
-- The professor receives a **lightweight topic roadmap** (5–8 structured learning checkpoints).
-- The professor **speaks dynamically and naturally** using native voice-to-voice bidirectional streaming.
-- Students can interrupt verbally with near-zero latency (~300–450ms).
-- Gemini tracks session progress via **asynchronous tool calling (function calling)**, reporting topic transitions and whiteboard projections back to the client.
-- The browser drives the 3D avatar's mouth in real-time using **Web Audio frequency domain analysis (AnalyserNode)** directly from the incoming audio stream.
-
-### 3.2 Target Architecture Diagram
-
 ```mermaid
 flowchart TD
-    subgraph ClientBrowser ["Lecturer / Student Client (Browser)"]
-        UI["Classroom UI (SessionProgressHUD / Whiteboard)"]
-        Store["Classroom Zustand Store (Covered / Current / Remaining)"]
-        Avatar["3D Avatar (Three.js + AnalyserNode Lip Sync)"]
-        AudioIn["Microphone Capture (16kHz PCM Little-Endian)"]
-        AudioOut["Audio Playback (Web Audio API 24kHz PCM)"]
-        GeminiClient["Gemini Live Client (@google/genai SDK)"]
+    subgraph ClientLayer ["Classroom Clients"]
+        subgraph Conductor ["Lecturer / Conductor Tab"]
+            C_UI["Conductor HUD & Roadmap Controls"]
+            C_Store["Zustand Progress Store"]
+            C_Gemini["@google/genai LiveClient (WebSocket)"]
+            C_Worklet["AudioWorklet Resampler (16kHz PCM In)"]
+            C_Player["24kHz Web Audio Player + Analyser"]
+            C_Avatar["Three.js Avatar (RMS Lip Sync)"]
+            C_LKPub["LiveKit Audio Publisher (Opus)"]
+        end
+
+        subgraph Students ["100+ Student Viewports"]
+            S_UI["Student HUD & Subtitles"]
+            S_LKSub["LiveKit Audio Subscriber"]
+            S_Mic["Student Mic (Push-to-Talk / Floor Request)"]
+            S_Store["Student Zustand Mirror"]
+        end
     end
 
-    subgraph NextServer ["IntelliClass Next.js 15 Backend"]
-        TokenAuth["POST /api/classroom/[id]/live-token (Ephemeral Token Minting)"]
-        RoadmapGen["POST /api/classroom/[id]/generate-roadmap (Topic Sequence Flow)"]
-        SnapshotRoute["GET /api/classroom/[id]/snapshot (State Recovery)"]
-        AdminSupabase["Supabase Admin Client (Service Role)"]
+    subgraph MediaPlane ["Realtime Media Plane (LiveKit SFU)"]
+        LK_Room["LiveKit Room (classroom:sessionId)"]
+        LK_Track["AI Professor Audio Track (Opus 48kbps)"]
+        LK_Floor["Active Student Audio Track"]
     end
 
-    subgraph GoogleGemini ["Google AI Infrastructure"]
-        LiveAPI["Gemini Live API (wss://generativelanguage.googleapis.com)
+    subgraph BackendPlane ["Next.js 16 Application Backend"]
+        API_Token["POST /api/classroom/[id]/live-token (Ephemeral Token)"]
+        API_LK["POST /api/classroom/[id]/livekit-token"]
+        API_Roadmap["POST /api/classroom/[id]/generate-roadmap"]
+        API_Advance["POST /api/classroom/[id]/advance-topic (CAS Leased)"]
+        API_RAG["POST /api/classroom/[id]/search-materials (Vector Search)"]
+    end
+
+    subgraph GoogleAI ["Google AI Infrastructure"]
+        GeminiLive["Gemini Live API (wss://generativelanguage.googleapis.com)
 Model: gemini-3.8-live"]
-        GeminiEmbed["Gemini Embedding 004 / Text Models"]
     end
 
-    subgraph SupabaseCloud ["Supabase Services"]
-        DB["PostgreSQL (sessions, topics, document_chunks)"]
-        Realtime["Supabase Realtime Channel (broadcast: sync, presence)"]
-        Storage["Storage (course-files, media_assets)"]
+    subgraph SupabaseDB ["Supabase Cloud"]
+        DB_Postgres["PostgreSQL (sessions, topics, document_chunks)"]
+        DB_Realtime["Supabase Realtime (presence, TOPIC_CHANGED, SUBTITLE)"]
     end
 
-    %% Lifecycle Flows
-    RoadmapGen -->|"Generates 5-8 Topics"| DB
-    TokenAuth -->|"Issues Ephemeral Token with LiveConnectConstraints"| GeminiClient
-    GeminiClient <-->|"Direct Bidirectional WebSocket (PCM Audio, Non-blocking Tools)"| LiveAPI
-    AudioIn -->|"16kHz Stream"| GeminiClient
-    GeminiClient -->|"24kHz PCM Chunks"| AudioOut
-    AudioOut -->|"Audio Spectrum / Formants"| Avatar
-    
-    %% Tool execution & Realtime Sync
-    LiveAPI -.->|"Tool Call: advance_topic / project_media"| GeminiClient
-    GeminiClient -->|"Update Store & DB"| Store
-    Store -->|"Broadcast state changes"| Realtime
-    Realtime -->|"Sync HUD & Audio to Students"| UI
-    
-    %% RAG Tool Flow
-    LiveAPI -.->|"Tool Call: search_course_materials"| GeminiClient
-    GeminiClient -->|"Query Vector RPC match_documents"| DB
-    DB -->|"Top Chunks"| GeminiClient
-    GeminiClient -.->|"Tool Response (Grounding Context)"| LiveAPI
+    %% Audio & Media Connections
+    C_Gemini <-->|"Bidirectional WebSocket (16kHz in, 24kHz out)"| GeminiLive
+    C_Player -->|"Route Local Stream"| C_LKPub
+    C_LKPub -->|"Publish Track"| LK_Track
+    LK_Track -->|"WebRTC Fan-out (<150ms)"| S_LKSub
+    S_Mic -->|"Grant Floor Access"| LK_Floor
+    LK_Floor -->|"Route Active Speaker"| C_Worklet
+    C_Worklet -->|"sendRealtimeInput(audio)"| C_Gemini
+
+    %% Tool & Backend Calls
+    C_Gemini -.->|"Tool: search_course_materials"| C_Store
+    C_Store -->|"Fetch Chunks"| API_RAG
+    API_RAG -->|"RPC match_documents"| DB_Postgres
+
+    C_Gemini -.->|"Tool: advance_topic"| C_Store
+    C_Store -->|"Authorize Update"| API_Advance
+    API_Advance -->|"Persist Progress"| DB_Postgres
+    API_Advance -->|"Broadcast TOPIC_CHANGED"| DB_Realtime
+    DB_Realtime -->|"Sync HUD"| S_Store
+
+    %% Avatar & Controls
+    C_Player -->|"RMS Energy"| C_Avatar
 ```
 
 ---
 
-## 4. Lightweight Topic-Roadmap Generation & Data Structure
+## 4. Lightweight Topic-Roadmap Architecture
 
-### 4.1 Concept
-
-Instead of a monolithic spoken script, the system generates a **Topic Roadmap**: an ordered array of 4 to 8 pedagogical checkpoints. Each topic contains core objectives, key terms, suggested analogies, and relevant visual diagram references. Gemini decides how to speak, elaborate, and pace the content in real time.
-
-### 4.2 TypeScript Schema (`features/classroom/types/roadmap.ts`)
+### 4.1 Schema Definition (`model-next/features/classroom/types/roadmap.ts`)
 
 ```typescript
 export interface VisualAssetRef {
@@ -185,7 +347,6 @@ export interface RoadmapTopic {
   suggestedAnalogies: string[];
   suggestedVisualAssets: VisualAssetRef[];
   estimatedDurationMinutes: number;
-  status: "pending" | "in_progress" | "completed";
 }
 
 export interface SessionRoadmap {
@@ -194,15 +355,11 @@ export interface SessionRoadmap {
   sessionId: string;
   lectureTopic: string;
   totalEstimatedMinutes: number;
-  persona: {
-    name: string;
-    teachingStyle: string;
-  };
   topics: RoadmapTopic[];
 }
 ```
 
-### 4.3 Generation Flow (`model-next/ai/flows/generate-roadmap.ts`)
+### 4.2 Generation Flow (`model-next/ai/flows/generate-roadmap.ts`)
 
 ```typescript
 import { ai } from "@/ai/genkit";
@@ -210,13 +367,14 @@ import { z } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { executeWithModelFallback } from "@/ai/model-manager";
+import type { SessionRoadmap } from "@/features/classroom/types/roadmap";
 
 export const GenerateRoadmapInputSchema = z.object({
   courseId: z.string(),
   topic: z.string(),
   sources: z.array(z.object({ fileName: z.string() })).optional(),
   customPrompt: z.string().optional(),
-  targetDurationMinutes: z.number().default(20),
+  targetDurationMinutes: z.number().default(30),
 });
 
 export const GenerateRoadmapOutputSchema = z.object({
@@ -227,10 +385,7 @@ export const GenerateRoadmapOutputSchema = z.object({
 });
 ```
 
-**Prompt Engineering Directive**:
-- Instruct Gemini to analyze course materials and output **only** high-level learning objectives, concept definitions, and intuitive analogies (e.g., real-world metaphors).
-- **Hard Constraint**: Prohibit word-for-word spoken paragraphs. Output structured JSON matching `SessionRoadmap`.
-- Generation latency: Drops from **~8,000ms** (for full scripts) to **~1,200ms**, with token consumption reduced by **85%**.
+*Efficiency Gain*: Instead of generating 1,200+ spoken words, Gemini outputs structured JSON in **~1,100ms** (an **85% reduction in latency and tokens**), with zero risk of TTS pronunciation artifacts.
 
 ---
 
@@ -239,238 +394,230 @@ export const GenerateRoadmapOutputSchema = z.object({
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Lecturer as Lecturer (Host/Conductor)
-    actor Student as Students
-    participant App as IntelliClass Client
+    actor Lecturer as Lecturer (Conductor)
+    actor Student as Student Audience (LiveKit)
+    participant Client as Conductor Client
     participant API as Next.js API Routes
-    participant DB as Supabase DB & Realtime
+    participant LK as LiveKit SFU Server
+    participant DB as Supabase PostgreSQL & Realtime
     participant Live as Gemini Live API (WebSocket)
 
-    %% Phase 1: Setup
-    Note over Lecturer, API: 1. Setup & Roadmap Generation
-    Lecturer->>App: Create session with Topic & Course Materials
-    App->>API: POST /api/classroom/[id]/generate-roadmap
+    Note over Lecturer, Live: Phase 1: Setup & Topic Sequence Preparation
+    Lecturer->>Client: Create lecture with Topic & Course PDFs
+    Client->>API: POST /api/classroom/[id]/generate-roadmap
     API->>DB: Query document_chunks & media_assets
-    API->>API: Generate SessionRoadmap (5-8 topics)
-    API->>DB: Save roadmap to sessions.roadmap
-    API-->>App: Return SessionRoadmap
-    App->>Lecturer: Display Roadmap Preview Modal (Approve / Reorder)
+    API->>API: Genkit generates 4-8 topic checkpoints
+    API->>DB: Save roadmap in sessions.roadmap
+    API-->>Client: Return SessionRoadmap
 
-    %% Phase 2: Live Connection
-    Note over Lecturer, Live: 2. Ephemeral Authentication & Live Session
-    Lecturer->>App: Click "Start Live Class"
-    App->>API: POST /api/classroom/[id]/live-token
-    API->>API: Mint Gemini Ephemeral Token with LiveConnectConstraints
-    API-->>App: Return token + Roadmap + System Instructions
-    App->>Live: Connect WebSocket (gemini-3.8-live, Ephemeral Token)
-    Live-->>App: Connection Established (Session Resumption Handle saved)
-    App->>DB: Update sessions.status = 'running', active_driver_tab_id
+    Note over Lecturer, Live: Phase 2: Dual Token Acquisition & Connection
+    Lecturer->>Client: Click "Start Live Class"
+    Client->>API: POST /api/classroom/[id]/live-token
+    API->>API: Mint Gemini Ephemeral Token (gemini-3.8-live, tools, AudioOut)
+    API-->>Client: Ephemeral Token
+    Client->>API: POST /api/classroom/[id]/livekit-token
+    API-->>Client: LiveKit Publisher Token
+    Client->>Live: Connect WebSocket (wss://generativelanguage.googleapis.com)
+    Client->>LK: Connect LiveKit Room & Publish Audio Track
+    Live-->>Client: Session Established (Save resumption handle)
+    Client->>DB: Update sessions.status = 'running', active_driver_tab_id
 
-    %% Phase 3: Teaching & Tools
-    Note over App, Live: 3. Dynamic Teaching & Progress Tracking
-    App->>Live: sendRealtimeInput({ text: "Class has begun. Welcome students and introduce Topic 1." })
-    Live-->>App: 24kHz PCM Audio Stream + Output Transcription
-    App->>App: Web Audio plays sound; AnalyserNode moves avatar lips
-    App->>DB: Supabase Realtime broadcast: AUDIO_STREAM & SUBTITLE
-    DB-->>Student: Synchronized Audio & Subtitles
-    
-    Live->>App: Tool Call: advance_topic({ topicId: "top_1", status: "in_progress" })
-    App->>DB: Update sessions.current_topic_id = 'top_1'
-    App->>DB: Realtime Broadcast TOPIC_CHANGED
-    DB-->>Student: Update SessionProgressHUD (Covered: 0, Current: Topic 1)
+    Note over Client, Live: Phase 3: Dynamic Teaching & Progress Tracking
+    Client->>Live: sendRealtimeInput({ text: "Begin lecture. Welcome class and introduce Topic 1." })
+    Live-->>Client: 24kHz PCM Audio Stream + Output Subtitles
+    Client->>LK: Send audio to LiveKit track (Opus encoded)
+    LK-->>Student: WebRTC Audio Stream (<150ms)
+    Client->>DB: Broadcast SUBTITLE via Supabase Realtime
+    DB-->>Student: Live Subtitles
 
-    %% Phase 4: Interruption
-    Note over Student, Live: 4. Student Live Interruption
-    Student->>App: Speak / Type Question: "Professor, how does this relate to X?"
-    App->>DB: Realtime Broadcast STUDENT_INTERRUPT
-    App->>Live: sendRealtimeInput({ audio: studentAudioPCM, audioStreamEnd: true })
-    Live-->>App: Spoken filler ("Great question, let us clarify that...")
-    Live->>App: Tool Call: search_course_materials({ query: "X relation" })
-    App->>DB: Vector RPC match_documents
-    DB-->>App: Context chunks
-    App->>Live: sendToolResponse({ result: chunks })
-    Live-->>App: Spoken Answer + Natural Pivot: "Now, let us continue our topic."
-    
-    %% Phase 5: Completion
-    Live->>App: Tool Call: complete_lecture({ summary: "All topics covered." })
-    App->>DB: Update sessions.status = 'ended'
-    App->>Lecturer: Display Lecture Summary & Student Analytics
+    Note over Live, DB: Autonomous Topic Transition
+    Live->>Client: Tool Call: advance_topic({ completedTopicId: "t1", nextTopicId: "t2" })
+    Client->>API: POST /api/classroom/[id]/advance-topic (CAS Leased)
+    API->>DB: Update sessions.current_topic_id = 't2'
+    API->>DB: Realtime Broadcast TOPIC_CHANGED
+    DB-->>Student: Update SessionProgressHUD (Covered: Topic 1, Current: Topic 2)
+    Client->>Live: sendToolResponse({ functionResponses: [{ id, name, response: { acknowledged: true } }] })
+
+    Note over Student, Live: Phase 4: Student Voice Interruption & Floor Control
+    Student->>DB: Request Mic (Hand Raise via Realtime)
+    Lecturer->>Client: Approve Student Question
+    Student->>LK: Stream Mic Audio to Room
+    LK->>Client: Receive Student Audio
+    Client->>Live: sendRealtimeInput({ audio: studentPCM16, audioStreamEnd: true })
+    Live-->>Client: Interrupted Signal -> Stop AI playback
+    Live->>Client: Tool Call: search_course_materials({ query: "specific equation" })
+    Client->>API: POST /api/classroom/[id]/search-materials
+    API->>DB: Execute match_documents RPC
+    API-->>Client: Top grounded chunks
+    Client->>Live: sendToolResponse({ functionResponses: [{ id, name, response: { chunks } }] })
+    Live-->>Client: Spoken answer to student + Smooth return to Topic 2
+
+    Note over Lecturer, Live: Phase 5: Lesson Conclusion
+    Live->>Client: Tool Call: advance_topic({ event: "session_completed" })
+    Client->>API: POST /api/classroom/[id]/advance-topic (Complete session)
+    API->>DB: Update sessions.status = 'ended', completed_at = now()
+    Client->>Live: Close WebSocket connection
+    Client->>LK: Disconnect Room
 ```
 
 ---
 
-## 6. Covered / Current / Remaining Topic Progress Management
+## 6. Progress Management & Tool Calling Protocols
 
-### 6.1 State Segmentation Contract
-
-The classroom maintains an authoritative tripartite state:
+### 6.1 State Contract
 
 ```typescript
-export interface RoadmapProgressState {
-  coveredTopics: RoadmapTopic[];     // status === 'completed'
-  currentTopic: RoadmapTopic | null; // status === 'in_progress'
-  remainingTopics: RoadmapTopic[];   // status === 'pending'
-  progressPercentage: number;
+export interface SessionLearningProgress {
+  roadmapVersion: string;
+  currentTopicId: string | null;
+  coveredTopicIds: string[];
+  completedAt: string | null;
+  progressVersion: number;
 }
 ```
 
-### 6.2 Topic Transition via Asynchronous Tool Calling (Function Calling)
-
-Gemini controls topic advancement autonomously via non-blocking function calls.
-
-#### Tool Declarations (`lib/gemini-live/tools.ts`)
+### 6.2 Tool Definitions (`model-next/features/classroom/services/liveTools.ts`)
 
 ```typescript
-export const classroomTools = [
-  {
-    name: "advance_topic",
-    description: "Call this when completing the current topic and transitioning to the next topic in the roadmap, or when resuming a previous topic.",
-    behavior: "NON_BLOCKING", // Required for Gemini 3.8 Live
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        completedTopicId: {
-          type: "STRING",
-          description: "ID of the topic that was just completed.",
-        },
-        nextTopicId: {
-          type: "STRING",
-          description: "ID of the next topic being introduced.",
-        },
-        transitionReason: {
-          type: "STRING",
-          description: "Brief rationale (e.g. 'Student doubts resolved; concept mastered').",
-        },
+import { FunctionDeclaration, Type } from "@google/genai";
+
+export const advanceTopicDeclaration: FunctionDeclaration = {
+  name: "advance_topic",
+  description: "Transition progress when completing a topic, starting the next topic, or ending the session.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      event: {
+        type: Type.STRING,
+        enum: ["topic_started", "topic_completed", "topic_revisited", "session_completed"],
+        description: "Pedagogical progress event.",
       },
-      required: ["nextTopicId"],
-    },
-  },
-  {
-    name: "project_media",
-    description: "Display a visual diagram, circuit, slide, or figure on the classroom projection screen.",
-    behavior: "NON_BLOCKING",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        assetId: {
-          type: "STRING",
-          description: "ID of the media asset from the roadmap.",
-        },
-        caption: {
-          type: "STRING",
-          description: "Spoken caption or context for the projection.",
-        },
+      completedTopicId: {
+        type: Type.STRING,
+        description: "ID of the completed topic.",
       },
-      required: ["assetId"],
-    },
-  },
-  {
-    name: "search_course_materials",
-    description: "Retrieve specific textbook facts, definitions, or equations from course materials when a student asks a detailed question.",
-    behavior: "NON_BLOCKING",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        query: {
-          type: "STRING",
-          description: "Search query for course vector embeddings.",
-        },
+      nextTopicId: {
+        type: Type.STRING,
+        description: "ID of the topic being started (omit if event is session_completed).",
       },
-      required: ["query"],
+      transitionReason: {
+        type: Type.STRING,
+        description: "Pedagogical reason for the transition.",
+      },
     },
+    required: ["event"],
   },
-];
+};
+
+export const searchCourseMaterialsDeclaration: FunctionDeclaration = {
+  name: "search_course_materials",
+  description: "Retrieve specific factual context, formulas, or excerpts from uploaded course textbooks.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: "Targeted search query for semantic vector lookup.",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+export const projectMediaDeclaration: FunctionDeclaration = {
+  name: "project_media",
+  description: "Display an extracted textbook figure or diagram on the student whiteboard.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      assetId: {
+        type: Type.STRING,
+        description: "UUID of the media asset from the roadmap.",
+      },
+      caption: {
+        type: Type.STRING,
+        description: "Spoken description of the figure.",
+      },
+    },
+    required: ["assetId"],
+  },
+};
 ```
 
-### 6.3 Conductor Handling of Tool Calls
+---
 
-When `onmessage` receives a `toolCall`:
-1. The client matches `advance_topic`.
-2. Updates local Zustand state: moves `completedTopicId` to `coveredTopics`, sets `nextTopicId` as `currentTopic`.
-3. Calls Supabase `PATCH /api/classroom/[sessionId]` to persist `current_topic_id` and `topics_progress` JSON.
-4. Broadcasts `TOPIC_CHANGED` via Supabase Realtime so all connected students' HUDs animate simultaneously.
-5. Returns `session.sendToolResponse({ response: { output: { acknowledged: true } } })` to Gemini Live.
+## 7. Floor Control & Adaptive Learning Workflow
+
+### 7.1 Single-Speaker Classroom Floor Control
+To prevent multiple students from speaking into the Gemini Live conversation at once:
+1. Students join the LiveKit room with microphone muted by default.
+2. A student clicks "Raise Hand" in the UI (broadcast via Supabase Realtime).
+3. The conductor sees the hand-raise queue on the HUD and clicks "Grant Mic".
+4. The backend issues a LiveKit participant permission update enabling the student's mic track.
+5. The student's voice streams via LiveKit to the conductor browser.
+6. The conductor downsizes the audio to 16 kHz PCM and sends it via `sendRealtimeInput()` to Gemini.
+7. Gemini answers the question. When the student is done, the conductor releases the floor, muting the student track.
+
+### 7.2 Maintained Learning Context
+In addition to the raw WebSocket history, the conductor maintains a lightweight learning context:
+- `coveredTopicIds`: Set of finished topics.
+- `struggledConcepts`: Terms or formulas where students asked clarification questions.
+- `activeTopicIndex`: Current pedagogical focus.
+
+When a student asks to revisit a topic, Gemini handles it naturally and, if necessary, emits `advance_topic({ event: "topic_revisited", nextTopicId: "t1" })`. The HUD updates backwards without corrupting session history.
 
 ---
 
-## 7. Adaptive Teaching & Student-Interaction Workflow
+## 8. Audio Pipeline & Interruption Engineering
 
-### 7.1 Zero-Call Adaptive Mechanism
+### 8.1 Technical Specifications
 
-In the legacy design, adapting teaching required an explicit HTTP round-trip and a new prompt call. In the Gemini Live API, **adaptation occurs organically within the single live conversation stream**:
-
-1. **Pacing & Comprehension Checks**:
-   - The system instructions direct Gemini to inject rhetorical or conversational checkpoints: *"Does that distinction make sense to everyone?"*
-2. **Student Interruptions**:
-   - When a student speaks, server-side Voice Activity Detection (VAD) immediately fires an `interrupted: true` event.
-   - The browser immediately silences audio output and flushes buffered audio frames.
-   - Gemini naturally pauses its lecture and replies: *"Yes, Aryan, what is your doubt regarding cache coherence?"*
-3. **Revisiting Previous Topics**:
-   - If a student asks about a concept from a topic already marked as `covered`, Gemini answers using the topic context already present in its 128k token context window.
-   - If an extensive review is warranted, Gemini calls `advance_topic({ nextTopicId: "topic_1", transitionReason: "Student requested review of fundamental concepts" })`.
-   - The HUD updates smoothly without resetting session state.
-4. **Seamless Continuation**:
-   - Once the doubt is resolved, Gemini resumes from the exact pedagogical subtopic without repeating already explained concepts: *"With that cleared up, let us return to our discussion on pipelined hazard detection..."*
-
----
-
-## 8. Gemini Live Audio Streaming & Interruption Handling
-
-### 8.1 Audio Protocol Specifications
-
-| Direction | Format | Sample Rate | Bit Depth | Channels | MIME Type |
+| Direction | Source / Sink | Format | Sample Rate | Bit Depth | Resampling |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Input (Mic)** | Raw PCM Little-Endian | 16,000 Hz | 16-bit | Mono | `audio/pcm;rate=16000` |
-| **Output (Speaker)** | Raw PCM Little-Endian | 24,000 Hz | 16-bit | Mono | Standard Web Audio stream |
+| **Input (Mic)** | Conductor / Active Student | Linear PCM Little-Endian | 16,000 Hz | 16-bit Mono | AudioWorklet Resampler (44.1k/48k -> 16k) |
+| **Output (Gemini)** | Gemini Live WebSocket | Linear PCM Little-Endian | 24,000 Hz | 16-bit Mono | Native 24kHz Web Audio Context |
+| **Distribution** | LiveKit SFU to Students | Opus WebRTC Track | Dynamic (48kHz) | 16-bit Mono | Browser WebRTC Opus Encoder (32–48 kbps) |
 
-### 8.2 Client-Side Audio Pipeline (`lib/gemini-live/audio-streamer.ts`)
+### 8.2 Low-Latency Resampling Worklet (`model-next/public/worklets/pcm-resampler.js`)
 
-```typescript
-// Input Audio: Capturing Student/Lecturer Mic
-export class LiveAudioRecorder {
-  private audioCtx: AudioContext | null = null;
-  private processor: ScriptProcessorNode | AudioWorkletNode | null = null;
-  private stream: MediaStream | null = null;
-
-  async start(onAudioChunk: (base64PCM: string) => void) {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        sampleRate: 16000,
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
-    });
-
-    this.audioCtx = new AudioContext({ sampleRate: 16000 });
-    const source = this.audioCtx.createMediaStreamSource(this.stream);
-
-    // Downsample/convert Float32Array to 16-bit PCM Little-Endian
-    const workletNode = new AudioWorkletNode(this.audioCtx, "pcm-recorder-worklet");
-    workletNode.port.onmessage = (event) => {
-      const pcm16 = event.data; // Int16Array
-      const base64 = bufferToBase64(pcm16.buffer);
-      onAudioChunk(base64);
-    };
-
-    source.connect(workletNode);
-    workletNode.connect(this.audioCtx.destination);
+```javascript
+class PCMResamplerProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.targetSampleRate = 16000;
   }
 
-  stop() {
-    this.stream?.getTracks().forEach((t) => t.stop());
-    this.audioCtx?.close();
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (!input || !input[0]) return true;
+
+    const inputData = input[0]; // Float32Array from microphone
+    const sampleRateRatio = currentFrame / this.targetSampleRate; // Context rate down to 16k
+    
+    // Decimate / resample to 16,000 Hz
+    const resampledLength = Math.round(inputData.length / (sampleRate / 16000));
+    const pcm16 = new Int16Array(resampledLength);
+    
+    for (let i = 0; i < resampledLength; i++) {
+      const srcIdx = Math.round(i * (sampleRate / 16000));
+      const s = Math.max(-1, Math.min(1, inputData[srcIdx]));
+      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+
+    this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+    return true;
   }
 }
+registerProcessor("pcm-resampler", PCMResamplerProcessor);
 ```
 
-### 8.3 Output Playback with Immediate Interruption Flush
+### 8.3 Bounded Audio Jitter Buffer & Instant Flush
 
 ```typescript
 export class LiveAudioPlayer {
   private audioCtx: AudioContext;
   private scheduledTime: number = 0;
-  private activeSources: AudioBufferSourceNode[] = [];
+  private activeSources: Set<AudioBufferSourceNode> = new Set();
   public analyserNode: AnalyserNode;
 
   constructor() {
@@ -484,9 +631,7 @@ export class LiveAudioPlayer {
   }
 
   playChunk(pcmData: Int16Array) {
-    if (this.audioCtx.state === "suspended") {
-      this.audioCtx.resume();
-    }
+    if (this.audioCtx.state === "suspended") this.audioCtx.resume();
 
     const float32 = new Float32Array(pcmData.length);
     for (let i = 0; i < pcmData.length; i++) {
@@ -505,20 +650,19 @@ export class LiveAudioPlayer {
     source.start(startTime);
     this.scheduledTime = startTime + buffer.duration;
 
-    this.activeSources.push(source);
-    source.onended = () => {
-      this.activeSources = this.activeSources.filter((s) => s !== source);
-    };
+    this.activeSources.add(source);
+    source.onended = () => this.activeSources.delete(source);
   }
 
-  stopAndFlush() {
+  // Interruption Handling: Fired immediately on server interrupted signal
+  flush() {
     for (const source of this.activeSources) {
       try {
         source.stop();
         source.disconnect();
       } catch {}
     }
-    this.activeSources = [];
+    this.activeSources.clear();
     this.scheduledTime = 0;
   }
 }
@@ -526,259 +670,199 @@ export class LiveAudioPlayer {
 
 ---
 
-## 9. RAG & Course-Material Integration During Live Sessions
+## 9. RAG & Course-Material Integration
 
-Live conversations require grounding without halting the voice experience. The architecture uses a **two-tier hybrid grounding model**:
+### 9.1 Server-Side RAG Handler (`app/api/classroom/[sessionId]/search-materials/route.ts`)
 
-### Tier 1: In-Context Static Grounding (Zero Latency)
-- When initializing the Live API session via `types.LiveConnectConfig`, the lightweight topic roadmap, core definitions, and visual asset inventory are passed inside `systemInstruction`.
-- This ensures Gemini already knows the course terminology, syllabus boundaries, and available diagrams without making any external queries.
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { GoogleGenAI } from "@google/genai";
 
-### Tier 2: Real-Time Vector RAG via Asynchronous Tool Call
-- If a student asks a highly specific technical doubt (e.g., *"Does the textbook define equation 4.2 with relativistic mass or invariant mass?"*), Gemini triggers the non-blocking tool:
-  `search_course_materials({ query: "equation 4.2 relativistic mass" })`
-- **Non-blocking Behavior**: Because the tool declaration has `behavior: "NON_BLOCKING"`, Gemini speaks natural conversational fillers (*"Let me look up the exact formula from your textbook..."*) while the search runs in the background.
-- The client queries Supabase vector RPC:
-  ```sql
-  SELECT content, metadata FROM match_documents(
-    query_embedding := :embedding,
-    match_threshold := 0.65,
-    match_count := 3,
-    course_id_filter := :courseId
-  );
-  ```
-- The client returns the text chunks via `session.sendToolResponse()`.
-- Gemini incorporates the exact definition into its spoken explanation.
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  try {
+    const { sessionId } = await params;
+    const { query, courseId } = await req.json();
+
+    if (!query || !courseId) {
+      return NextResponse.json({ error: "Missing query or courseId" }, { status: 400 });
+    }
+
+    const supabase = createAdminClient();
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+    // Generate query embedding using existing 768-dim model
+    const embeddingResponse = await ai.models.embedContent({
+      model: "models/gemini-embedding-001",
+      contents: query,
+      config: { outputDimensionality: 768 },
+    });
+
+    const embedding = embeddingResponse.embedding?.values;
+    if (!embedding) throw new Error("Failed to generate embedding");
+
+    // Execute PostgreSQL pgvector RPC match_documents
+    const { data: matches, error } = await supabase.rpc("match_documents", {
+      query_embedding: embedding,
+      match_threshold: 0.65,
+      match_count: 3,
+      course_id_filter: courseId,
+    });
+
+    if (error) throw error;
+
+    const chunks = (matches || []).map((m: { content: string }) => m.content).join("\n\n---\n\n");
+    return NextResponse.json({ chunks });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("RAG search error:", msg);
+    return NextResponse.json({ chunks: "", error: msg }, { status: 500 });
+  }
+}
+```
 
 ---
 
-## 10. Exact Existing Files to Modify, Retain, or Replace
+## 10. File-by-File Impact Matrix
 
-| File Path | Action | Rationale / Architectural Impact |
+| File Path | Action | Architectural Scope & Responsibility |
 | :--- | :--- | :--- |
-| `model-next/ai/genkit.ts` | **Retain** | Retained for background batch tasks (PDF processing, roadmap generation). |
-| `model-next/ai/model-manager.ts` | **Retain & Extend** | Retain fallback logic for text tasks; add discovery and health checking for `gemini-3.8-live` and `gemini-3.8-live-extended-thinking`. |
-| `model-next/ai/flows/generate-script.ts` | **Replace / Deprecate** | Replace with `model-next/ai/flows/generate-roadmap.ts`. Monolithic script generation is obsolete in the live model. |
-| `model-next/ai/flows/answer-question.ts` | **Modify / Keep as Fallback** | Retain for offline chat or text-only fallback; live audio doubts are handled natively in the Live WebSocket session. |
-| `model-next/app/course/[courseId]/sessions/new/page.tsx` | **Modify** | Update session creation to generate the Topic Roadmap instead of the 1,200-word script. Replace the full script editor with a draggable topic roadmap modal. |
-| `model-next/app/api/classroom/[sessionId]/generate-script/route.ts` | **Replace** | Replace with `/api/classroom/[sessionId]/generate-roadmap/route.ts`. |
-| `model-next/app/api/classroom/[sessionId]/route.ts` | **Modify** | Add `roadmap`, `current_topic_id`, and `topics_progress` to the allowed update fields whitelist. Keep conductor lease arbitration. |
-| `model-next/features/classroom/hooks/useClassroom.ts` | **Refactor** | Decouple from sequential `parseLectureScript` items and HeadTTS speech queue. Integrate `useGeminiLiveSession` to manage live audio stream and topic progress. |
-| `model-next/features/classroom/store/classroomStore.ts` | **Modify** | Add roadmap state fields: `topics: RoadmapTopic[]`, `currentTopicId: string`, `coveredTopicIds: string[]`, `isLiveStreaming: boolean`. |
-| `model-next/features/classroom/types/lecture-item.ts` | **Deprecate / Adapt** | Retain for backward compatibility; add roadmap types (`features/classroom/types/roadmap.ts`) as primary interface. |
-| `model-next/features/classroom/components/SessionProgressHUD.tsx` | **Modify** | Upgrade HUD to display Topic Segments (e.g. *"Topic 3/6: Dynamic Pipelining • 45% of Lecture"*), active topic badges, and completion checks. |
-| `model-next/features/classroom/components/LectureScriptModal.tsx` | **Replace / Rename** | Replace with `LectureRoadmapModal.tsx` to view, reorder, add, or delete topics rather than editing raw speech sentences. |
-| `model-next/features/classroom/hooks/useSpeechQueue.ts` | **Deprecate for Live Mode** | In live mode, audio arrives as raw PCM via WebSocket. Deprecate client-side TTS prefetch queues in favor of `LiveAudioPlayer`. |
-| `model-next/features/classroom/services/tts.ts` | **Retain as Fallback** | Keep for pre-recorded announcements or text-only students; not used in live lecture stream. |
-| `model-next/lib/tts/ttsProviders.ts` | **Retain as Fallback** | Keep HeadTTS / ElevenLabs providers for legacy sessions and text fallback. |
-| `model-next/features/avatar/hooks/useLipSync.ts` | **Modify** | Add real-time frequency-spectrum/RMS driver powered by Web Audio `AnalyserNode`. |
-| `model-next/features/avatar/components/AvatarLips.tsx` | **Retain** | Retains existing Three.js morph targets (`jawOpen`, `mouthOpen`, `aa`, `E`, `ou`). |
-| `ai-backend/main.py` | **Retain & Extend** | Retain for PDF extraction, chunking, and image extraction; add roadmap generation endpoint `/roadmap`. |
+| `model-next/ai/model-manager.ts` | **Retain (REST Only)** | Retains static generation fallback for text prompts. Do NOT mix Live API checks here. |
+| `model-next/features/classroom/services/geminiLiveClient.ts` | **New** | Dedicated Live API connection wrapper, ephemeral token setup, and reconnection logic. |
+| `model-next/ai/flows/generate-script.ts` | **Retain as Fallback** | Retain for legacy/scripted mode; do not delete until Live mode is fully verified. |
+| `model-next/ai/flows/generate-roadmap.ts` | **New** | Fast JSON topic roadmap generation. |
+| `model-next/app/api/classroom/[sessionId]/ask/route.ts` | **Retain (Chat Fallback)** | Keeps text-based student chat working when Live voice is inactive. |
+| `model-next/app/api/classroom/[sessionId]/search-materials/route.ts` | **New** | Authenticated server-side RAG tool handler for live voice queries. |
+| `model-next/app/api/classroom/[sessionId]/live-token/route.ts` | **New** | Generates short-lived ephemeral tokens via `ai.authTokens.create`. |
+| `model-next/app/api/classroom/[sessionId]/livekit-token/route.ts` | **New** | Issues LiveKit WebRTC room tokens for conductors and students. |
+| `model-next/features/classroom/hooks/useClassroom.ts` | **Refactor** | Implements `teachingMode` abstraction (`"live"` vs `"scripted"`). In live mode, delegates audio to LiveKit and progression to `useGeminiLiveSession`. |
+| `model-next/features/classroom/hooks/useSpeechQueue.ts` | **Retain as Fallback** | Active in scripted mode; bypassed in Live mode. |
+| `model-next/features/avatar/hooks/useLipSync.ts` | **Modify** | Adds real-time RMS amplitude jaw-opening driver connected to `LiveAudioPlayer.analyserNode`. |
+| `ai-backend/services/embedder.py` | **Retain** | Preserves `gemini-embedding-001` (768 dimensions) without breaking database vectors. |
+| `db/migrations/000_initial_schema.sql` | **Active Migration** | Single source of truth for full database schema. |
 
 ---
 
-## 11. New Files/Modules and Their Responsibilities
+## 11. New Modules and Dependencies
 
+### 11.1 New NPM Dependencies (`model-next/package.json`)
+```bash
+pnpm add @google/genai livekit-client livekit-server-sdk
+```
+
+### 11.2 Directory Additions
 ```
 model-next/
 ├── features/
 │   ├── classroom/
-│   │   ├── hooks/
-│   │   │   └── useGeminiLiveSession.ts     # Core hook managing WebSocket lifecycle, VAD, tools, resumption
 │   │   ├── services/
-│   │   │   ├── geminiLiveClient.ts         # Wrapper around @google/genai LiveClient
-│   │   │   ├── liveAudioPlayer.ts          # 24kHz Web Audio buffer queue with instant flush on interrupt
-│   │   │   └── liveAudioRecorder.ts        # 16kHz PCM mic capture with AudioWorklet
-│   │   ├── components/
-│   │   │   └── LectureRoadmapModal.tsx     # Lecturer roadmap inspector, reorderer, and editor
+│   │   │   ├── geminiLiveClient.ts       # Live WebSocket manager
+│   │   │   ├── liveTools.ts              # Function declarations
+│   │   │   ├── livekitService.ts         # LiveKit audio track publishing
+│   │   │   ├── liveAudioPlayer.ts        # 24kHz Web Audio + Analyser
+│   │   │   └── liveAudioRecorder.ts      # AudioWorklet 16kHz resampler
+│   │   ├── hooks/
+│   │   │   └── useGeminiLiveSession.ts   # Conductor Live orchestration hook
 │   │   └── types/
-│   │       └── roadmap.ts                  # TypeScript definitions for topics, subtopics, and progress
-├── app/
-│   └── api/
-│       └── classroom/
-│           └── [sessionId]/
-│               ├── live-token/route.ts      # Issues secure ephemeral token via client.auth_tokens.create
-│               └── generate-roadmap/route.ts# Generates structured SessionRoadmap from course materials
+│   │       └── roadmap.ts                # Roadmap & learning progress types
+├── public/
+│   └── worklets/
+│       └── pcm-resampler.js              # 16kHz audio decimation worklet
+└── app/
+    └── api/
+        └── classroom/
+            └── [sessionId]/
+                ├── live-token/route.ts
+                ├── livekit-token/route.ts
+                ├── generate-roadmap/route.ts
+                ├── advance-topic/route.ts
+                └── search-materials/route.ts
 ```
 
 ---
 
-## 12. Database Changes, APIs, and Environment Variables
+## 12. Database Changes & Configuration
 
-### 12.1 Supabase Database Migration (`supabase-gemini-live.sql`)
+### 12.1 Database Migration Reference
+The baseline schema is captured in:
+- `db/migrations/000_initial_schema.sql`
+- `supabase/migrations/20261115000000_initial_schema.sql`
 
-```sql
--- Migration: Add Roadmap and Live Session columns to public.sessions
-ALTER TABLE public.sessions
-  ADD COLUMN IF NOT EXISTS roadmap JSONB DEFAULT '{"topics": []}'::jsonb,
-  ADD COLUMN IF NOT EXISTS current_topic_id TEXT,
-  ADD COLUMN IF NOT EXISTS covered_topic_ids JSONB DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS live_resumption_handle TEXT,
-  ADD COLUMN IF NOT EXISTS live_session_stats JSONB DEFAULT '{}'::jsonb;
-
--- Index for querying sessions by active topic
-CREATE INDEX IF NOT EXISTS idx_sessions_current_topic ON public.sessions(current_topic_id);
+Compatible with Supabase CLI:
+```powershell
+npx supabase db push
 ```
 
-### 12.2 API Endpoints
-
-#### 1. `POST /api/classroom/[sessionId]/generate-roadmap`
-- **Role**: Lecturer Only.
-- **Input**: `{ courseId, topic, sources, customPrompt, targetDurationMinutes }`.
-- **Output**: `{ status: "success", roadmap: SessionRoadmap }`.
-- **Action**: Generates 5–8 topics from course chunks, updates `sessions.roadmap`.
-
-#### 2. `POST /api/classroom/[sessionId]/live-token`
-- **Role**: Lecturer / Room Conductor.
-- **Action**: Uses server-side `GEMINI_API_KEY` to mint an ephemeral token with restrictions:
-  ```typescript
-  import { GoogleGenAI } from "@google/genai";
-
-  const ai = new GoogleGenAI({ httpOptions: { apiVersion: "v1beta" } });
-
-  export async function POST(req: NextRequest, { params }: { params: { sessionId: string } }) {
-    // Authenticate lecturer & verify conductor lease...
-    const now = new Date();
-    const expireTime = new Date(now.getTime() + 45 * 60 * 1000).toISOString();
-
-    const token = await ai.authTokens.create({
-      config: {
-        uses: 1,
-        expireTime,
-        newSessionExpireTime: new Date(now.getTime() + 2 * 60 * 1000).toISOString(),
-        liveConnectConstraints: {
-          model: "gemini-3.8-live",
-          config: {
-            sessionResumption: {},
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: session.voice_id?.includes("female") ? "Aoede" : "Puck",
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({
-      token: token.name,
-      roadmap: session.roadmap,
-      resumptionHandle: session.live_resumption_handle,
-    });
-  }
-  ```
-
-### 12.3 Environment Variables
+### 12.2 Environment Variables Required
 
 ```env
-# Gemini API Configuration (Google AI Studio)
+# Google AI Studio / Gemini API
 GEMINI_API_KEY="AIzaSy..."
 GEMINI_LIVE_MODEL="gemini-3.8-live"
-GEMINI_THINKING_LIVE_MODEL="gemini-3.8-live-extended-thinking"
 
-# Feature Flag
-NEXT_PUBLIC_ENABLE_GEMINI_LIVE="true"
+# LiveKit WebRTC SFU Cloud or Self-Hosted
+LIVEKIT_API_KEY="APIdummykey..."
+LIVEKIT_API_SECRET="sec_dummysecret..."
+NEXT_PUBLIC_LIVEKIT_URL="wss://intelliclass-live.livekit.cloud"
+
+# Supabase Database & Auth
+NEXT_PUBLIC_SUPABASE_URL="https://ougxttjcgonjgstksham.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
+SUPABASE_SERVICE_ROLE_KEY="sb_secret_..."
+DATABASE_URL="postgresql://postgres.ougxttjcgonjgstksham:wsxtgbqazB5%236914@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
 ```
 
 ---
 
-## 13. Avatar Synchronization Strategy (Direct Audio-Driven Lip Sync)
-
-### 13.1 The Problem
-In the existing codebase, `useLipSync.ts` expects an array of pre-computed viseme timecodes (`HeadTTSData`: `vtimes`, `visemes`, `vdurations`) produced by the HeadTTS service. The Gemini Live API streams **raw 24kHz PCM audio chunks over WebSockets**, with no accompanying pre-computed phoneme timing metadata.
-
-### 13.2 The Solution: Real-Time Web Audio Spectral Envelope Tracking
-We enhance `useLipSync.ts` with real-time frequency-domain and volume-envelope analysis via the Web Audio API's `AnalyserNode`.
+## 13. Avatar Synchronization Strategy
 
 ```mermaid
 flowchart LR
-    LivePCM["Gemini 24kHz PCM Audio"] --> WebAudio["Web Audio AudioContext"]
+    LiveAudio["Incoming 24kHz PCM"] --> WebAudio["Web Audio BufferSource"]
     WebAudio --> Analyser["AnalyserNode (FFT 256)"]
-    Analyser --> OutputSpeaker["Destination (Speakers)"]
-    Analyser --> FeatureExtraction["Feature Extraction:
-- RMS Volume (Jaw Open)
-- Low Formant 300-800Hz (Vowel aa/O)
-- High Formant 1.5-3kHz (Vowel E/ih)"]
-    FeatureExtraction --> MorphTargets["Three.js SkinnedMesh
+    Analyser --> Speakers["Local Speakers (Conductor)"]
+    Analyser --> RMS["Time-Domain RMS Energy Calculator"]
+    RMS --> Smooth["Asymmetric Smoother:
+- Attack: 0.8 (Rapid opening)
+- Release: 0.3 (Gentle close)"]
+    Smooth --> Morph["Three.js Morph Targets:
 - jawOpen (0.02 - 0.22)
-- viseme_aa, viseme_E, viseme_ou"]
-    MorphTargets --> Render["Three.js Frame (60 FPS)"]
+- viseme_aa (RMS scaled)
+- viseme_ou (sub-harmonic)"]
+    Morph --> Render["Three.js SkinnedMesh (60 FPS)"]
 ```
 
-### 13.3 Algorithmic Morph Target Mapping
-
-Inside `useLipSync.ts`, we connect to `liveAudioPlayer.analyserNode`:
-
-1. **Jaw Opening (`jawOpen` / `mouthOpen`)**:
-   - Compute Root-Mean-Square (RMS) amplitude of the frequency bin array.
-   - Smooth with attack multiplier (0.8) and release multiplier (0.3) to avoid unnatural jitter.
-   - Clamp between `0.02` (resting mouth) and `0.22` (natural conversational maximum).
-2. **Vowel Visemes (`viseme_aa`, `viseme_E`, `viseme_ou`)**:
-   - **Low-band energy (300 Hz – 800 Hz)**: Corresponds to open vowels (`aa`, `oh`).
-   - **High-band energy (1,500 Hz – 3,200 Hz)**: Corresponds to front vowels (`E`, `ih`).
-   - **Deep bass energy (100 Hz – 250 Hz)**: Corresponds to rounded vowels (`ou`, `U`).
-3. **Synchronization**:
-   - Audio is sent to the speakers in the same audio buffer frame where the frequency data is read.
-   - **A/V Offset: < 5ms (imperceptible)**. Completely eliminates network drift and clock-skew calculation bugs.
+- Synchronized directly to the Web Audio clock.
+- Eliminates inaccurate linguistic claims (no claiming 300Hz is always vowel `aa`).
+- Benchmarking criteria: Visual jaw movement aligns within **±1 video frame (~16.7ms @ 60 FPS)** of audible speech.
 
 ---
 
-## 14. Architecture Decisions & Trade-Offs
+## 14. Architecture Decisions & Trade-Off Matrix
 
-### 14.1 WebSocket Connection Strategy: Direct Browser vs. Backend Proxy vs. LiveKit
-
-| Evaluation Dimension | Option A: Direct Browser WebSocket (Recommended) | Option B: Backend Proxy (Node.js / FastAPI) | Option C: LiveKit / Daily WebRTC Partner |
+| Evaluation Dimension | Direct Browser Live WebSocket + LiveKit SFU (Approved) | Pure Supabase Realtime Audio | Node.js Backend WebSocket Proxy |
 | :--- | :--- | :--- | :--- |
-| **Latency** | **Lowest (150–300ms)**. Direct route between client and Google's edge. | Higher (+150–300ms). Double-hop through application server. | Low (200–350ms). Mediated through WebRTC SFU. |
-| **Server Bandwidth** | **Zero server bandwidth.** Audio streams directly between browser and Gemini. | **Severe server bottleneck.** 384 kbps audio per active session proxied through Node.js. | Offloaded to LiveKit Cloud / self-hosted SFU. |
-| **Security** | **Completely Secure.** Ephemeral tokens minted server-side with strict `LiveConnectConstraints`. | Secure. Master key stays on server. | Secure. LiveKit token auth. |
-| **Infrastructure Overhead** | **Zero additional infrastructure.** Uses existing Next.js + Supabase. | High. Requires scaling WebSocket proxy servers and memory management. | Medium to High. Requires deploying and maintaining LiveKit server or paying cloud fees. |
-| **Verdict** | **Recommended.** Best performance, lowest latency, zero proxy overhead. | Rejected. Introduces unnecessary infrastructure bottlenecks. | Unnecessary for single-broadcaster classroom. Supabase Realtime already handles student sync. |
-
-### 14.2 Multi-Participant Classroom Synchronization
-
-To keep all students synchronized without running individual Gemini sessions for every student:
-1. **The Conductor (Lecturer tab)** establishes the Gemini Live WebSocket connection.
-2. **Audio & Subtitle Relaying**:
-   - The conductor streams the received 24kHz audio and live output transcription to students using **Supabase Realtime Broadcast**.
-   - Bandwidth: 384 kbps (or Opus compressed to ~48 kbps) over Realtime channel `classroom:{sessionId}`.
-3. **Student Question Privilege**:
-   - When a student raises a hand and is called on, the student's mic audio is sent to the Conductor over Supabase Realtime.
-   - The conductor forwards the audio chunk directly to Gemini via `sendRealtimeInput()`.
-   - **Result**: Only **1 active Gemini Live session** is billed per classroom, serving hundreds of students seamlessly.
-
-### 14.3 Retention of HeadTTS and ElevenLabs
-
-- **Recommendation**: **Retain as offline fallback.**
-- The existing HeadTTS / ElevenLabs integration in `model-next/lib/tts/ttsProviders.ts` remains intact as a reliable fallback for asynchronous lecture reviews, offline playback, or when Gemini API quota is exhausted.
+| **Audio Fan-Out** | **WebRTC Opus (32–48 kbps)**. Scalable to 500+ students per room. | Raw PCM broadcast. Exceeds message quotas (>50 msgs/sec). | High Node.js memory pressure and bandwidth costs. |
+| **Classroom Floor Control** | Native WebRTC track enabling/disabling per student. | Uncontrolled text/audio packet flooding. | Complex server-side audio multiplexing. |
+| **Audio Latency** | **< 150ms** global delivery to students. | Unbounded buffer delays (>1.5s). | 350–600ms due to double-hop. |
+| **AI Billing Model** | **1 Gemini session** per classroom. | 1 Gemini session per classroom. | 1 Gemini session per classroom. |
+| **Reliability** | Production-proven SFU architecture. | Packet loss & disconnects under load. | Single point of server failure. |
 
 ---
 
-## 15. Free-Tier Limitations, Costs, Security, and Scalability
+## 15. Costs, Quotas, Privacy, and Scalability
 
-### 15.1 Pricing & Quotas
+### 15.1 Cost Modeling (30-Minute Lecture)
+- **Gemini Live API**: ~$0.42 to $0.69 (at $0.005/min input, $0.018/min output).
+- **LiveKit Cloud Media Transport**: 1 publisher + 100 subscribers @ 48 kbps Opus = ~216 MB per 30 minutes. Cost: **<$0.08 per session**.
+- **Total Infrastructure Cost**: **~$0.50 to $0.77 per complete 30-minute interactive college lecture** serving 100 students.
 
-#### Pricing (Pay-as-you-go / Paid Tier)
-- **Audio Input**: $3.00 / 1M tokens (~$0.005 / minute).
-- **Audio Output**: $12.00 / 1M tokens (~$0.006 / minute).
-- **Text Input**: $0.75 / 1M tokens.
-- **Text Output**: $4.50 / 1M tokens.
-- **Cost per 30-Minute Lecture**:
-  - Continuous audio in/out: **~$0.30 to $0.45 per full 30-minute lecture session**.
-  - Compared to ElevenLabs ($0.30 per 1,000 characters = ~$2.50 per 30 min lecture), Gemini Live is **~80% cheaper** while providing native bidirectional intelligence.
-
-#### Free-Tier Quota & Limits
-- **Concurrent Live Sessions**: Maximum 3 concurrent active WebSocket sessions on the free tier.
-- **Session Duration Limit**: Connections terminate after ~10–15 minutes.
-  - **Mitigation**: Implement **Session Resumption** (`sessionResumption: {}`) and **Context Window Compression**. When receiving the `GoAway` signal (60 seconds before disconnect), smoothly reconnect and resume session state using the resumption token.
-
-### 15.2 Security Architecture
-- Master `GEMINI_API_KEY` is **never exposed to client browsers**.
-- The backend mints **ephemeral tokens** with `uses: 1` and a 2-minute creation window, locked to `gemini-3.8-live` and the specific session config.
-- Conductor lease arbitration in Supabase guarantees that only the authorized lecturer tab can speak to the Live API.
+### 15.2 Privacy Compliance
+- Student microphone feeds forwarded to the Live API must have clear UI indicators and consent prompts.
+- Production accounts must use Paid-Tier Google AI keys to ensure audio data is not logged or retained for model training.
 
 ---
 
@@ -786,99 +870,52 @@ To keep all students synchronized without running individual Gemini sessions for
 
 ```mermaid
 flowchart TD
-    subgraph Phase1 ["Phase 1: Roadmap Foundation (Days 1-3)"]
-        P1_1["1. Implement SessionRoadmap Types"]
-        P1_2["2. Build generate-roadmap Genkit Flow"]
-        P1_3["3. Create Supabase Migration (roadmap columns)"]
-        P1_4["4. Build LectureRoadmapModal UI"]
-    end
+    P0["Phase 0: Proof of Concept (Days 1-3)
+- Gemini Live bidirectional WebSocket
+- AudioWorklet 16kHz resampler
+- LiveKit audio publishing to 2 student tabs"]
+    
+    P1["Phase 1: Lightweight Roadmap & Progress (Days 4-6)
+- SessionRoadmap schema & Genkit flow
+- Database migration & Roadmap UI Modal
+- advance_topic tool declaration & CAS lease"]
 
-    subgraph Phase2 ["Phase 2: Live Client & Audio Core (Days 4-7)"]
-        P2_1["5. Implement Ephemeral Token Minting Route"]
-        P2_2["6. Build LiveAudioRecorder (16kHz PCM Worklet)"]
-        P2_3["7. Build LiveAudioPlayer (24kHz Web Audio + Analyser)"]
-        P2_4["8. Enhance useLipSync with Real-time Analyser"]
-    end
+    P2["Phase 2: Conductor Core & Avatar (Days 7-9)
+- useGeminiLiveSession hook
+- LiveAudioPlayer with instant interruption flush
+- Three.js RMS jaw-sync avatar driver"]
 
-    subgraph Phase3 ["Phase 3: Classroom Conductor Integration (Days 8-11)"]
-        P3_1["9. Build useGeminiLiveSession Hook"]
-        P3_2["10. Implement Non-blocking Tools (advance_topic, project_media)"]
-        P3_3["11. Upgrade SessionProgressHUD (Covered/Current/Remaining)"]
-        P3_4["12. Connect Interruption & Realtime Audio Sync"]
-    end
+    P3["Phase 3: Multi-Student LiveKit & Floor Control (Days 10-12)
+- Student LiveKit audio track subscription
+- Hand-raise request and mic granting
+- Authenticated server RAG search-materials"]
 
-    subgraph Phase4 ["Phase 4: Resilience & Verification (Days 12-14)"]
-        P4_1["13. Session Resumption & GoAway Reconnection"]
-        P4_2["14. Fallback to HeadTTS / Static Script Mode"]
-        P4_3["15. End-to-End Latency & Concurrency Benchmarking"]
-    end
+    P4["Phase 4: Resilience, Fallback & Verification (Days 13-14)
+- Session resumption & GoAway handling
+- Scripted teaching mode fallback
+- Latency & audio quality benchmarking"]
 
-    Phase1 --> Phase2
-    Phase2 --> Phase3
-    Phase3 --> Phase4
+    P0 --> P1 --> P2 --> P3 --> P4
 ```
 
-### Detailed Phase Milestones
-
-1. **Phase 1: Roadmap Foundation**:
-   - Create `model-next/features/classroom/types/roadmap.ts`.
-   - Implement `model-next/ai/flows/generate-roadmap.ts` with structured JSON output.
-   - Apply `supabase-gemini-live.sql` to extend the `sessions` table.
-   - Replace the static script modal with `LectureRoadmapModal.tsx` in `model-next/app/course/[courseId]/sessions/new/page.tsx`.
-
-2. **Phase 2: Live Client & Audio Engine**:
-   - Implement `POST /api/classroom/[sessionId]/live-token` using `@google/genai` SDK.
-   - Implement `liveAudioRecorder.ts` using modern AudioWorklet for low-latency 16kHz PCM downsampling.
-   - Implement `liveAudioPlayer.ts` with instantaneous queue flushing upon `interrupted: true`.
-   - Update `useLipSync.ts` to read frequency data from `liveAudioPlayer.analyserNode`.
-
-3. **Phase 3: Classroom Orchestration & Realtime Sync**:
-   - Create `useGeminiLiveSession.ts` to manage the WebSocket lifecycle.
-   - Wire tool calling: Gemini automatically triggers `advance_topic` and `project_media`.
-   - Update `SessionProgressHUD.tsx` to reflect covered, current, and remaining topics.
-   - Broadcast live audio and transcripts over Supabase Realtime to student tabs.
-
-4. **Phase 4: Resilience, Fallbacks, & Acceptance Testing**:
-   - Add session resumption to automatically recover from network drops.
-   - Provide a toggle in settings: "Dynamic Live Professor (Gemini Live)" vs. "Classic Pre-scripted Mode (HeadTTS)".
-   - Run end-to-end latency benchmarks.
-
 ---
 
-## 17. Testing Strategy & Acceptance Criteria
+## 17. Testing Strategy & Measurable Acceptance Criteria
 
-### 17.1 Automated Integration Tests
+### 17.1 Empirical Benchmarks
 
-| Test Suite | Target Component | Success Criteria |
+| Milestone / Metric | Target Acceptance Criteria | Verification Method |
 | :--- | :--- | :--- |
-| `roadmap-generation.test.ts` | `generateRoadmapFlow` | Outputs 4–8 valid topics; adheres to `SessionRoadmap` schema; execution time < 2,500ms. |
-| `live-token.test.ts` | `POST /api/.../live-token` | Returns ephemeral token; rejects unauthorized non-conductor requests; binds `LiveConnectConstraints`. |
-| `audio-pipeline.test.ts` | `LiveAudioRecorder` & `Player` | Input PCM validated at 16kHz mono; output playback handles 24kHz; flush clears active buffers within 15ms. |
-| `tool-dispatch.test.ts` | `useGeminiLiveSession` | Function calls (`advance_topic`) trigger state updates; non-blocking tool responses returned within 100ms. |
-
-### 17.2 End-to-End Acceptance Criteria
-
-1. **Latency Benchmark**:
-   - Spoken interruption to AI silence: **< 100ms**.
-   - Student question to AI spoken response: **< 500ms** (compared to 6–10 seconds in legacy system).
-2. **Pedagogical Continuity**:
-   - When interrupted during Topic 2, the AI professor answers the question, references the student by name, and naturally transitions back to Topic 2 without restarting the topic.
-3. **Progress Integrity**:
-   - As the professor finishes concepts, `advance_topic` fires. The HUD updates smoothly across all student viewports:
-     - *Covered topics* increment.
-     - *Current topic* updates.
-     - *Remaining topics* decrement.
-4. **Visual Synchronization**:
-   - When Gemini introduces a diagram, `project_media` fires. The whiteboard screen immediately projects the diagram without interrupting the audio stream.
-5. **Avatar Lip Sync**:
-   - The 3D avatar's mouth moves in lockstep with spoken audio via Web Audio frequency tracking, with zero noticeable lag and zero dependency on pre-computed viseme arrays.
-6. **Network Resilience**:
-   - Disconnecting the Wi-Fi for 3 seconds causes the client to re-establish the WebSocket using the `resumptionHandle`, resuming the lecture seamlessly without repeating completed topics.
+| **AI Professor Audio Latency** | First audio packet received within **< 450ms** of user speech completion. | Wall-clock timestamp logging in Conductor client. |
+| **Student Fan-Out Latency** | LiveKit WebRTC audio reaches student viewports within **< 180ms**. | WebRTC stats (`getStats()`) round-trip time. |
+| **Interruption Responsiveness** | Conductor audio playback silenced within **< 80ms** of `interrupted: true`. | Timestamp delta between event and `audioPlayer.flush()`. |
+| **Avatar Visual Sync** | Jaw animation matches audible volume within **±1 frame (~16.7ms @ 60 FPS)**. | High-speed video screen recording / frame analysis. |
+| **Roadmap Generation** | 4–8 topics generated in **< 2,000ms** (vs >8,000ms for legacy script). | API response timer on `/api/classroom/[id]/generate-roadmap`. |
+| **Tool Response Loop** | Function responses acknowledged by Gemini in **< 150ms**. | Live SDK `onmessage` tool confirmation latency. |
+| **Session Disconnect Recovery** | Reconnects via `resumptionHandle` within **< 3 seconds** without repeating covered topics. | Simulated network toggle during active lecture. |
 
 ---
 
-## Conclusion & Architectural Recommendation
+## Conclusion
 
-By replacing pre-generated lecture scripts and batch TTS with the **Google Gemini Live API**, IntelliClass AI transitions from a glorified script reader to a **genuine real-time AI Professor**. 
-
-This plan leverages the existing Three.js avatar, Supabase Realtime broadcast layer, and document embedding infrastructure while eliminating the most severe bottlenecks: script generation stalls, TTS synthesis latency, and rigid one-way lectures. The resulting architecture is faster, more cost-effective, pedagogically adaptive, and provides a truly next-generation classroom experience.
+This revised plan delivers an architecturally sound, scalable, and cost-effective system. By using **Google Gemini Live API** for cognitive conversation, **LiveKit SFU** for real-time WebRTC audio distribution, and **Supabase** for authoritative curriculum state, IntelliClass AI gains genuine real-time interactivity while avoiding network and messaging bottlenecks.
