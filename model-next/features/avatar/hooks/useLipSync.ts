@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { HeadTTSData, LipSyncProps } from "../types/lipSync.types";
@@ -185,13 +185,13 @@ export function useLipSync({
   useEffect(() => { lipSyncRef.current = lipSyncData ?? null; }, [lipSyncData]);
   useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
 
-  const resetMouth = () => {
+  const resetMouth = useCallback(() => {
     const h = headRef.current ?? head;
     const t = teethLowerRef.current ?? teethLower;
     resetMeshMorphs(h);
     resetMeshMorphs(t);
     syncTeethWithHead(t, h);
-  };
+  }, [head, teethLower]);
 
   // Reset timers on each new sequence or speech packet arrives
   useEffect(() => {
@@ -205,7 +205,7 @@ export function useLipSync({
       isPlayingRef.current = false;
       resetMouth();
     };
-  }, []);
+  }, [resetMouth]);
 
   // Update playing state
   useEffect(() => {

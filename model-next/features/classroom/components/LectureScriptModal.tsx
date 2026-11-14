@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { LectureItem } from "../types/lecture-item";
 import { parseLectureScript } from "../types/lecture-item";
@@ -84,7 +84,12 @@ export function LectureScriptModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Sync editedScript whenever modal opens or rawScript updates (stripping legacy [PAUSE] tags)
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevRawScript, setPrevRawScript] = useState(rawScript);
+
+  if (open !== prevOpen || rawScript !== prevRawScript) {
+    setPrevOpen(open);
+    setPrevRawScript(rawScript);
     if (open) {
       const sanitized = (rawScript || "").replace(/\[PAUSE\]/gi, " ").trim();
       setEditedScript(sanitized);
@@ -94,7 +99,7 @@ export function LectureScriptModal({
         setViewMode("cards");
       }
     }
-  }, [open, rawScript]);
+  }
 
   // Compute items if not passed explicitly
   const items: LectureItem[] = useMemo(() => {
@@ -586,7 +591,7 @@ export function LectureScriptModal({
             </div>
             <AlertDialogTitle>Delete Generated Script?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to clear this session's generated lecture script? You can still regenerate a fresh script anytime from course materials.
+              Are you sure you want to clear this session&apos;s generated lecture script? You can still regenerate a fresh script anytime from course materials.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-col gap-2">

@@ -16,7 +16,7 @@ import {
   validatePersonaPairing,
   type AvatarModelId,
 } from "@/features/avatar";
-import type { VoiceOption, TTSModelOption, TTSProviderId, VoiceGender } from "@/features/classroom/types/speech";
+import type { VoiceOption, TTSModelOption } from "@/features/classroom/types/speech";
 import { ALL_DEFAULT_VOICE_OPTIONS } from "@/features/classroom/constants/voices";
 import {
   DEFAULT_AVATAR_MODEL,
@@ -24,7 +24,6 @@ import {
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
   DEFAULT_TTS_PROVIDER,
-  SPEECH_SPEED_LIMITS,
   TTS_MODELS,
   getVoicePreviewPhrase,
 } from "@/config";
@@ -71,7 +70,7 @@ export function SessionPersonaModal({
   currentAvatarModel,
   currentVoiceId,
   currentSpeechSpeed = DEFAULT_SPEECH_SPEED,
-  currentTtsProvider = DEFAULT_TTS_PROVIDER,
+  currentTtsProvider: _currentTtsProvider = DEFAULT_TTS_PROVIDER,
   onSaveConfig,
 }: SessionPersonaModalProps) {
   const isLocked = sessionStatus === "running" || !isLecturer;
@@ -86,7 +85,7 @@ export function SessionPersonaModal({
 
   // Dynamic voices and models from server
   const [voices, setVoices] = useState<VoiceOption[]>(ALL_DEFAULT_VOICE_OPTIONS);
-  const [models, setModels] = useState<TTSModelOption[]>(TTS_MODELS);
+  const [_models, setModels] = useState<TTSModelOption[]>(TTS_MODELS);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -95,7 +94,10 @@ export function SessionPersonaModal({
   const [testAudioElement, setTestAudioElement] = useState<HTMLAudioElement | null>(null);
 
   // Sync state when modal opens
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setSelectedAvatar(
         currentAvatarModel === DEFAULT_FEMALE_AVATAR_MODEL ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL
@@ -103,16 +105,23 @@ export function SessionPersonaModal({
       setSelectedVoiceId(currentVoiceId || DEFAULT_MALE_VOICE_ID);
       setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : DEFAULT_SPEECH_SPEED);
     }
-  }, [open, currentAvatarModel, currentVoiceId, currentSpeechSpeed]);
+  }
 
-  // Clean up test audio on unmount or close
+  // Clean up test audio when closed
+  if (!open && testAudioElement) {
+    testAudioElement.pause();
+    setTestAudioElement(null);
+    setTestingAudio(false);
+  }
+
+  // Clean up test audio on unmount
   useEffect(() => {
-    if (!open && testAudioElement) {
-      testAudioElement.pause();
-      setTestAudioElement(null);
-      setTestingAudio(false);
-    }
-  }, [open, testAudioElement]);
+    return () => {
+      if (testAudioElement) {
+        testAudioElement.pause();
+      }
+    };
+  }, [testAudioElement]);
 
   // Load dynamic voices on mount or when opened
   useEffect(() => {
@@ -427,7 +436,7 @@ export function SessionPersonaModal({
                   {selectedVoiceMeta.name}
                   <span
                     className={cn(
-                      "text-[10px] px-1.5 py-0.2 rounded-md font-bold uppercase",
+                      "text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase",
                       selectedVoiceMeta.gender === "female"
                         ? "bg-rose-500/10 text-rose-500"
                         : selectedVoiceMeta.gender === "male"

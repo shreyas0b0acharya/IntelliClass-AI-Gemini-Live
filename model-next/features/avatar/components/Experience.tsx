@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Environment,
   OrbitControls,
   useTexture,
   useGLTF,
 } from "@react-three/drei";
-import * as THREE from "three";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
 import { useDeviceTier } from "../hooks/useDeviceTier";

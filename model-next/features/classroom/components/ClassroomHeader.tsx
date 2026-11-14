@@ -202,7 +202,7 @@ export function ClassroomHeader({
             <User className="h-3.5 w-3.5 text-primary" />
             <span className="hidden md:inline text-xs">{personaName}</span>
             {sessionStatus === "running" && (
-              <span className="text-[9px] px-1 py-0.2 rounded-md bg-muted text-muted-foreground font-mono">🔒</span>
+              <span className="text-[9px] px-1 py-0.5 rounded-md bg-muted text-muted-foreground font-mono">🔒</span>
             )}
           </Button>
         )}
@@ -250,7 +250,7 @@ export function ClassroomHeader({
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-xs text-foreground">Avatar Persona & Voice</span>
                     {sessionStatus === "running" && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-chart-4/10 text-chart-4 font-bold">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-chart-4/10 text-chart-4 font-bold">
                         Locked (Live)
                       </span>
                     )}

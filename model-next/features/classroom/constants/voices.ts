@@ -8,7 +8,7 @@ import {
   HEADTTS_VOICE_OPTIONS,
   ELEVENLABS_OFFLINE_FALLBACK_VOICES,
 } from "@/config";
-import type { VoiceOption, TTSModelOption } from "../types/speech";
+import type { VoiceOption } from "../types/speech";
 
 export { TTS_MODELS, HEADTTS_VOICE_OPTIONS };
 

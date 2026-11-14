@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SessionParticipantRecord, AdmissionStatus } from "@/lib/supabase/types";
 
@@ -43,7 +43,7 @@ export async function GET(
 ) {
   try {
     const { sessionId } = await params;
-    const { user, supabase } = await getAuthenticatedUser(request);
+    const { user } = await getAuthenticatedUser(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -173,7 +173,7 @@ export async function POST(
 ) {
   try {
     const { sessionId } = await params;
-    const { user, supabase } = await getAuthenticatedUser(request);
+    const { user } = await getAuthenticatedUser(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

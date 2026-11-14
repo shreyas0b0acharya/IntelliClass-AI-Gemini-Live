@@ -1,4 +1,4 @@
-import { checkAndSetAvailableModels, getModelManagerStatus } from "../ai/model-manager.ts";
+import { checkAndSetAvailableModels } from "../ai/model-manager.ts";
 import { generateTeachingScript } from "../ai/flows/generate-script.ts";
 
 async function runTest() {

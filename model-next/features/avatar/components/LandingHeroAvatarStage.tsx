@@ -4,7 +4,6 @@ import React, { Suspense, useState, useEffect, useCallback, useRef, useMemo } fr
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { SkeletonUtils } from "three-stdlib";
-import * as THREE from "three";
 import { Volume2, VolumeX, Loader2, RotateCcw } from "lucide-react";
 import { Avatar } from "./Avatar";
 import type { HeadTTSData } from "../types/lipSync.types";
@@ -18,7 +17,6 @@ import {
   DEFAULT_FEMALE_AVATAR_MODEL,
   DEFAULT_MALE_AVATAR_MODEL,
   STANDING_CHALKBOARD_MODEL_PATH,
-  AVATAR_MODEL_PATHS,
   type AvatarModelId,
 } from "@/config";
 import { useCachedAsset } from "../hooks/useCachedAssetUrl";
@@ -127,6 +125,8 @@ const PERSONA_CONFIGS: Record<AvatarModelId, PersonaConfig> = {
   },
 };
 
+const emptySubscribe = () => () => {};
+
 export function LandingHeroAvatarStage() {
   // Default to female model initially (Dr. Clara)
   const [selectedModel, setSelectedModel] = useState<AvatarModelId>(DEFAULT_FEMALE_AVATAR_MODEL);
@@ -135,15 +135,11 @@ export function LandingHeroAvatarStage() {
   const [targetEpochMs, setTargetEpochMs] = useState<number | undefined>(undefined);
   const [lipSyncCache, setLipSyncCache] = useState<Record<string, HeadTTSData>>({});
   const [activeLipSync, setActiveLipSync] = useState<HeadTTSData | undefined>(undefined);
-  const [mounted, setMounted] = useState(false);
+  const mounted = React.useSyncExternalStore(emptySubscribe, () => true, () => false);
   const { active: isAssetLoading, progress } = useProgress();
 
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const currentPersona = PERSONA_CONFIGS[selectedModel];
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Preload viseme JSON and audio buffers for both models on mount
   useEffect(() => {

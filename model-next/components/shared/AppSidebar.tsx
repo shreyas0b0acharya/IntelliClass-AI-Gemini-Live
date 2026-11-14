@@ -47,10 +47,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [loading, setLoading] = React.useState(true);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const [navigatingKey, setNavigatingKey] = React.useState<string | null>(null);
+  const [prevPathname, setPrevPathname] = React.useState(pathname);
 
-  React.useEffect(() => {
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setNavigatingKey(null);
-  }, [pathname]);
+  }
 
   const handleLinkClick = (key: string, href: string) => {
     if (pathname !== href) {

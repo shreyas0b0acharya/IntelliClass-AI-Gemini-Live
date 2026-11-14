@@ -97,11 +97,11 @@ export function AvatarAnimations({
   });
 
   useEffect(() => {
+    const root = group.current;
+    const actions = actionsRef.current;
     return () => {
       body.dispose();
-      const root = group.current;
       const mixer = mixerRef.current;
-      const actions = actionsRef.current;
       if (mixer) {
         mixer.stopAllAction();
         if (root) {
@@ -113,7 +113,7 @@ export function AvatarAnimations({
         currentAnimNameRef.current = "None";
       }
     };
-  }, [group, body]);
+  }, [body, group]);
 
   useEffect(() => {
     if (!currentTargetAnim || currentTargetAnim.toLowerCase() === "none") return;

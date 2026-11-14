@@ -12,6 +12,22 @@ interface CachedVoicesData {
 let cache: { data: CachedVoicesData; timestamp: number } | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache
 
+interface ElevenLabsRawVoice {
+  category?: string;
+  is_owner?: boolean;
+  voice_id: string;
+  name: string;
+  description?: string;
+  labels?: Record<string, string | undefined> & {
+    gender?: string;
+    accent?: string;
+    age?: string;
+    description?: string;
+    "use case"?: string;
+    use_case?: string;
+  };
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get("refresh") === "true";
@@ -41,13 +57,13 @@ export async function GET(request: NextRequest) {
         // STRICT FILTER: Never show payment/library voices.
         // Free accounts cannot use library/professional community voices via the API (HTTP 402).
         // Only include official built-in premade voices or user-owned/cloned voices.
-        const freeUsableVoices = rawVoices.filter((v: any) => {
+        const freeUsableVoices = rawVoices.filter((v: ElevenLabsRawVoice) => {
           if (v.category === "premade") return true;
           if (v.is_owner === true || v.category === "cloned") return true;
           return false;
         });
 
-        elevenLabsVoices = freeUsableVoices.map((v: any): VoiceOption => {
+        elevenLabsVoices = freeUsableVoices.map((v: ElevenLabsRawVoice): VoiceOption => {
           const rawGender = v.labels?.gender?.toLowerCase()?.trim();
           const gender: VoiceGender =
             rawGender === "female" ? "female" : rawGender === "male" ? "male" : "unknown";

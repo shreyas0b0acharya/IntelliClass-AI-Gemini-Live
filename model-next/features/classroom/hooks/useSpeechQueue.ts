@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SpeechItem, SpeechStatus, TTSProviderId } from "../types/speech";
-import type { LipSyncData, HeadTTSData } from "@/features/avatar";
+import type { LipSyncData } from "@/features/avatar";
 import { fetchSpeechTTS } from "../services/tts";
 import {
   preloadAudioBuffer,
@@ -42,7 +42,7 @@ export interface ScheduledPlayPayload {
 export function useSpeechQueue({
   voice = DEFAULT_FEMALE_VOICE_ID,
   provider = DEFAULT_TTS_PROVIDER,
-  modelId,
+  modelId: _modelId,
   speed = DEFAULT_SPEECH_SPEED,
   onSpeechComplete,
   onError,
@@ -134,7 +134,7 @@ export function useSpeechQueue({
       inFlightRef.current.set(cacheKey, fetchPromise);
       return fetchPromise;
     },
-    [voice, provider, modelId, speed]
+    [voice, provider, speed]
   );
 
   // ── Prefetch upcoming sentences in background (device-aware depth) ──

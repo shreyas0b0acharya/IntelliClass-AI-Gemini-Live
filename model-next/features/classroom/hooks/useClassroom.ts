@@ -384,7 +384,7 @@ export function useClassroom(sessionId: string) {
         });
       }
     },
-    [session?.voice_id, speech, sessionId, syncStore, scheduleAdvance]
+    [speech, sessionId, syncStore, scheduleAdvance, resolvedVoice.modelId, resolvedVoice.provider, resolvedVoice.voiceId]
   );
 
   // ── 4. Unified 5s Atomic CAS Conductor Lease Engine ────────────────────
@@ -778,7 +778,7 @@ export function useClassroom(sessionId: string) {
         syncStore().setCurrentSubtitle("Lecture restarting. Please wait for the professor to begin.");
       }
     },
-    [session?.voice_id, speech, syncStore]
+    [speech, syncStore, resolvedVoice.modelId, resolvedVoice.provider, resolvedVoice.voiceId]
   );
 
   const handleKicked = useCallback(() => {

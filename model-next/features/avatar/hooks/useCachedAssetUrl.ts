@@ -19,6 +19,7 @@ export interface CachedAssetResult {
  *    bypassing CacheStorage or throwing unhandled fetch errors while the model is downloading.
  */
 export function useCachedAsset(targetUrl?: string): CachedAssetResult {
+  const [prevTargetUrl, setPrevTargetUrl] = useState(targetUrl);
   const [state, setState] = useState<CachedAssetResult>(() => {
     if (!targetUrl) return { url: null, isLoading: false, error: null };
     const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
@@ -28,22 +29,28 @@ export function useCachedAsset(targetUrl?: string): CachedAssetResult {
     return { url: null, isLoading: true, error: null };
   });
 
-  useEffect(() => {
+  if (targetUrl !== prevTargetUrl) {
+    setPrevTargetUrl(targetUrl);
     if (!targetUrl) {
       setState({ url: null, isLoading: false, error: null });
-      return;
+    } else {
+      const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
+      if (syncUrl) {
+        setState({ url: syncUrl, isLoading: false, error: null });
+      } else {
+        setState({ url: null, isLoading: true, error: null });
+      }
     }
+  }
+
+  useEffect(() => {
+    if (!targetUrl) return;
 
     let isCurrent = true;
 
     // Check memory first
     const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
-    if (syncUrl) {
-      setState({ url: syncUrl, isLoading: false, error: null });
-      return;
-    }
-
-    setState({ url: null, isLoading: true, error: null });
+    if (syncUrl) return;
 
     assetStorage
       .getAssetUrl(targetUrl)
