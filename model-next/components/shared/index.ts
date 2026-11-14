@@ -6,5 +6,6 @@ export { ThemeProvider } from "./ThemeProvider";
 export { SessionCodeInput } from "./SessionCodeInput";
 export { StatusBadge } from "./StatusBadge";
 export { CopyCodeBadge } from "./CopyCodeBadge";
+export { ScriptBadge } from "./ScriptBadge";
 export { AnimationLoader } from "./AnimationLoader";
 export { AssetSyncModal } from "./AssetSyncModal";

@@ -33,7 +33,7 @@ export function SessionController({
 
   const handleAction = async (name: string, fn: () => void | Promise<void>) => {
     try {
-      unlockAudioContext();
+      await unlockAudioContext();
     } catch { }
 
     setActionLoading(name);

@@ -63,7 +63,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        if (
+          userError.code === "refresh_token_not_found" ||
+          userError.code === "refresh_token_already_used" ||
+          userError.message?.toLowerCase().includes("refresh token")
+        ) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+      }
+      const currentUser = data?.user ?? null;
       if (currentUser) {
         setUser(currentUser);
         await fetchProfile();
@@ -85,9 +95,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await supabase.auth.getSession();
         if (!isMounted) return;
 
+        if (sessionError) {
+          if (
+            sessionError.code === "refresh_token_not_found" ||
+            sessionError.code === "refresh_token_already_used" ||
+            sessionError.message?.toLowerCase().includes("refresh token")
+          ) {
+            await supabase.auth.signOut().catch(() => {});
+          }
+        }
+
+        const session = data?.session;
         if (session?.user) {
           setUser(session.user);
           await fetchProfile();

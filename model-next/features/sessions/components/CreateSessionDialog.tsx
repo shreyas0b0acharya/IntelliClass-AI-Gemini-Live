@@ -40,7 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Presentation, Loader2, Sparkles, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Presentation, Loader2, Sparkles, Plus, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface CreateSessionDialogProps {
@@ -77,7 +78,7 @@ function CreateSessionModalContent({
   );
   const [speed, setSpeed] = useState(() => preferences.speechSpeed || DEFAULT_SPEECH_SPEED);
   const [files, setFiles] = useState<CourseFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string>("");
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusStep, setStatusStep] = useState("");
 
@@ -92,7 +93,7 @@ function CreateSessionModalContent({
       .then(({ files: fetchedFiles }) => {
         if (active && fetchedFiles && fetchedFiles.length > 0) {
           setFiles(fetchedFiles);
-          setSelectedFile(fetchedFiles[0].file_name);
+          setSelectedFiles(fetchedFiles.map((f) => f.file_name));
         }
       })
       .catch((err) => console.error("Error loading course files in modal:", err));
@@ -144,7 +145,7 @@ function CreateSessionModalContent({
       const sessionId = sessionData.id;
       setStatusStep(`Synthesizing lecture with ${lecturerName || "AI Lecturer"}...`);
 
-      const sources = selectedFile ? [{ fileName: selectedFile }] : [];
+      const sources = selectedFiles.map((fileName) => ({ fileName }));
 
       await api.generateSessionScript(sessionId, {
         courseId,
@@ -256,36 +257,71 @@ function CreateSessionModalContent({
 
             {/* Source Document Selection */}
             {files.length > 0 && (
-              <div className="space-y-1.5">
- <Label className="">
-                  Source Syllabus Document (Optional)
-                </Label>
-                <Select
-                  value={selectedFile || "__all__"}
-                  onValueChange={(val) => setSelectedFile(val === "__all__" ? "" : val)}
-                  disabled={isGenerating}
-                >
- <SelectTrigger className="w-full h-10 cursor-pointer">
-                    <SelectValue placeholder="Select course document..." />
-                  </SelectTrigger>
- <SelectContent className="">
-                    <SelectItem
-                      value="__all__"
- className=" cursor-pointer"
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold">
+                    Source Course Materials ({selectedFiles.length}/{files.length} selected)
+                  </Label>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setSelectedFiles(files.map((f) => f.file_name))}
+                      className="h-5 text-[11px] px-1.5 text-primary hover:text-primary/80 cursor-pointer"
                     >
-                      All Course Knowledge (Global Context)
-                    </SelectItem>
-                    {files.map((f) => (
-                      <SelectItem
+                      Select All
+                    </Button>
+                    <span className="text-muted-foreground text-xs">•</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setSelectedFiles([])}
+                      className="h-5 text-[11px] px-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Deselect All
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 max-h-40 overflow-y-auto p-1.5 rounded-xl border border-black/5 dark:border-white/10 bg-black/[0.01] dark:bg-white/[0.01]">
+                  {files.map((f) => {
+                    const isSelected = selectedFiles.includes(f.file_name);
+                    return (
+                      <div
                         key={f.id}
-                        value={f.file_name}
- className=" cursor-pointer "
+                        onClick={() => {
+                          setSelectedFiles((prev) =>
+                            isSelected
+                              ? prev.filter((x) => x !== f.file_name)
+                              : [...prev, f.file_name]
+                          );
+                        }}
+                        className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer text-xs transition-colors select-none ${
+                          isSelected
+                            ? "bg-primary/10 text-primary font-medium border border-primary/25"
+                            : "hover:bg-black/5 dark:hover:bg-white/5 text-foreground border border-transparent"
+                        }`}
                       >
-                        {f.file_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => {
+                            setSelectedFiles((prev) =>
+                              isSelected
+                                ? prev.filter((x) => x !== f.file_name)
+                                : [...prev, f.file_name]
+                            );
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer"
+                        />
+                        <FileText className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{f.file_name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -386,7 +422,7 @@ export function CreateSessionDialog({ courseId, courseTitle: _courseTitle, trigg
           </Button>
         )}
       </DialogTrigger>
- <DialogContent className="max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[94vw] sm:w-[90vw] md:w-[84vw] lg:w-[80vw] max-w-[95vw] sm:max-w-[92vw] md:max-w-[86vw] lg:max-w-[80vw] overflow-hidden max-h-[92vh] flex flex-col">
         {open && <CreateSessionModalContent courseId={courseId} onClose={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>

@@ -266,31 +266,6 @@ export function useClassroom(sessionId: string) {
         return;
       }
 
-      // ── Pause item ───────────────────────────────────────────────────
-      if (item.type === "pause") {
-        setCurrentSubtitle("...");
-        syncStore().setCurrentSubtitle("...");
-        sequenceRef.current++;
-        const durationMs = Math.round(item.durationMs || 1200);
-        const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
-
-        broadcastEventRef.current?.({
-          type: "SCHEDULED_PLAY",
-          sequence: sequenceRef.current,
-          driverLeaseVersion: driverLeaseVersionRef.current,
-          executionId: `${sessionId}_${item.id}_seq${sequenceRef.current}_${targetEpochMs}`,
-          itemId: item.id,
-          targetEpochMs,
-          leadTimeMs: LEAD_TIME_MS,
-          audioUrl: "",
-          durationMs,
-          lipSyncData: { visemes: [], vtimes: [], vdurations: [] },
-          text: "...",
-        });
-        scheduleAdvance(durationMs);
-        return;
-      }
-
       // ── Engagement item ──────────────────────────────────────────────
       if (item.type === "engagement") {
         const promptText = item.prompt || "Let us pause and reflect...";
@@ -517,7 +492,7 @@ export function useClassroom(sessionId: string) {
 
       // ── SCHEDULED_PLAY ─────────────────────────────────────────────
       if (event.type === "SCHEDULED_PLAY") {
-        if (lastSeqRef.current === -1 || event.sequence >= lastSeqRef.current) {
+        if (lastSeqRef.current === -1 || event.sequence > lastSeqRef.current) {
           lastSeqRef.current = event.sequence;
         } else {
           console.warn(
@@ -555,7 +530,7 @@ export function useClassroom(sessionId: string) {
           }
         }
 
-        // Non-audio scheduled items (media/pause/engagement) — just advance subtitle
+        // Non-audio scheduled items (media/engagement) — just advance subtitle
         if (!event.audioUrl) {
           setCurrentSubtitle(event.text || "");
           syncStore().setCurrentSubtitle(event.text || "");
@@ -1049,6 +1024,21 @@ export function useClassroom(sessionId: string) {
     const question = questionText || userQuestion;
     if (!question.trim() || !session) return;
 
+    // 1. Instant Real-time Interruption: Stop ongoing lecture audio immediately
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    speech.stop();
+    stopAllAudio();
+    executingItemIdRef.current = null;
+
+    // 2. Instant Subtitle & Feedback: Show the student question on stage immediately
+    const studentDisplayName = profile?.name || user?.email?.split("@")[0] || "Student";
+    const questionPreview = question.length > 70 ? `${question.slice(0, 67)}...` : question;
+    setCurrentSubtitle(`✋ ${studentDisplayName}: "${questionPreview}"`);
+    syncStore().setCurrentSubtitle(`✋ ${studentDisplayName}: "${questionPreview}"`);
+
     setIsThinking(true);
     syncStore().setIsThinking(true);
     setUserQuestion("");
@@ -1065,34 +1055,52 @@ export function useClassroom(sessionId: string) {
 
       const curItem = itemsRef.current[currentIndexRef.current];
       const modelPersona = session.voice_id?.startsWith("af_") ? "Dr. Clara" : "Prof. Arthur";
-      const { answer } = await api.askQuestion(sessionId, {
+      const vInfo = resolveVoiceAndProvider(session.voice_id);
+
+      // Fast unified Q&A with server-side synthesis (single roundtrip)
+      const askRes = await api.askQuestion(sessionId, {
         question,
         courseId: session.course_id,
-        studentName: profile?.name || "Student",
+        studentName: studentDisplayName,
         lecturerName: modelPersona,
         lastSpokenSentence: curItem?.type === "speech" ? curItem.text : "",
         sessionTopic: session.topic,
         currentIndex: currentIndexRef.current,
+        voice: vInfo.voiceId,
+        provider: vInfo.provider,
+        speed: session.speech_speed,
       });
+
+      const answer = askRes.answer;
 
       api
         .sendMessage(sessionId, { role: "ai", message: answer })
         .catch((e) => console.warn("Failed to persist AI answer:", e));
 
-      let audioUrl: string | undefined;
-      let lipSyncData: HeadTTSData | undefined;
+      let audioUrl: string | undefined = askRes.audioUrl;
+      let lipSyncData: HeadTTSData | undefined = askRes.lipSyncData;
       let targetEpochMs: number | undefined;
 
-      try {
-        const speechRes = await fetchSpeechTTS({
-          text: answer,
-          voice: session.voice_id || DEFAULT_FEMALE_VOICE_ID,
-        });
-        audioUrl = speechRes.audioPath;
-        lipSyncData = speechRes.lipSyncData;
-        targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
-      } catch (e) {
-        console.warn("Q&A speech synthesis fallback:", e);
+      // Fallback: if server-side synthesis didn't return audio, synthesize on client
+      if (!audioUrl || !lipSyncData) {
+        try {
+          const speechRes = await fetchSpeechTTS({
+            text: answer,
+            voice: vInfo.voiceId,
+            provider: vInfo.provider,
+            modelId: vInfo.modelId,
+            speed: session.speech_speed,
+          });
+          audioUrl = speechRes.audioPath;
+          lipSyncData = speechRes.lipSyncData;
+        } catch (e) {
+          console.warn("Q&A speech synthesis fallback:", e);
+        }
+      }
+
+      // Tight lead time for real-time interactive interruption (80ms buffer instead of 650ms)
+      if (audioUrl) {
+        targetEpochMs = Math.round(getSynchronizedEpochMs() + 80);
       }
 
       const nextItemId =
@@ -1105,7 +1113,7 @@ export function useClassroom(sessionId: string) {
       broadcastEvent({
         type: "INTERRUPT",
         interruptionId,
-        studentName: profile?.name || "Student",
+        studentName: studentDisplayName,
         question,
         answer,
         resumeFromItemId: nextItemId,
@@ -1119,7 +1127,7 @@ export function useClassroom(sessionId: string) {
       handleRealtimeEvent({
         type: "INTERRUPT",
         interruptionId,
-        studentName: profile?.name || "Student",
+        studentName: studentDisplayName,
         question,
         answer,
         resumeFromItemId: nextItemId,

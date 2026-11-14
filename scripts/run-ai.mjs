@@ -40,6 +40,8 @@ const child = spawn(cmd, args, {
   env: {
     ...process.env,
     PYTHONUNBUFFERED: "1",
+    PYTHONIOENCODING: "utf-8",
+    PYTHONUTF8: "1",
   },
 });
 

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
-import { Pencil, Save, Loader2 } from "lucide-react";
+import { Pencil, Save, Loader2, FileText, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditSessionDialogProps {
@@ -24,6 +24,7 @@ interface EditSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdated: (updated: ClassroomSession) => void;
+  onOpenScript?: (session: ClassroomSession) => void;
 }
 
 const VOICE_MAP: Record<string, string> = {
@@ -41,6 +42,7 @@ export function EditSessionDialog({
   open,
   onOpenChange,
   onUpdated,
+  onOpenScript,
 }: EditSessionDialogProps) {
   const [topic, setTopic] = useState(session.topic);
   const [voiceGender, setVoiceGender] = useState(
@@ -75,16 +77,16 @@ export function EditSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
- <DialogContent className="max-w-md overflow-hidden ">
+      <DialogContent className="w-[94vw] sm:w-[90vw] md:w-[84vw] lg:w-[80vw] max-w-[95vw] sm:max-w-[92vw] md:max-w-[86vw] lg:max-w-[80vw] max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-b from-muted/60 to-background p-6 border-b">
           <DialogHeader>
             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-2">
               <Pencil className="h-5 w-5" />
             </div>
- <DialogTitle className="">Edit Session</DialogTitle>
- <DialogDescription className=" mt-0.5">
-              Update the lecture topic and AI lecturer voice.
+            <DialogTitle>Edit Session</DialogTitle>
+            <DialogDescription className="mt-0.5">
+              Update the lecture topic, AI lecturer voice, and curriculum script.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -92,27 +94,23 @@ export function EditSessionDialog({
         {/* Body */}
         <form onSubmit={handleSave} className="p-6 space-y-5">
           <div className="space-y-2">
- <Label className="">
-              Lecture Topic
-            </Label>
+            <Label>Lecture Topic</Label>
             <Input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Introduction to Neural Networks"
- className="h-11 "
+              className="h-11"
               disabled={saving}
               required
             />
           </div>
 
           <div className="space-y-2">
- <Label className="">
-              AI Lecturer Gender
-            </Label>
+            <Label>AI Lecturer Gender</Label>
             <RadioGroup
               value={voiceGender}
               onValueChange={setVoiceGender}
- className="grid grid-cols-2 "
+              className="grid grid-cols-2"
               disabled={saving}
             >
               <label
@@ -144,7 +142,44 @@ export function EditSessionDialog({
             </RadioGroup>
           </div>
 
- <DialogFooter className="">
+          {/* Lecture Script Link to Unified Modal */}
+          <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+            <Label>Lecture Curriculum Script</Label>
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-black/5 dark:border-white/10 bg-muted/30">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-foreground">Curriculum Script</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {session.script
+                      ? `${session.script.split(/\s+/).filter(Boolean).length} words ready for broadcast`
+                      : "No script generated yet"}
+                  </div>
+                </div>
+              </div>
+
+              {onOpenScript && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onOpenScript(session);
+                  }}
+                  className="h-8.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shrink-0 cursor-pointer"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <span>Open Script Inspector</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"

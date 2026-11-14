@@ -8,6 +8,7 @@ import {
   preloadAudioBuffer,
   scheduleAudioPlayback,
   stopAllAudio,
+  getSynchronizedEpochMs,
 } from "@/features/avatar";
 import {
   DEFAULT_FEMALE_VOICE_ID,
@@ -239,6 +240,11 @@ export function useSpeechQueue({
       activeRequestIdRef.current = requestId;
       activeItemIdRef.current = itemId;
 
+      const now = getSynchronizedEpochMs();
+      // If audio arrived after targetEpochMs due to network fetch, clamp targetEpochMs to now
+      // so 3D lip-sync and Web Audio start together from the very first syllable!
+      const effectiveEpochMs = offsetMs > 0 ? targetEpochMs : Math.max(targetEpochMs, now);
+
       const speechItem: SpeechItem = {
         requestId,
         cacheKey: audioUrl,
@@ -247,7 +253,7 @@ export function useSpeechQueue({
         durationMs,
         lipSyncData,
         text,
-        targetEpochMs,
+        targetEpochMs: effectiveEpochMs,
         sequence,
       };
 
@@ -265,16 +271,32 @@ export function useSpeechQueue({
         if (onSpeechComplete) onSpeechComplete(itemId, requestId);
       };
 
-      scheduleAudioPlayback(audioUrl, targetEpochMs, onEnded, offsetMs)
+      // Guard against non-audio scheduled packets
+      if (!audioUrl || !audioUrl.trim()) {
+        const fallbackTimer = setTimeout(() => {
+          if (activeRequestIdRef.current === requestId) {
+            onEnded();
+          }
+        }, Math.max(1000, durationMs));
+        activeSourceRef.current = {
+          stop: () => clearTimeout(fallbackTimer),
+          disconnect: () => {},
+          onended: null,
+        } as unknown as AudioBufferSourceNode;
+        return;
+      }
+
+      scheduleAudioPlayback(audioUrl, effectiveEpochMs, onEnded, offsetMs)
         .then((source) => {
           if (!source) {
             if (activeRequestIdRef.current === requestId) {
-              console.warn("[SpeechQueue] scheduleAudioPlayback returned null, auto-advancing in 3s");
-              setTimeout(() => {
-                if (activeRequestIdRef.current === requestId) {
-                  onEnded();
-                }
-              }, 3000);
+              console.warn(`[SpeechQueue] Audio playback unavailable for item ${itemId}. Stopping silent speech animation.`);
+              activeSourceRef.current = null;
+              activeRequestIdRef.current = null;
+              activeItemIdRef.current = null;
+              setCurrentSpeech(null);
+              setStatus("idle");
+              if (onSpeechComplete) onSpeechComplete(itemId, requestId);
             }
             return;
           }

@@ -145,15 +145,18 @@ export default function NewSessionPage({
       const uploadRes = await api.uploadCourseFile(courseId, file);
       const uploadedFile = uploadRes.file;
 
-      setUploadProgressText("Indexing document content with vector embeddings...");
-      try {
-        await api.processCourseFile({
-          fileUrl: uploadRes.fileUrl,
-          fileName: uploadedFile.file_name,
-          courseId,
-        });
-      } catch (procErr) {
-        console.warn("Vector processing warning:", procErr);
+      // Only invoke standalone process if upload route did not already initiate vector processing
+      if (!uploadRes.isProcessingInBackground && uploadRes.totalChunks === undefined) {
+        setUploadProgressText("Indexing document content with vector embeddings...");
+        try {
+          await api.processCourseFile({
+            fileUrl: uploadRes.fileUrl,
+            fileName: uploadedFile.file_name,
+            courseId,
+          });
+        } catch (procErr) {
+          console.warn("Vector processing warning:", procErr);
+        }
       }
 
       // Add to files list and select it immediately
@@ -163,7 +166,7 @@ export default function NewSessionPage({
         [uploadedFile.file_name]: { selected: true },
       }));
 
-      // Refresh media assets so extracted images and diagrams appear immediately
+      // Refresh media assets so extracted images and diagrams appear
       try {
         const mediaRes = await api.getMediaAssets(courseId);
         if (mediaRes?.assets) {
@@ -172,6 +175,18 @@ export default function NewSessionPage({
       } catch (mediaErr) {
         console.warn("Failed to refresh media assets after direct upload:", mediaErr);
       }
+
+      // Follow-up refresh in background after diagrams are extracted
+      setTimeout(async () => {
+        try {
+          const mediaRes = await api.getMediaAssets(courseId);
+          if (mediaRes?.assets) {
+            setMediaAssets(mediaRes.assets);
+          }
+        } catch {
+          // ignore background refresh error
+        }
+      }, 5000);
 
       toast.success(`"${file.name}" uploaded and added to lecture sources!`);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -197,6 +212,28 @@ export default function NewSessionPage({
         },
       };
     });
+  };
+
+  const selectAllFiles = () => {
+    const updated: Record<string, SelectedFileConfig> = {};
+    courseFiles.forEach((f) => {
+      updated[f.file_name] = {
+        ...(selectedFiles[f.file_name] || {}),
+        selected: true,
+      };
+    });
+    setSelectedFiles(updated);
+  };
+
+  const deselectAllFiles = () => {
+    const updated: Record<string, SelectedFileConfig> = {};
+    courseFiles.forEach((f) => {
+      updated[f.file_name] = {
+        ...(selectedFiles[f.file_name] || {}),
+        selected: false,
+      };
+    });
+    setSelectedFiles(updated);
   };
 
   // Update file page range
@@ -476,9 +513,32 @@ export default function NewSessionPage({
               {/* Refined Materials List with interactive rows */}
               {courseFiles.length > 0 ? (
                 <div className="space-y-2 pt-2">
- <Label className=" block mb-2">
-                    Available Course Materials ({courseFiles.length})
-                  </Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="block">
+                      Available Course Materials ({selectedCount}/{courseFiles.length} selected)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={selectAllFiles}
+                        className="h-6 text-[11px] px-2 text-primary hover:text-primary/80 cursor-pointer"
+                      >
+                        Select All
+                      </Button>
+                      <span className="text-muted-foreground text-xs">•</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={deselectAllFiles}
+                        className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
 
                   <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                     {courseFiles.map((file) => {
@@ -486,9 +546,10 @@ export default function NewSessionPage({
                       return (
                         <div
                           key={file.id}
-                          className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border ${isSelected
+                          onClick={() => toggleFileSelection(file.file_name)}
+                          className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border cursor-pointer select-none ${isSelected
                               ? "bg-primary/5 border-primary/30"
-                              : "border-black/5 dark:border-white/5"
+                              : "border-black/5 dark:border-white/5 opacity-80 hover:opacity-100"
                             }`}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -496,16 +557,16 @@ export default function NewSessionPage({
                               <Checkbox
                                 id={`file-${file.id}`}
                                 checked={isSelected}
-                                onChange={() => toggleFileSelection(file.file_name)}
- className=""
+                                onCheckedChange={() => toggleFileSelection(file.file_name)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-pointer"
                               />
                               <FileText className="h-4 w-4 text-primary shrink-0" />
-                              <label
-                                htmlFor={`file-${file.id}`}
-                                className="text-xs font-semibold text-foreground dark:text-foreground truncate cursor-pointer"
+                              <span
+                                className="text-xs font-semibold text-foreground dark:text-foreground truncate"
                               >
                                 {file.file_name}
-                              </label>
+                              </span>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
@@ -516,7 +577,10 @@ export default function NewSessionPage({
                                 type="button"
                                 variant="ghost"
                                 size="icon-xs"
-                                onClick={() => setSelectedViewFile(file)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedViewFile(file);
+                                }}
  className="h-7 w-7 "
                                 title="View PDF Document"
                               >
@@ -527,7 +591,10 @@ export default function NewSessionPage({
 
                           {/* Pill-shaped page range inputs */}
                           {isSelected && (
-                            <div className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center gap-3 text-xs pl-7">
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center gap-3 text-xs pl-7"
+                            >
                               <span className="text-xs text-muted-foreground font-medium shrink-0">
                                 Page Range:
                               </span>
@@ -559,7 +626,9 @@ export default function NewSessionPage({
                           )}
 
                           {/* Extracted Visuals Carousel */}
-                          <MaterialImageCarousel fileName={file.file_name} assets={mediaAssets} />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <MaterialImageCarousel fileName={file.file_name} assets={mediaAssets} />
+                          </div>
                         </div>
                       );
                     })}

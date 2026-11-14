@@ -15,6 +15,13 @@ export async function POST(req: Request) {
 
     const aiBackendUrl = process.env.AI_BACKEND_URL || "http://127.0.0.1:8000";
 
+    // Trigger visual extraction alongside vectorization
+    fetch(`${aiBackendUrl}/extract-images`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileUrl, fileName, courseId }),
+    }).catch((e) => console.warn("Image extraction trigger warning:", e));
+
     const response = await fetch(`${aiBackendUrl}/process`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

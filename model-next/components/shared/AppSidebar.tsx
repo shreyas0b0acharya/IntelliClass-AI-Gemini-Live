@@ -46,6 +46,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [courses, setCourses] = React.useState<Course[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+  const [navigatingKey, setNavigatingKey] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setNavigatingKey(null);
+  }, [pathname]);
+
+  const handleLinkClick = (key: string, href: string) => {
+    if (pathname !== href) {
+      setNavigatingKey(key);
+    }
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
     if (isAuthLoading || !user) {
@@ -100,24 +114,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }, [user, isAuthLoading, refreshTrigger]);
 
-  const handleLinkClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Brand Header */}
- <SidebarHeader className="">
+      <SidebarHeader className="">
         <Link
           href="/dashboard"
-          onClick={handleLinkClick}
+          onClick={() => handleLinkClick("dash", "/dashboard")}
           className={`flex items-center gap-2.5 rounded-xl transition-colors ${isCollapsed ? "justify-center" : ""
             }`}
         >
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 bg-primary shadow-xs">
-            <Sparkles className="h-4 w-4" />
+            {isCollapsed && navigatingKey === "dash" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
@@ -126,11 +139,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </span>
             </div>
           )}
+          {!isCollapsed && navigatingKey === "dash" && (
+            <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+          )}
         </Link>
       </SidebarHeader>
 
       {/* Navigation Sections */}
- <SidebarContent className="">
+      <SidebarContent className="">
         {/* ── 1. Workspace / Dashboard ─────────────────────────────────── */}
         <SidebarGroup>
           <SidebarGroupLabel>
@@ -144,9 +160,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   tooltip="Dashboard Overview"
                   isActive={pathname === "/dashboard"}
                 >
-                  <Link href="/dashboard" onClick={handleLinkClick}>
-                    <LayoutDashboard className="h-4 w-4 shrink-0" />
+                  <Link href="/dashboard" onClick={() => handleLinkClick("dashboard", "/dashboard")}>
+                    {isCollapsed && navigatingKey === "dashboard" ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <LayoutDashboard className="h-4 w-4 shrink-0" />
+                    )}
                     <span>Dashboard Overview</span>
+                    {!isCollapsed && navigatingKey === "dashboard" && (
+                      <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -157,9 +180,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   tooltip="Account & Role Settings"
                   isActive={pathname === "/settings"}
                 >
-                  <Link href="/settings" onClick={handleLinkClick}>
-                    <Settings className="h-4 w-4 shrink-0" />
+                  <Link href="/settings" onClick={() => handleLinkClick("settings", "/settings")}>
+                    {isCollapsed && navigatingKey === "settings" ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <Settings className="h-4 w-4 shrink-0" />
+                    )}
                     <span>Account &amp; Role</span>
+                    {!isCollapsed && navigatingKey === "settings" && (
+                      <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -171,9 +201,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     tooltip="AI Avatar & Voice Studio"
                     isActive={pathname === "/settings/avatar"}
                   >
-                    <Link href="/settings/avatar" onClick={handleLinkClick}>
-                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                    <Link href="/settings/avatar" onClick={() => handleLinkClick("avatar", "/settings/avatar")}>
+                      {isCollapsed && navigatingKey === "avatar" ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                      )}
                       <span>AI Avatar &amp; Voice</span>
+                      {!isCollapsed && navigatingKey === "avatar" && (
+                        <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -185,7 +222,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* ── 2. Course Curriculum & Full Session Structure ────────────── */}
         <SidebarGroup>
           <div className="flex items-center justify-between px-2.5 mb-1">
- <SidebarGroupLabel className="">
+            <SidebarGroupLabel className="">
               Course Spaces
             </SidebarGroupLabel>
             {isLecturer && !isCollapsed && (
@@ -196,7 +233,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     variant="ghost"
                     size="icon-xs"
                     title="Add Course Space"
- className="h-6 w-6 "
+                    className="h-6 w-6 "
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
@@ -221,18 +258,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               ) : (
                 courses.map((course) => {
                   const isCourseActive = pathname.startsWith(`/course/${course.id}`);
+                  const isCourseNavigating = navigatingKey === `course-${course.id}`;
+                  const isSessionsNavigating = navigatingKey === `sessions-${course.id}`;
+                  const isMaterialsNavigating = navigatingKey === `materials-${course.id}`;
+
                   return (
                     <SidebarMenuItem key={course.id}>
                       <SidebarMenuButton
                         asChild
                         tooltip={course.title}
                         isActive={isCourseActive}
+                        className={isCourseNavigating ? "bg-sidebar-accent/70 text-sidebar-accent-foreground" : ""}
                       >
-                        <Link href={`/course/${course.id}`} onClick={handleLinkClick}>
-                          <BookOpen className="h-4 w-4 shrink-0" />
+                        <Link
+                          href={`/course/${course.id}`}
+                          onClick={() => handleLinkClick(`course-${course.id}`, `/course/${course.id}`)}
+                        >
+                          {isCollapsed && isCourseNavigating ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                          ) : (
+                            <BookOpen className="h-4 w-4 shrink-0" />
+                          )}
                           <span className="truncate">{course.title}</span>
-                          {!isCollapsed && isCourseActive && (
-                            <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                          {!isCollapsed && (
+                            isCourseNavigating ? (
+                              <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                            ) : isCourseActive ? (
+                              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                            ) : null
                           )}
                         </Link>
                       </SidebarMenuButton>
@@ -241,14 +294,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       {!isCollapsed && isCourseActive && (
                         <SidebarMenuSub>
                           <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}`}>
+                            <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}` && !pathname.includes("tab=materials")}>
                               <Link
                                 href={`/course/${course.id}`}
-                                onClick={handleLinkClick}
+                                onClick={() => handleLinkClick(`sessions-${course.id}`, `/course/${course.id}`)}
                                 className="flex items-center gap-2"
                               >
-                                <Presentation className="h-3.5 w-3.5" />
+                                <Presentation className="h-3.5 w-3.5 shrink-0" />
                                 <span>Sessions &amp; Broadcasts</span>
+                                {isSessionsNavigating && (
+                                  <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
+                                )}
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -256,11 +312,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <SidebarMenuSubButton asChild isActive={pathname.includes("tab=materials")}>
                               <Link
                                 href={`/course/${course.id}?tab=materials`}
-                                onClick={handleLinkClick}
+                                onClick={() => handleLinkClick(`materials-${course.id}`, `/course/${course.id}?tab=materials`)}
                                 className="flex items-center gap-2"
                               >
-                                <FileText className="h-3.5 w-3.5" />
+                                <FileText className="h-3.5 w-3.5 shrink-0" />
                                 <span>Materials</span>
+                                {isMaterialsNavigating && (
+                                  <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
+                                )}
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>

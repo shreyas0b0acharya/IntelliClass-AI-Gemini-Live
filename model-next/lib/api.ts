@@ -1,5 +1,6 @@
 import type { Course, CourseFile, ClassroomSession, ChatMessage, Profile, MediaAsset } from "@/lib/supabase/types";
-import type { VoiceOption, TTSModelOption } from "@/features/classroom/types/speech";
+import type { VoiceOption, TTSModelOption, TTSProviderId } from "@/features/classroom/types/speech";
+import type { HeadTTSData } from "@/features/avatar";
 import type { User } from "@supabase/supabase-js";
 
 export class ApiError extends Error {
@@ -189,7 +190,13 @@ export const api = {
     formData.append("file", file);
     formData.append("courseId", courseId);
 
-    return fetchApi<{ fileUrl: string; file: CourseFile }>("/api/upload", {
+    return fetchApi<{
+      fileUrl: string;
+      file: CourseFile;
+      totalChunks?: number;
+      extractedImages?: number;
+      isProcessingInBackground?: boolean;
+    }>("/api/upload", {
       method: "POST",
       body: formData,
     });
@@ -297,6 +304,7 @@ export const api = {
       avatar_model?: string;
       speech_speed?: number;
       tts_provider?: string;
+      script?: string;
     }
   ) => {
     return fetchApi<{ session: ClassroomSession }>(`/api/classroom/${sessionId}`, {
@@ -366,9 +374,18 @@ export const api = {
       lastSpokenSentence?: string;
       sessionTopic?: string;
       currentIndex?: number;
+      voice?: string;
+      provider?: TTSProviderId;
+      speed?: number;
     }
   ) => {
-    return fetchApi<{ answer: string; mode: string }>(`/api/classroom/${sessionId}/ask`, {
+    return fetchApi<{
+      answer: string;
+      mode: string;
+      audioUrl?: string;
+      lipSyncData?: HeadTTSData;
+      durationMs?: number;
+    }>(`/api/classroom/${sessionId}/ask`, {
       method: "POST",
       body: JSON.stringify(data),
     });
