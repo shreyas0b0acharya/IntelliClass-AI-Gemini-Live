@@ -30,6 +30,9 @@ interface StageOverlayProps {
   // Doubt Bar
   canAskDoubt?: boolean;
   userQuestion?: string;
+  canSpeak?: boolean;
+  isMicActive?: boolean;
+  onToggleMic?: () => void;
   onQuestionChange?: (val: string) => void;
   onQuestionSubmit?: (e?: React.FormEvent) => void;
 
@@ -53,6 +56,9 @@ export function StageOverlay({
   showCaptions = true,
   canAskDoubt = true,
   userQuestion = "",
+  canSpeak = false,
+  isMicActive = false,
+  onToggleMic,
   onQuestionChange,
   onQuestionSubmit,
   isCompact = false,
@@ -120,6 +126,9 @@ export function StageOverlay({
               question={userQuestion}
               isThinking={isThinking}
               disabled={sessionStatus !== "running"}
+              canSpeak={canSpeak}
+              isMicActive={isMicActive}
+              onToggleMic={onToggleMic}
               onQuestionChange={onQuestionChange}
               onSubmit={onQuestionSubmit}
             />

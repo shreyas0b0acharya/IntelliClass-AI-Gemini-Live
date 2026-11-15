@@ -2,6 +2,7 @@
 
 import { BookOpen, Sparkles, Radio, Pause, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useClassroomStore } from "../store/classroomStore";
 
 interface SessionProgressHUDProps {
   status: string;
@@ -26,15 +27,28 @@ export function SessionProgressHUD({
   isCompact = false,
   isShortLandscape = false,
 }: SessionProgressHUDProps) {
-  const percent = totalItems > 0 ? Math.min(100, Math.round(((currentIndex + 1) / totalItems) * 100)) : 0;
+  const roadmap = useClassroomStore((s) => s.roadmap);
+  const currentTopicId = useClassroomStore((s) => s.currentTopicId);
+
+  const activeTopic = roadmap?.topics?.find((t) => t.id === currentTopicId) || roadmap?.topics?.[0];
+  const topicCount = roadmap?.topics?.length || 0;
+
+  const percent =
+    roadmap && topicCount > 0 && activeTopic
+      ? Math.min(100, Math.round((activeTopic.order / topicCount) * 100))
+      : totalItems > 0
+      ? Math.min(100, Math.round(((currentIndex + 1) / totalItems) * 100))
+      : 0;
+
   const isRunning = status === "running";
   const isPaused = status === "paused";
   const isEnded = status === "ended";
 
   return (
     <div
-      className={`w-full max-w-2xl mx-auto ${isShortLandscape ? "px-3 py-1 gap-1" : isCompact ? "px-3.5 py-1.5 gap-1.5" : "px-4 py-2 gap-1.5"
-        } bg-white/85 dark:bg-card/85 backdrop-blur-2xl rounded-2xl border border-black/10 dark:border-white/10 shadow-xl text-foreground flex flex-col transition-all select-none`}
+      className={`w-full max-w-2xl mx-auto ${
+        isShortLandscape ? "px-3 py-1 gap-1" : isCompact ? "px-3.5 py-1.5 gap-1.5" : "px-4 py-2 gap-1.5"
+      } bg-white/85 dark:bg-card/85 backdrop-blur-2xl rounded-2xl border border-black/10 dark:border-white/10 shadow-xl text-foreground flex flex-col transition-all select-none`}
     >
       {/* Top Row: Activity Indicator & Script Button */}
       <div className="flex items-center justify-between gap-2 text-xs">
@@ -45,14 +59,25 @@ export function SessionProgressHUD({
               <span className="truncate">AI addressing question...</span>
             </div>
           ) : isRunning ? (
-            <div className="flex items-center gap-1.5 text-chart-2 dark:text-chart-2 font-semibold text-xs">
-              <Radio className="h-3.5 w-3.5 animate-pulse text-chart-2 shrink-0" />
-              <span className="truncate">
-                {isShortLandscape
-                  ? `Part ${currentIndex + 1}/${totalItems || 1} • ${percent}%`
-                  : `Segment ${currentIndex + 1} of ${totalItems || 1} • ${percent}% Spoken`}
-              </span>
-            </div>
+            roadmap && activeTopic ? (
+              <div className="flex items-center gap-1.5 text-chart-2 dark:text-chart-2 font-semibold text-xs">
+                <Radio className="h-3.5 w-3.5 animate-pulse text-chart-2 shrink-0" />
+                <span className="truncate">
+                  {isShortLandscape
+                    ? `T${activeTopic.order}/${topicCount}: ${activeTopic.title}`
+                    : `Topic ${activeTopic.order} of ${topicCount}: "${activeTopic.title}" • Live AI`}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-chart-2 dark:text-chart-2 font-semibold text-xs">
+                <Radio className="h-3.5 w-3.5 animate-pulse text-chart-2 shrink-0" />
+                <span className="truncate">
+                  {isShortLandscape
+                    ? `Part ${currentIndex + 1}/${totalItems || 1} • ${percent}%`
+                    : `Segment ${currentIndex + 1} of ${totalItems || 1} • ${percent}% Spoken`}
+                </span>
+              </div>
+            )
           ) : isPaused ? (
             <div className="flex items-center gap-1.5 text-chart-4 dark:text-chart-4 font-semibold text-xs">
               <Pause className="h-3.5 w-3.5 shrink-0" />
@@ -61,12 +86,18 @@ export function SessionProgressHUD({
           ) : isEnded ? (
             <div className="flex items-center gap-1.5 text-muted-foreground font-semibold text-xs">
               <CheckCircle2 className="h-3.5 w-3.5 text-chart-2 shrink-0" />
-              <span>Complete ({totalItems} Segments)</span>
+              <span>
+                Complete ({roadmap ? `${topicCount} Topics` : `${totalItems} Segments`})
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-primary dark:text-primary font-semibold text-xs">
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>Standby • Ready to Begin</span>
+              <span>
+                {roadmap
+                  ? `Live AI Roadmap • ${topicCount} Topics Ready`
+                  : "Standby • Ready to Begin"}
+              </span>
             </div>
           )}
         </div>
@@ -77,10 +108,16 @@ export function SessionProgressHUD({
             size="xs"
             variant="outline"
             onClick={onOpenScript}
- className="h-6 sm:h-7 shrink-0 inline-flex items-center "
+            className="h-6 sm:h-7 shrink-0 inline-flex items-center "
           >
             <BookOpen className="h-3 w-3 text-primary" />
-            <span>{isCompact || isShortLandscape ? "Script" : "Curriculum Script"}</span>
+            <span>
+              {roadmap
+                ? "Roadmap"
+                : isCompact || isShortLandscape
+                ? "Script"
+                : "Curriculum Script"}
+            </span>
           </Button>
         )}
       </div>

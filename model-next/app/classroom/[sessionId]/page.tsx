@@ -227,6 +227,8 @@ export default function ClassroomPage({
         onDeny={classroom.denyParticipant}
         onKick={classroom.kickParticipant}
         onAdmitAll={classroom.admitAllParticipants}
+        onGrantFloor={classroom.geminiLive.grantStudentFloor}
+        onRevokeFloor={classroom.geminiLive.revokeStudentFloor}
       />
 
       {/* Lecture Script & Curriculum Inspector Modal */}
@@ -542,6 +544,9 @@ export default function ClassroomPage({
                 showCaptions={showCaptions}
                 showProgressHUD={showProgressHUD}
                 canAskDoubt={capabilities.canAskDoubt}
+                canSpeak={classroom.geminiLive.hasFloor}
+                isMicActive={classroom.geminiLive.isMicActive}
+                onToggleMic={() => classroom.geminiLive.toggleStudentMic(!classroom.geminiLive.isMicActive)}
                 userQuestion={classroom.userQuestion}
                 onQuestionChange={classroom.setUserQuestion}
                 onQuestionSubmit={(e) => {

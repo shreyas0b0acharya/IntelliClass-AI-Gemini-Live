@@ -2,12 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, MessageCircleQuestion } from "lucide-react";
+import { Send, Loader2, MessageCircleQuestion, Mic, MicOff } from "lucide-react";
 
 interface QuestionInputProps {
   question: string;
   isThinking: boolean;
   disabled?: boolean;
+  canSpeak?: boolean;
+  isMicActive?: boolean;
+  onToggleMic?: () => void;
   onQuestionChange: (val: string) => void;
   onSubmit: (e?: React.FormEvent) => void;
 }
@@ -16,6 +19,9 @@ export function QuestionInput({
   question,
   isThinking,
   disabled = false,
+  canSpeak = false,
+  isMicActive = false,
+  onToggleMic,
   onQuestionChange,
   onSubmit,
 }: QuestionInputProps) {
@@ -38,14 +44,41 @@ export function QuestionInput({
           onChange={(e) => onQuestionChange(e.target.value)}
           placeholder={
             isThinking
-              ? "Professor Sharma is analyzing your question..."
-              : disabled
-                ? "Classroom standby — questions enabled during live lecture."
-                : "Ask a doubt or interrupt Professor Sharma..."
+              ? "Professor is addressing your question..."
+              : canSpeak
+                ? "Microphone floor granted! Speak or type..."
+                : disabled
+                  ? "Classroom standby — questions enabled during live lecture."
+                  : "Ask a doubt or question to Professor..."
           }
           disabled={disabled || isThinking}
- className="flex-1 h-9 "
+          className="flex-1 h-9 "
         />
+
+        {canSpeak && onToggleMic && (
+          <Button
+            type="button"
+            size="sm"
+            variant={isMicActive ? "destructive" : "secondary"}
+            onClick={onToggleMic}
+            className={`h-9 px-3 rounded-xl shrink-0 inline-flex items-center gap-1.5 transition-all ${
+              isMicActive ? "animate-pulse shadow-md shadow-destructive/30" : ""
+            }`}
+            title={isMicActive ? "Mute microphone" : "Speak to AI Professor"}
+          >
+            {isMicActive ? (
+              <>
+                <MicOff className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs font-semibold">Mute Mic</span>
+              </>
+            ) : (
+              <>
+                <Mic className="h-4 w-4 text-chart-2" />
+                <span className="hidden sm:inline text-xs font-semibold">Speak Now</span>
+              </>
+            )}
+          </Button>
+        )}
 
         <Button
           type="submit"

@@ -21,6 +21,8 @@ import {
   UserCheck,
   UserMinus,
   Clock,
+  Mic,
+  MicOff,
 } from "lucide-react";
 
 interface ParticipantsModalProps {
@@ -33,6 +35,9 @@ interface ParticipantsModalProps {
   onDeny?: (userId: string) => void;
   onKick?: (userId: string) => void;
   onAdmitAll?: () => void;
+  floorHolderId?: string | null;
+  onGrantFloor?: (userId: string) => void;
+  onRevokeFloor?: (userId: string) => void;
 }
 
 export function ParticipantsModal({
@@ -45,6 +50,9 @@ export function ParticipantsModal({
   onDeny,
   onKick,
   onAdmitAll,
+  floorHolderId,
+  onGrantFloor,
+  onRevokeFloor,
 }: ParticipantsModalProps) {
   const [search, setSearch] = useState("");
 
@@ -278,6 +286,38 @@ export function ParticipantsModal({
                           <GraduationCap className="h-3 w-3" />
                           Admitted
                         </span>
+
+                        {isLecturer && onGrantFloor && onRevokeFloor && student.userId !== currentUserId && (
+                          <Button
+                            size="xs"
+                            variant={floorHolderId === student.userId ? "destructive" : "outline"}
+                            onClick={() => {
+                              if (floorHolderId === student.userId) {
+                                onRevokeFloor(student.userId);
+                              } else {
+                                onGrantFloor(student.userId);
+                              }
+                            }}
+                            className="h-7 px-2 text-xs rounded-xl"
+                            title={
+                              floorHolderId === student.userId
+                                ? "Revoke microphone floor"
+                                : "Grant microphone floor to student"
+                            }
+                          >
+                            {floorHolderId === student.userId ? (
+                              <>
+                                <MicOff className="h-3 w-3 mr-1" />
+                                <span>Mute</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mic className="h-3 w-3 mr-1 text-chart-2" />
+                                <span>Give Mic</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
 
                         {isLecturer && student.userId !== currentUserId && (
                           <Button
