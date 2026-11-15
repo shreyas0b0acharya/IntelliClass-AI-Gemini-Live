@@ -4,6 +4,8 @@
 // Combines CacheStorage (binary responses) + IndexedDB (metadata/integrity)
 // with stream-based SHA-256 validation, phased P0/P1/P2 sync, and in-memory URL reuse.
 
+import { SUPABASE_3D_ASSETS_CDN } from "@/config/avatar.config";
+
 export type AssetPriority = "P0" | "P1" | "P2";
 
 export interface AssetVariant {
@@ -193,7 +195,7 @@ class AssetStorageService {
   }
 
   private async resolveAndCacheAsset(originalUrl: string): Promise<string> {
-    const CDN_BASE = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
+    const CDN_BASE = SUPABASE_3D_ASSETS_CDN;
     const localEquivalent = originalUrl.startsWith(CDN_BASE)
       ? originalUrl.replace(CDN_BASE, "")
       : originalUrl.startsWith("/")
