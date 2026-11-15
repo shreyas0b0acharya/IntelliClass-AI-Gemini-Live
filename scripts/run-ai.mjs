@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
@@ -8,28 +8,48 @@ import process from "node:process";
 const rootDir = resolve(process.cwd());
 const aiDir = join(rootDir, "ai-backend");
 
-// Check for venv uvicorn executable
-const isWin = process.platform === "win32";
-const venvUvicornWin = join(aiDir, ".venv", "Scripts", "uvicorn.exe");
-const venvUvicornPosix = join(aiDir, ".venv", "bin", "uvicorn");
-const venvPythonWin = join(aiDir, ".venv", "Scripts", "python.exe");
-const venvPythonPosix = join(aiDir, ".venv", "bin", "python");
+// Candidate directories to search for virtual environments
+const searchDirs = [aiDir];
 
+// If running in a git worktree, also search the main repository's ai-backend
+try {
+  const commonGitDir = execSync("git rev-parse --git-common-dir", {
+    encoding: "utf8",
+    stdio: ["pipe", "pipe", "ignore"],
+  }).trim();
+  if (commonGitDir) {
+    const mainRoot = resolve(join(commonGitDir, ".."));
+    const mainAiDir = join(mainRoot, "ai-backend");
+    if (mainAiDir !== aiDir && !searchDirs.includes(mainAiDir)) {
+      searchDirs.push(mainAiDir);
+    }
+  }
+} catch {
+  // Ignore git errors if not a git repository
+}
+
+const isWin = process.platform === "win32";
 let cmd = "python";
 let args = ["-m", "uvicorn", "main:app", "--reload", "--port", "8000"];
 
-if (isWin && existsSync(venvUvicornWin)) {
-  cmd = venvUvicornWin;
-  args = ["main:app", "--reload", "--port", "8000"];
-} else if (!isWin && existsSync(venvUvicornPosix)) {
-  cmd = venvUvicornPosix;
-  args = ["main:app", "--reload", "--port", "8000"];
-} else if (isWin && existsSync(venvPythonWin)) {
-  cmd = venvPythonWin;
-  args = ["-m", "uvicorn", "main:app", "--reload", "--port", "8000"];
-} else if (!isWin && existsSync(venvPythonPosix)) {
-  cmd = venvPythonPosix;
-  args = ["-m", "uvicorn", "main:app", "--reload", "--port", "8000"];
+for (const dir of searchDirs) {
+  const venvUvicorn = isWin
+    ? join(dir, ".venv", "Scripts", "uvicorn.exe")
+    : join(dir, ".venv", "bin", "uvicorn");
+  const venvPython = isWin
+    ? join(dir, ".venv", "Scripts", "python.exe")
+    : join(dir, ".venv", "bin", "python");
+
+  if (existsSync(venvUvicorn)) {
+    cmd = venvUvicorn;
+    args = ["main:app", "--reload", "--port", "8000"];
+    break;
+  }
+  if (existsSync(venvPython)) {
+    cmd = venvPython;
+    args = ["-m", "uvicorn", "main:app", "--reload", "--port", "8000"];
+    break;
+  }
 }
 
 console.log(`🐍 Starting AI Backend via: ${cmd} ${args.join(" ")} in ${aiDir}`);
