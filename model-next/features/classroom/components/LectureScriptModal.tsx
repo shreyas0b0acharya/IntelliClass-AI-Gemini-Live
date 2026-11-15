@@ -59,6 +59,8 @@ export interface LectureScriptModalProps {
   meetingCode?: string;
   roadmap?: SessionRoadmap | null;
   currentTopicId?: string | null;
+  initialViewMode?: "roadmap" | "cards" | "edit";
+  lectureMode?: "gemini_live" | "scripted";
   onGenerateRoadmap?: () => Promise<void>;
   onSelectTopic?: (topicId: string) => void;
   onSaveScript?: (newScript: string) => Promise<void>;
@@ -80,6 +82,8 @@ export function LectureScriptModal({
   meetingCode,
   roadmap,
   currentTopicId,
+  initialViewMode,
+  lectureMode,
   onGenerateRoadmap,
   onSelectTopic,
   onSaveScript,
@@ -87,12 +91,21 @@ export function LectureScriptModal({
   onUpdated,
   onStartSession,
 }: LectureScriptModalProps) {
-  const [viewMode, setViewMode] = useState<"roadmap" | "cards" | "edit">("roadmap");
+  const [viewMode, setViewMode] = useState<"roadmap" | "cards" | "edit">(initialViewMode || "roadmap");
+  const [localRoadmap, setLocalRoadmap] = useState<SessionRoadmap | null>(roadmap || null);
+  const [localTopicId, setLocalTopicId] = useState<string | null>(currentTopicId || null);
   const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false);
   const [editedScript, setEditedScript] = useState<string>(rawScript);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Keep local roadmap in sync with prop updates
+  const [prevRoadmapProp, setPrevRoadmapProp] = useState(roadmap);
+  if (roadmap !== prevRoadmapProp) {
+    setPrevRoadmapProp(roadmap);
+    setLocalRoadmap(roadmap || null);
+  }
 
   // Sync editedScript whenever modal opens or rawScript updates (stripping legacy [PAUSE] tags)
   const [prevOpen, setPrevOpen] = useState(open);
@@ -104,8 +117,12 @@ export function LectureScriptModal({
     if (open) {
       const sanitized = (rawScript || "").replace(/\[PAUSE\]/gi, " ").trim();
       setEditedScript(sanitized);
-      if (!sanitized || sanitized.length === 0) {
-        setViewMode("edit");
+      if (initialViewMode) {
+        setViewMode(initialViewMode);
+      } else if (lectureMode === "gemini_live" || (roadmap && roadmap.topics && roadmap.topics.length > 0)) {
+        setViewMode("roadmap");
+      } else if (!sanitized || sanitized.length === 0) {
+        setViewMode(roadmap ? "roadmap" : "edit");
       } else {
         setViewMode("cards");
       }
@@ -191,6 +208,27 @@ export function LectureScriptModal({
   const canDelete = Boolean(onDeleteScript || sessionId);
   const hasScriptContent = Boolean(rawScript?.trim() || editedScript?.trim());
 
+  const handleGenerateRoadmap = async () => {
+    setIsGeneratingRoadmap(true);
+    try {
+      if (onGenerateRoadmap) {
+        await onGenerateRoadmap();
+      } else if (sessionId) {
+        const res = await api.generateRoadmap(sessionId, { lectureTopic: topic });
+        if (res?.roadmap) {
+          setLocalRoadmap(res.roadmap);
+          if (res.currentTopicId) setLocalTopicId(res.currentTopicId);
+          toast.success("AI lecture roadmap generated successfully!");
+        }
+      }
+    } catch (err) {
+      console.error("Roadmap generation error:", err);
+      toast.error("Failed to generate roadmap.");
+    } finally {
+      setIsGeneratingRoadmap(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,8 +247,15 @@ export function LectureScriptModal({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
-                      Curriculum &amp; Lecture Script
+                      {lectureMode === "gemini_live" || (localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0)
+                        ? "Gemini Live Lecture Roadmap"
+                        : "Curriculum & Lecture Script"}
                     </DialogTitle>
+                    {lectureMode === "gemini_live" && (
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        Gemini Live
+                      </span>
+                    )}
                     {meetingCode && (
                       <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
                         Code: {meetingCode}
@@ -219,9 +264,15 @@ export function LectureScriptModal({
                   </div>
                   <p
                     className="text-xs text-muted-foreground truncate mt-0.5"
-                    title={`${topic} • ${items.length} segments • ~${estDurationMin} mins`}
+                    title={
+                      localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0
+                        ? `${topic} • ${localRoadmap.topics.length} topics • ~${localRoadmap.totalEstimatedMinutes} mins`
+                        : `${topic} • ${items.length} segments • ~${estDurationMin} mins`
+                    }
                   >
-                    {topic} &bull; {items.length} segments &bull; ~{estDurationMin} mins
+                    {localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0
+                      ? `${topic} • ${localRoadmap.topics.length} interactive topics • ~${localRoadmap.totalEstimatedMinutes} mins total`
+                      : `${topic} • ${items.length} segments • ~${estDurationMin} mins`}
                   </p>
                 </div>
               </div>
@@ -307,7 +358,7 @@ export function LectureScriptModal({
                       onOpenChange(false);
                       onStartSession();
                     }}
-                    disabled={items.length === 0 && (!roadmap || !roadmap.topics || roadmap.topics.length === 0)}
+                    disabled={items.length === 0 && (!localRoadmap || !localRoadmap.topics || localRoadmap.topics.length === 0)}
                     className="h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all shrink-0"
                   >
                     <Play className="h-3.5 w-3.5" fill="currentColor" />
@@ -348,37 +399,69 @@ export function LectureScriptModal({
 
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-border/40 text-center">
-              <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                  Speech Segments
-                </span>
-                <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
-                  {speechCount} Sentences
-                </span>
-              </div>
-              <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                  Word Count
-                </span>
-                <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
-                  {totalWords} Words
-                </span>
-              </div>
-              <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                  {status === "running" ? "Live Progress" : "Estimated Time"}
-                </span>
-                {status === "running" ? (
-                  <span className="text-xs font-mono font-bold text-primary">
-                    {items.length > 0 ? Math.round(((currentIndex + 1) / items.length) * 100) : 0}% Complete
-                  </span>
-                ) : (
-                  <span className="text-xs sm:text-sm font-mono font-bold text-primary flex items-center justify-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    ~{estDurationMin} min
-                  </span>
-                )}
-              </div>
+              {viewMode === "roadmap" || (localRoadmap && localRoadmap.topics.length > 0 && items.length === 0) ? (
+                <>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      Roadmap Topics
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
+                      {localRoadmap?.topics?.length || 0} Core Modules
+                    </span>
+                  </div>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      Delivery Engine
+                    </span>
+                    <span className="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                      Gemini Live AI (Adaptive)
+                    </span>
+                  </div>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      Estimated Duration
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-primary flex items-center justify-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      ~{localRoadmap?.totalEstimatedMinutes || 30} min
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      Speech Segments
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
+                      {speechCount} Sentences
+                    </span>
+                  </div>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      Word Count
+                    </span>
+                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
+                      {totalWords} Words
+                    </span>
+                  </div>
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+                      {status === "running" ? "Live Progress" : "Estimated Time"}
+                    </span>
+                    {status === "running" ? (
+                      <span className="text-xs font-mono font-bold text-primary">
+                        {items.length > 0 ? Math.round(((currentIndex + 1) / items.length) * 100) : 0}% Complete
+                      </span>
+                    ) : (
+                      <span className="text-xs sm:text-sm font-mono font-bold text-primary flex items-center justify-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        ~{estDurationMin} min
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </DialogHeader>
 
@@ -386,22 +469,11 @@ export function LectureScriptModal({
           <div className="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto space-y-3.5">
             {viewMode === "roadmap" ? (
               <RoadmapInspector
-                roadmap={roadmap || null}
-                currentTopicId={currentTopicId || null}
+                roadmap={localRoadmap || null}
+                currentTopicId={localTopicId || null}
                 isLecturer={isLecturer}
                 isGenerating={isGeneratingRoadmap}
-                onGenerateRoadmap={
-                  onGenerateRoadmap
-                    ? async () => {
-                        setIsGeneratingRoadmap(true);
-                        try {
-                          await onGenerateRoadmap();
-                        } finally {
-                          setIsGeneratingRoadmap(false);
-                        }
-                      }
-                    : undefined
-                }
+                onGenerateRoadmap={onGenerateRoadmap || sessionId ? handleGenerateRoadmap : undefined}
                 onSelectTopic={onSelectTopic}
               />
             ) : viewMode === "edit" ? (

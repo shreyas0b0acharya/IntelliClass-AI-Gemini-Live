@@ -1,6 +1,7 @@
 import type { Course, CourseFile, ClassroomSession, ChatMessage, Profile, MediaAsset } from "@/lib/supabase/types";
 import type { VoiceOption, TTSModelOption, TTSProviderId } from "@/features/classroom/types/speech";
 import type { HeadTTSData } from "@/features/avatar";
+import type { SessionRoadmap } from "@/features/classroom/types/roadmap";
 import type { User } from "@supabase/supabase-js";
 
 export class ApiError extends Error {
@@ -257,6 +258,25 @@ export const api = {
         body: JSON.stringify(data),
       }
     );
+  },
+
+  generateRoadmap: async (
+    sessionId: string,
+    data?: {
+      lectureTopic?: string;
+      targetDurationMinutes?: number;
+      sources?: Array<{ fileName: string; startPage?: number; endPage?: number }>;
+      customPrompt?: string;
+    }
+  ) => {
+    return fetchApi<{
+      success: boolean;
+      roadmap: SessionRoadmap;
+      currentTopicId: string | null;
+    }>(`/api/classroom/${sessionId}/generate-roadmap`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
   },
 
   // ─── Classroom ────────────────────────────────────────────────────────────
