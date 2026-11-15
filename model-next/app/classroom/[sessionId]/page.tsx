@@ -239,6 +239,10 @@ export default function ClassroomPage({
         isLecturer={isLecturer}
         status={classroom.sessionStatus}
         rawScript={classroom.session.script || ""}
+        roadmap={classroom.geminiLive.roadmap || store.roadmap}
+        currentTopicId={classroom.geminiLive.currentTopicId || store.currentTopicId}
+        onGenerateRoadmap={classroom.generateRoadmap}
+        onSelectTopic={classroom.selectTopic}
         onSaveScript={classroom.updateScript}
         onStartSession={classroom.startSession}
       />
@@ -504,7 +508,7 @@ export default function ClassroomPage({
               <AvatarStage
                 key={avatarModel}
                 model={avatarModel}
-                isSpeaking={Boolean(classroom.currentSpeech)}
+                isSpeaking={classroom.isSpeaking}
                 audioPath={classroom.currentSpeech?.audioPath}
                 lipSyncData={classroom.currentSpeech?.lipSyncData}
                 targetEpochMs={classroom.currentSpeech?.targetEpochMs}

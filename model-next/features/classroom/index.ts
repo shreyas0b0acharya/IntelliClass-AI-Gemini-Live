@@ -20,11 +20,13 @@ export { StageOverlay } from "./components/StageOverlay";
 export { MobileViewSwitcher } from "./components/MobileViewSwitcher";
 export { ClassroomConfigModal } from "./components/ClassroomConfigModal";
 export { SessionPersonaModal } from "./components/SessionPersonaModal";
+export { RoadmapInspector } from "./components/RoadmapInspector";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";
 export { useClassroomSync } from "./hooks/useClassroomSync";
 export { useSpeechQueue } from "./hooks/useSpeechQueue";
+export { useGeminiLiveSession } from "./hooks/useGeminiLiveSession";
 export { useClassroomLayout, type ClassroomLayoutFacts } from "./hooks/useClassroomLayout";
 
 // Store

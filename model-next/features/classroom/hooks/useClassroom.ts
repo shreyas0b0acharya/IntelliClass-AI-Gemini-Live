@@ -18,6 +18,8 @@ import type {
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
 import { useClassroomSync } from "./useClassroomSync";
 import { useSpeechQueue } from "./useSpeechQueue";
+import { useGeminiLiveSession } from "./useGeminiLiveSession";
+import type { SessionRoadmap } from "../types/roadmap";
 import { useClassroomStore } from "../store/classroomStore";
 import {
   getSynchronizedEpochMs,
@@ -452,6 +454,90 @@ export function useClassroom(sessionId: string) {
     };
   }, [sessionId, advanceCurrentItem]);
 
+  // ── 4.5. Gemini 3.8 Live & Topic Roadmap Handlers ──────────────────
+  const isLecturer = profile?.role === "lecturer";
+
+  const selectTopic = useCallback(
+    (topicId: string) => {
+      syncStore().setCurrentTopicId(topicId);
+      api.updateClassroomSession(sessionId, { current_topic_id: topicId }).catch(() => {});
+      sequenceRef.current++;
+      broadcastEventRef.current?.({
+        type: "LIVE_TOPIC_CHANGE",
+        topicId,
+        topicTitle: `Topic ${topicId}`,
+        sequence: sequenceRef.current,
+      });
+    },
+    [sessionId, syncStore]
+  );
+
+  const generateRoadmap = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/classroom/${sessionId}/generate-roadmap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lectureTopic: session?.topic }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSession((prev) =>
+          prev ? { ...prev, roadmap: data.roadmap, current_topic_id: data.currentTopicId } : prev
+        );
+        syncStore().setRoadmap(data.roadmap);
+        syncStore().setCurrentTopicId(data.currentTopicId);
+        toast.success("AI lecture roadmap generated successfully!");
+      } else {
+        toast.error("Failed to generate roadmap.");
+      }
+    } catch {
+      toast.error("Error connecting to roadmap generator.");
+    }
+  }, [sessionId, session?.topic, syncStore]);
+
+  const geminiLive = useGeminiLiveSession({
+    sessionId,
+    isConductor: isLecturer,
+    participantId: user?.id,
+    participantName: profile?.name || user?.email?.split("@")[0] || "Participant",
+    onAdvanceTopic: (nextTopicId: string) => {
+      selectTopic(nextTopicId);
+    },
+    onProjectMedia: (assetId: string, caption?: string) => {
+      const assetUrl = assetId.startsWith("http") ? assetId : `/api/media/${assetId}`;
+      const mediaObj: MediaItemDisplay = {
+        type: "image",
+        url: assetUrl,
+        label: caption || "Visual Concept",
+      };
+      setActiveMedia(mediaObj);
+      syncStore().setActiveMedia(mediaObj);
+      sequenceRef.current++;
+      broadcastEventRef.current?.({
+        type: "MEDIA_PROJECT",
+        media: mediaObj,
+        sequence: sequenceRef.current,
+      });
+    },
+    onSubtitleReceived: (text: string) => {
+      setCurrentSubtitle(text);
+      syncStore().setCurrentSubtitle(text);
+      sequenceRef.current++;
+      broadcastEventRef.current?.({
+        type: "LIVE_SUBTITLE",
+        text,
+        sequence: sequenceRef.current,
+      });
+    },
+  });
+
+  // Automatically connect students to LiveKit media stream when lecture is active
+  useEffect(() => {
+    if (sessionStatus === "running" && !isLecturer && geminiLive.connectionStatus === "disconnected") {
+      geminiLive.connectStudent();
+    }
+  }, [sessionStatus, isLecturer, geminiLive]);
+
   // ── 5. Realtime Events Receiver ──────────────────────────────────────
   const handleRealtimeEvent = useCallback(
     (event: ClassroomEvent) => {
@@ -726,6 +812,30 @@ export function useClassroom(sessionId: string) {
               ? `Lecturer updated persona to ${event.personaName}`
               : "Lecturer updated avatar persona & audio settings."
           );
+        }
+      }
+
+      // ── LIVE_TOPIC_CHANGE ──────────────────────────────────────────
+      else if (event.type === "LIVE_TOPIC_CHANGE") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        syncStore().setCurrentTopicId(event.topicId);
+        toast.info(`📖 Topic: ${event.topicTitle}`, { duration: 3000 });
+      }
+
+      // ── LIVE_SUBTITLE ──────────────────────────────────────────────
+      else if (event.type === "LIVE_SUBTITLE") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        setCurrentSubtitle(event.text);
+        syncStore().setCurrentSubtitle(event.text);
+      }
+
+      // ── FLOOR_CHANGE ───────────────────────────────────────────────
+      else if (event.type === "FLOOR_CHANGE") {
+        lastSeqRef.current = Math.max(lastSeqRef.current, event.sequence);
+        if (event.action === "grant") {
+          toast.success("🎤 Floor granted for question", { duration: 2500 });
+        } else {
+          toast.info("Microphone floor returned to professor", { duration: 2000 });
         }
       }
 
@@ -1154,8 +1264,34 @@ export function useClassroom(sessionId: string) {
   const startSession = async () => {
     if (!isLecturerRef.current) return;
 
+    const hasScript = itemsRef.current.length > 0;
+    const hasRoadmap = Boolean(session?.roadmap || syncStore().roadmap);
+
+    // Dynamic Gemini Live Mode: runs when roadmap exists or no scripted items
+    if (!hasScript || hasRoadmap) {
+      console.log(`▶️ [Classroom] Starting dynamic Gemini Live session ${sessionId}...`);
+      admitAllParticipants();
+
+      setSessionStatus("running");
+      sessionStatusRef.current = "running";
+      syncStore().setStatus("running");
+      setStoppedReason(undefined);
+      syncStore().setStoppedReason(undefined);
+
+      sequenceRef.current++;
+      await api.updateClassroomSession(sessionId, {
+        status: "running",
+        sequence: sequenceRef.current,
+        driverTabId: myTabIdRef.current,
+      });
+
+      await geminiLive.connectConductor();
+      geminiLive.startLecture();
+      return;
+    }
+
     if (itemsRef.current.length === 0) {
-      toast.error("No lecture script found. Please generate the curriculum script before starting broadcast.");
+      toast.error("No lecture curriculum found. Please generate the topic roadmap before starting broadcast.");
       return;
     }
 
@@ -1214,6 +1350,9 @@ export function useClassroom(sessionId: string) {
 
   const pauseSession = async () => {
     if (!isLecturerRef.current) return;
+    if (geminiLive.connectionStatus === "connected") {
+      geminiLive.disconnect();
+    }
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
@@ -1240,6 +1379,9 @@ export function useClassroom(sessionId: string) {
 
   const endSession = async () => {
     if (!isLecturerRef.current) return;
+    if (geminiLive.connectionStatus === "connected") {
+      geminiLive.disconnect();
+    }
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
@@ -1446,6 +1588,10 @@ export function useClassroom(sessionId: string) {
     handleInterrupt,
     currentSpeech: speech.currentSpeech,
     handleAudioEnd: speech.handleAudioEnd,
+    isSpeaking: Boolean(speech.currentSpeech) || geminiLive.isSpeaking,
+    geminiLive,
+    generateRoadmap,
+    selectTopic,
     startSession,
     pauseSession,
     endSession,

@@ -66,6 +66,9 @@ Thumbs.db
 *.rar
 *.7z
 zips/
+*.dump
+**/backups/
+**/model-next/supabase/
 
 
 # 3D Assets & Models (Hosted on Supabase Storage)

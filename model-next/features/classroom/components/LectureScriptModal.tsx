@@ -43,6 +43,8 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { ClassroomSession } from "@/lib/supabase/types";
+import type { SessionRoadmap } from "../types/roadmap";
+import { RoadmapInspector } from "./RoadmapInspector";
 
 export interface LectureScriptModalProps {
   open: boolean;
@@ -55,6 +57,10 @@ export interface LectureScriptModalProps {
   rawScript?: string;
   sessionId?: string;
   meetingCode?: string;
+  roadmap?: SessionRoadmap | null;
+  currentTopicId?: string | null;
+  onGenerateRoadmap?: () => Promise<void>;
+  onSelectTopic?: (topicId: string) => void;
   onSaveScript?: (newScript: string) => Promise<void>;
   onDeleteScript?: () => Promise<void>;
   onUpdated?: (updated: ClassroomSession) => void;
@@ -72,12 +78,17 @@ export function LectureScriptModal({
   rawScript = "",
   sessionId,
   meetingCode,
+  roadmap,
+  currentTopicId,
+  onGenerateRoadmap,
+  onSelectTopic,
   onSaveScript,
   onDeleteScript,
   onUpdated,
   onStartSession,
 }: LectureScriptModalProps) {
-  const [viewMode, setViewMode] = useState<"cards" | "edit">("cards");
+  const [viewMode, setViewMode] = useState<"roadmap" | "cards" | "edit">("roadmap");
+  const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false);
   const [editedScript, setEditedScript] = useState<string>(rawScript);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -244,33 +255,47 @@ export function LectureScriptModal({
                   </Button>
                 )}
 
-                {/* Toggle Segment View / Edit Script */}
-                {isLecturer && canSave && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (viewMode === "cards") {
-                        setEditedScript(
-                          rawScript ||
-                            items
-                              .map((i) => (i.type === "speech" ? i.text : `[${i.type.toUpperCase()}]`))
-                              .join(" ")
-                        );
-                        setViewMode("edit");
-                      } else {
-                        setViewMode("cards");
-                      }
-                    }}
-                    className="h-9 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shadow-2xs"
-                  >
-                    {viewMode === "cards" ? (
-                      <Edit3 className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <List className="h-3.5 w-3.5" />
+                {/* Toggle Roadmap / Segment View / Edit Script */}
+                {isLecturer && (
+                  <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50">
+                    <Button
+                      variant={viewMode === "roadmap" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("roadmap")}
+                      className="h-7 px-2.5 text-xs font-semibold rounded-lg"
+                    >
+                      <Sparkles className="h-3 w-3 mr-1 text-chart-4" />
+                      <span>Roadmap</span>
+                    </Button>
+                    <Button
+                      variant={viewMode === "cards" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("cards")}
+                      className="h-7 px-2.5 text-xs font-semibold rounded-lg"
+                    >
+                      <List className="h-3 w-3 mr-1" />
+                      <span>Script Items</span>
+                    </Button>
+                    {canSave && (
+                      <Button
+                        variant={viewMode === "edit" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => {
+                          setEditedScript(
+                            rawScript ||
+                              items
+                                .map((i) => (i.type === "speech" ? i.text : `[${i.type.toUpperCase()}]`))
+                                .join(" ")
+                          );
+                          setViewMode("edit");
+                        }}
+                        className="h-7 px-2.5 text-xs font-semibold rounded-lg"
+                      >
+                        <Edit3 className="h-3 w-3 mr-1 text-primary" />
+                        <span>Edit Text</span>
+                      </Button>
                     )}
-                    <span>{viewMode === "cards" ? "Edit Script" : "Segment View"}</span>
-                  </Button>
+                  </div>
                 )}
 
                 {/* Start or Resume Live Session (Classroom) */}
@@ -282,7 +307,7 @@ export function LectureScriptModal({
                       onOpenChange(false);
                       onStartSession();
                     }}
-                    disabled={items.length === 0}
+                    disabled={items.length === 0 && (!roadmap || !roadmap.topics || roadmap.topics.length === 0)}
                     className="h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all shrink-0"
                   >
                     <Play className="h-3.5 w-3.5" fill="currentColor" />
@@ -359,7 +384,27 @@ export function LectureScriptModal({
 
           {/* Content Area - Scrolls independently */}
           <div className="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto space-y-3.5">
-            {viewMode === "edit" ? (
+            {viewMode === "roadmap" ? (
+              <RoadmapInspector
+                roadmap={roadmap || null}
+                currentTopicId={currentTopicId || null}
+                isLecturer={isLecturer}
+                isGenerating={isGeneratingRoadmap}
+                onGenerateRoadmap={
+                  onGenerateRoadmap
+                    ? async () => {
+                        setIsGeneratingRoadmap(true);
+                        try {
+                          await onGenerateRoadmap();
+                        } finally {
+                          setIsGeneratingRoadmap(false);
+                        }
+                      }
+                    : undefined
+                }
+                onSelectTopic={onSelectTopic}
+              />
+            ) : viewMode === "edit" ? (
               <div className="space-y-4 max-w-6xl mx-auto h-full flex flex-col">
                 <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
                   <span>

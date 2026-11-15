@@ -59,6 +59,27 @@ export type ClassroomEvent =
       driverLeaseVersion?: number;
     }
   | {
+      type: "LIVE_TOPIC_CHANGE";
+      topicId: string;
+      topicTitle: string;
+      order?: number;
+      sequence: number;
+      stateVersion?: number;
+    }
+  | {
+      type: "LIVE_SUBTITLE";
+      text: string;
+      sequence: number;
+      stateVersion?: number;
+    }
+  | {
+      type: "FLOOR_CHANGE";
+      holderIdentity: string | null;
+      action: "grant" | "revoke";
+      sequence: number;
+      stateVersion?: number;
+    }
+  | {
       type: "SEEK_SYNC";
       sequence: number;
       stateVersion?: number;

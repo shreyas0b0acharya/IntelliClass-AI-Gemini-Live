@@ -282,6 +282,8 @@ export const api = {
       releaseLease?: boolean;
       target_epoch_ms?: number;
       duration_ms?: number;
+      current_topic_id?: string | null;
+      roadmap?: any;
     }
   ) => {
     return fetchApi<{

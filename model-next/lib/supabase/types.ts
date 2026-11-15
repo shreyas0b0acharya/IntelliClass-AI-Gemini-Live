@@ -83,6 +83,8 @@ export interface ClassroomSession {
   created_at: string;
   updated_at?: string;
   stopped_reason?: string;
+  roadmap?: any;
+  current_topic_id?: string | null;
   course?: Course;
 }
 
