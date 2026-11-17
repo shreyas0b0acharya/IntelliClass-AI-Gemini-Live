@@ -16,17 +16,14 @@ import {
   validatePersonaPairing,
   type AvatarModelId,
 } from "@/features/avatar";
-import type { VoiceOption, TTSModelOption } from "@/features/classroom/types/speech";
-import { ALL_DEFAULT_VOICE_OPTIONS } from "@/features/classroom/constants/voices";
 import {
   DEFAULT_AVATAR_MODEL,
   DEFAULT_FEMALE_AVATAR_MODEL,
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
   DEFAULT_TTS_PROVIDER,
-  TTS_MODELS,
-  getVoicePreviewPhrase,
 } from "@/config";
+import { GEMINI_LIVE_VOICES } from "@/features/settings/components/VoiceSpeedControls";
 import { api } from "@/lib/api";
 import {
   User,
@@ -81,17 +78,8 @@ export function SessionPersonaModal({
   );
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(currentVoiceId || DEFAULT_MALE_VOICE_ID);
   const [speechSpeed, setSpeechSpeed] = useState<number>(currentSpeechSpeed);
-  const [providerFilter, setProviderFilter] = useState<"all" | "elevenlabs" | "headtts">("all");
 
-  // Dynamic voices and models from server
-  const [voices, setVoices] = useState<VoiceOption[]>(ALL_DEFAULT_VOICE_OPTIONS);
-  const [_models, setModels] = useState<TTSModelOption[]>(TTS_MODELS);
-  const [loadingVoices, setLoadingVoices] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Audio test playback state
-  const [testingAudio, setTestingAudio] = useState(false);
-  const [testAudioElement, setTestAudioElement] = useState<HTMLAudioElement | null>(null);
 
   // Sync state when modal opens
   const [prevOpen, setPrevOpen] = useState(open);
@@ -100,74 +88,12 @@ export function SessionPersonaModal({
     setPrevOpen(open);
     if (open) {
       setSelectedAvatar(
-        currentAvatarModel === DEFAULT_FEMALE_AVATAR_MODEL ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL
+        currentAvatarModel === "women-avatarsdk" ? "women-avatarsdk" : "men-avatarsdk"
       );
-      setSelectedVoiceId(currentVoiceId || DEFAULT_MALE_VOICE_ID);
-      setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : DEFAULT_SPEECH_SPEED);
+      setSelectedVoiceId(currentVoiceId || "Fenrir");
+      setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : 1.0);
     }
   }
-
-  // Clean up test audio when closed
-  if (!open && testAudioElement) {
-    testAudioElement.pause();
-    setTestAudioElement(null);
-    setTestingAudio(false);
-  }
-
-  // Clean up test audio on unmount
-  useEffect(() => {
-    return () => {
-      if (testAudioElement) {
-        testAudioElement.pause();
-      }
-    };
-  }, [testAudioElement]);
-
-  // Load dynamic voices on mount or when opened
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-
-    async function loadVoices() {
-      setLoadingVoices(true);
-      try {
-        const res = await api.getTTSVoices();
-        if (!cancelled && res.voices && res.voices.length > 0) {
-          setVoices(res.voices);
-          if (res.models) setModels(res.models);
-        }
-      } catch (err) {
-        console.warn("[PersonaModal] Could not fetch dynamic voices, using defaults:", err);
-      } finally {
-        if (!cancelled) setLoadingVoices(false);
-      }
-    }
-
-    loadVoices();
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
-
-  // Selected voice metadata lookup
-  const selectedVoiceMeta = useMemo(() => {
-    return voices.find((v) => v.id === selectedVoiceId) || voices[0] || ALL_DEFAULT_VOICE_OPTIONS[0];
-  }, [voices, selectedVoiceId]);
-
-  // Filtered voice list
-  const filteredVoices = useMemo(() => {
-    if (providerFilter === "all") return voices;
-    return voices.filter((v) => v.provider === providerFilter);
-  }, [voices, providerFilter]);
-
-  // Validation: unknown gender NEVER triggers mismatch warning
-  const pairingValidation = useMemo(() => {
-    return validatePersonaPairing(
-      selectedAvatar,
-      selectedVoiceMeta?.gender || "unknown",
-      selectedVoiceMeta?.name
-    );
-  }, [selectedAvatar, selectedVoiceMeta]);
 
   // Pacing category descriptor
   const speedLabel = useMemo(() => {
@@ -175,79 +101,6 @@ export function SessionPersonaModal({
     if (speechSpeed <= 1.05) return "Standard Academic Pace";
     return "Brisk & Concise";
   }, [speechSpeed]);
-
-  // Handle Quick-Fixes
-  const handleQuickFixAvatar = (newAvatarId?: AvatarModelId) => {
-    if (newAvatarId) {
-      setSelectedAvatar(newAvatarId);
-      toast.success(`Switched avatar to ${newAvatarId === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur"}`);
-    }
-  };
-
-  const handleQuickFixVoice = () => {
-    const avatarMeta = getAvatarMetadata(selectedAvatar);
-    const matchingVoice = voices.find((v) => v.gender === avatarMeta.gender);
-    if (matchingVoice) {
-      setSelectedVoiceId(matchingVoice.id);
-      toast.success(`Selected matching ${avatarMeta.gender} voice: ${matchingVoice.name}`);
-    }
-  };
-
-  // Test Speech Playback
-  const handleTestVoice = async () => {
-    if (testingAudio) {
-      if (testAudioElement) {
-        testAudioElement.pause();
-        setTestAudioElement(null);
-      }
-      setTestingAudio(false);
-      return;
-    }
-
-    setTestingAudio(true);
-    const avatarName = selectedAvatar === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur";
-    const sampleText = getVoicePreviewPhrase(avatarName);
-
-    try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: sampleText,
-          voice: selectedVoiceId,
-          provider: selectedVoiceMeta.provider,
-          speed: speechSpeed,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS sample preview failed (${response.status})`);
-      }
-
-      const data = await response.json();
-      if (!data.audioPath) {
-        throw new Error("Invalid TTS audio returned.");
-      }
-
-      const audio = new Audio(data.audioPath);
-      audio.onended = () => {
-        setTestingAudio(false);
-        setTestAudioElement(null);
-      };
-      audio.onerror = () => {
-        setTestingAudio(false);
-        setTestAudioElement(null);
-        toast.error("Audio playback error during preview.");
-      };
-
-      setTestAudioElement(audio);
-      await audio.play();
-    } catch (err: unknown) {
-      setTestingAudio(false);
-      const msg = err instanceof Error ? err.message : "Preview error";
-      toast.error(msg);
-    }
-  };
 
   // Handle Save
   const handleSave = async () => {
@@ -258,7 +111,7 @@ export function SessionPersonaModal({
         avatar_model: selectedAvatar,
         voice_id: selectedVoiceId,
         speech_speed: speechSpeed,
-        tts_provider: selectedVoiceMeta.provider,
+        tts_provider: "gemini_live",
       });
       onOpenChange(false);
     } catch {
@@ -364,45 +217,10 @@ export function SessionPersonaModal({
 
         {/* ── Section 2: Speech Voice Selection ── */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Volume2 className="h-3.5 w-3.5 text-primary" />
-              2. Vocal Cadence & Voice Model
-            </label>
-
-            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/40 border border-border/40 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setProviderFilter("all")}
-                className={cn(
-                  "px-2 py-0.5 rounded-md font-medium transition-colors",
-                  providerFilter === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                )}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setProviderFilter("elevenlabs")}
-                className={cn(
-                  "px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1",
-                  providerFilter === "elevenlabs" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                )}
-              >
-                <Globe className="h-2.5 w-2.5 text-blue-500" /> Cloud
-              </button>
-              <button
-                type="button"
-                onClick={() => setProviderFilter("headtts")}
-                className={cn(
-                  "px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1",
-                  providerFilter === "headtts" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
-                )}
-              >
-                <HardDrive className="h-2.5 w-2.5 text-emerald-500" /> Local
-              </button>
-            </div>
-          </div>
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Volume2 className="h-3.5 w-3.5 text-primary" />
+            2. Gemini Live Neural Voice
+          </label>
 
           {/* Voice Dropdown list */}
           <div className="relative">
@@ -415,86 +233,14 @@ export function SessionPersonaModal({
                 isLocked && "opacity-80 cursor-not-allowed"
               )}
             >
-              {filteredVoices.map((voice) => (
+              {GEMINI_LIVE_VOICES.map((voice) => (
                 <option key={voice.id} value={voice.id}>
-                  {voice.name} ({voice.provider === "elevenlabs" ? "ElevenLabs Cloud" : "HeadTTS Local"} • {voice.gender.toUpperCase()}{voice.accent ? ` • ${voice.accent}` : ""})
+                  {voice.name}
                 </option>
               ))}
             </select>
-            {loadingVoices && (
-              <div className="absolute right-3 top-3 pointer-events-none text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            )}
           </div>
-
-          {/* Voice Details Badge */}
-          {selectedVoiceMeta && (
-            <div className="p-3 rounded-2xl bg-muted/20 border border-border/40 text-xs space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  {selectedVoiceMeta.name}
-                  <span
-                    className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase",
-                      selectedVoiceMeta.gender === "female"
-                        ? "bg-rose-500/10 text-rose-500"
-                        : selectedVoiceMeta.gender === "male"
-                        ? "bg-blue-500/10 text-blue-500"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {selectedVoiceMeta.gender}
-                  </span>
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {selectedVoiceMeta.provider === "elevenlabs" ? "Cloud Ultra-Low Latency" : "Kokoro Neural 82M"}
-                </span>
-              </div>
-              {selectedVoiceMeta.description && (
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {selectedVoiceMeta.description}
-                </p>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* ── Mismatch Validation Banner (Unknown gender NEVER triggers warning) ── */}
-        {!pairingValidation.isMatch && pairingValidation.warningMessage && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="flex items-start gap-2.5 text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <div className="space-y-1 flex-1">
-                <p className="font-bold">Persona & Voice Mismatch Detected</p>
-                <p className="text-[11px] leading-relaxed">
-                  {pairingValidation.warningMessage}
-                </p>
-              </div>
-            </div>
-
-            {!isLocked && (
-              <div className="flex items-center gap-2 pt-1">
-                {pairingValidation.quickFixAvatarId && (
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFixAvatar(pairingValidation.quickFixAvatarId)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-600 text-white dark:bg-amber-500 text-[11px] font-bold hover:opacity-90 transition-opacity"
-                  >
-                    Switch to {pairingValidation.quickFixAvatarId === DEFAULT_FEMALE_AVATAR_MODEL ? "Dr. Clara" : "Prof. Arthur"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleQuickFixVoice}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-500/30 transition-colors"
-                >
-                  Pick Matching Voice
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Section 3: Speech Pacing / Speed Normalizer ── */}
         <div className="space-y-3">
@@ -530,44 +276,8 @@ export function SessionPersonaModal({
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {selectedVoiceMeta.provider === "elevenlabs"
-              ? "Provider Calibration: ElevenLabs synthesizes proportionally around a 0.90x baseline for clear classroom cadence."
-              : "Provider Calibration: HeadTTS executes at native 1.0x neural pacing."}
+            Calibrated for real-time conversational lecturing via Google Gemini Live AI audio.
           </p>
-        </div>
-
-        {/* ── Section 4: Live Audio Preview & Tester ── */}
-        <div className="p-3.5 rounded-2xl bg-muted/20 border border-border/40 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <Volume2 className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-foreground">Sample Lecture Greeting</p>
-              <p className="text-[10px] text-muted-foreground">Test vocal tone and pacing preview</p>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleTestVoice}
-            disabled={loadingVoices}
-            className="h-8 px-3.5 text-xs font-semibold gap-1.5"
-          >
-            {testingAudio ? (
-              <>
-                <Square className="h-3 w-3 fill-current text-rose-500" />
-                <span>Stop Sample</span>
-              </>
-            ) : (
-              <>
-                <Play className="h-3 w-3 fill-current text-primary" />
-                <span>Test Voice</span>
-              </>
-            )}
-          </Button>
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-3 pt-2">

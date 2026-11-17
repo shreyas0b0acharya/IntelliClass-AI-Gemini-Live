@@ -1,6 +1,6 @@
 import type { LipSyncData } from "@/features/avatar";
 
-export type TTSProviderId = "headtts" | "elevenlabs";
+export type TTSProviderId = "gemini_live" | "headtts" | "elevenlabs";
 
 export type VoiceGender = "male" | "female" | "unknown";
 

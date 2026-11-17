@@ -17,27 +17,22 @@ import type {
 } from "../types/classroom";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
 import { useClassroomSync } from "./useClassroomSync";
-import { useSpeechQueue } from "./useSpeechQueue";
 import { useGeminiLiveSession } from "./useGeminiLiveSession";
+import { getTimeTag } from "../services/liveAudioPlayer";
 import type { SessionRoadmap } from "../types/roadmap";
 import { useClassroomStore } from "../store/classroomStore";
 import {
   getSynchronizedEpochMs,
-  startBackgroundSync,
   preloadAudioBuffer,
   stopAllAudio,
   type HeadTTSData,
 } from "@/features/avatar";
-import { fetchSpeechTTS } from "../services/tts";
-import { ELEVENLABS_VOICE_OPTIONS } from "@/features/settings/services/settings";
 import type { TTSProviderId } from "../types/speech";
 import {
   CLASSROOM_TIMINGS,
   LEAD_TIME_MS,
   DEFAULT_FEMALE_VOICE_ID,
-  DEFAULT_TTS_PROVIDER,
-  DEFAULT_HEADTTS_MODEL_ID,
-  DEFAULT_ELEVENLABS_MODEL_ID,
+  DEFAULT_SPEECH_SPEED,
 } from "@/config";
 
 export interface MediaItemDisplay {
@@ -51,26 +46,11 @@ export function resolveVoiceAndProvider(rawVoiceId?: string): {
   provider: TTSProviderId;
   modelId: string;
 } {
-  if (!rawVoiceId) {
-    return {
-      voiceId: DEFAULT_FEMALE_VOICE_ID,
-      provider: DEFAULT_TTS_PROVIDER,
-      modelId: DEFAULT_HEADTTS_MODEL_ID,
-    };
-  }
-  if (rawVoiceId.startsWith("elevenlabs:")) {
-    return {
-      voiceId: rawVoiceId.replace("elevenlabs:", ""),
-      provider: "elevenlabs",
-      modelId: DEFAULT_ELEVENLABS_MODEL_ID,
-    };
-  }
-  const isElevenLabs =
-    ELEVENLABS_VOICE_OPTIONS.some((v) => v.id === rawVoiceId) || rawVoiceId.length >= 18;
-  if (isElevenLabs) {
-    return { voiceId: rawVoiceId, provider: "elevenlabs", modelId: DEFAULT_ELEVENLABS_MODEL_ID };
-  }
-  return { voiceId: rawVoiceId, provider: DEFAULT_TTS_PROVIDER, modelId: DEFAULT_HEADTTS_MODEL_ID };
+  return {
+    voiceId: rawVoiceId || "Fenrir",
+    provider: "gemini_live",
+    modelId: "gemini-3.8-live",
+  };
 }
 
 export function useClassroom(sessionId: string) {
@@ -125,12 +105,6 @@ export function useClassroom(sessionId: string) {
 
   // Helper to safely mutate Zustand store without subscribing to render loops
   const syncStore = useClassroomStore.getState;
-
-  // ── 0. SNTP Background Clock Sync ─────────────────────────────────────
-  useEffect(() => {
-    const stopSync = startBackgroundSync();
-    return () => stopSync();
-  }, []);
 
   // ── Helper to schedule item progression with cancellation guard ─────────
   const scheduleAdvance = useCallback((delayMs: number) => {
@@ -200,28 +174,19 @@ export function useClassroom(sessionId: string) {
     [session?.voice_id]
   );
 
-  // ── 2. TTS & Speech Queue Hook ───────────────────────────────────────
-  const speech = useSpeechQueue({
-    voice: resolvedVoice.voiceId,
-    provider: resolvedVoice.provider,
-    modelId: resolvedVoice.modelId,
-    speed: session?.speech_speed ?? 1.0,
-    onSpeechComplete: (_itemId) => {
-      executingItemIdRef.current = null;
-      // Only the active conductor advances — students follow strictly via broadcast
-      if (
-        sessionStatusRef.current === "running" &&
-        isLecturerRef.current &&
-        isConductorLeaseActiveRef.current
-      ) {
-        scheduleAdvance(CLASSROOM_TIMINGS.AUTO_ADVANCE_DELAY_MS);
-      }
-    },
-    onError: (err) => {
-      executingItemIdRef.current = null;
-      toast.error(`Speech synthesis error: ${err.message}`);
-    },
-  });
+  // ── 2. Speech & Audio Queue (Gemini Live Mode) ─────────────────────
+  const speech = useMemo(
+    () => ({
+      currentSpeech: null as any,
+      handleAudioEnd: () => {},
+      stop: () => {},
+      playSpeech: (..._args: any[]) => {},
+      prefetch: (..._args: any[]) => {},
+      synthesizeItem: async (..._args: any[]): Promise<any> => null,
+      playScheduled: (..._args: any[]) => {},
+    }),
+    []
+  );
 
   // ── 3. Execute a specific LectureItem (Active Conductor Only) ───────────
   const executeLectureItem = useCallback(
@@ -500,6 +465,8 @@ export function useClassroom(sessionId: string) {
     isConductor: isLecturer,
     participantId: user?.id,
     participantName: profile?.name || user?.email?.split("@")[0] || "Participant",
+    initialRoadmap: session?.roadmap || syncStore().roadmap || null,
+    initialTopicId: session?.current_topic_id || syncStore().currentTopicId || null,
     onAdvanceTopic: (nextTopicId: string) => {
       selectTopic(nextTopicId);
     },
@@ -1046,6 +1013,14 @@ export function useClassroom(sessionId: string) {
           syncStore().setTopic(sessionData.topic);
           syncStore().setStatus(sessionData.status as SessionStateStatus);
 
+          // Populate store with loaded roadmap so HUD, dialogs, and Gemini Live have it immediately
+          if (sessionData.roadmap) {
+            syncStore().setRoadmap(sessionData.roadmap);
+          }
+          if (sessionData.current_topic_id) {
+            syncStore().setCurrentTopicId(sessionData.current_topic_id);
+          }
+
           if (sessionData.stopped_reason) {
             setStoppedReason(sessionData.stopped_reason);
             syncStore().setStoppedReason(sessionData.stopped_reason);
@@ -1130,18 +1105,20 @@ export function useClassroom(sessionId: string) {
   }, [sessionId, syncStore]);
 
   // ── 9. Q&A Interruption Handler ──────────────────────────────────────
-  const handleInterrupt = async (questionText?: string) => {
+  const handleInterrupt = async (questionText?: string, isVoice: boolean = false) => {
     const question = questionText || userQuestion;
     if (!question.trim() || !session) return;
 
-    // 1. Instant Real-time Interruption: Stop ongoing lecture audio immediately
-    if (advanceTimerRef.current) {
-      clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = null;
+    // Only interrupt ongoing lecture audio if this is a live voice question
+    if (isVoice) {
+      if (advanceTimerRef.current) {
+        clearTimeout(advanceTimerRef.current);
+        advanceTimerRef.current = null;
+      }
+      speech.stop();
+      stopAllAudio();
+      executingItemIdRef.current = null;
     }
-    speech.stop();
-    stopAllAudio();
-    executingItemIdRef.current = null;
 
     // 2. Instant Subtitle & Feedback: Show the student question on stage immediately
     const studentDisplayName = profile?.name || user?.email?.split("@")[0] || "Student";
@@ -1187,26 +1164,10 @@ export function useClassroom(sessionId: string) {
         .sendMessage(sessionId, { role: "ai", message: answer })
         .catch((e) => console.warn("Failed to persist AI answer:", e));
 
-      let audioUrl: string | undefined = askRes.audioUrl;
-      let lipSyncData: HeadTTSData | undefined = askRes.lipSyncData;
+      // In Gemini Live mode, audio is handled via live WebSocket streaming or chat
+      const audioUrl: string | undefined = undefined;
+      const lipSyncData: HeadTTSData | undefined = undefined;
       let targetEpochMs: number | undefined;
-
-      // Fallback: if server-side synthesis didn't return audio, synthesize on client
-      if (!audioUrl || !lipSyncData) {
-        try {
-          const speechRes = await fetchSpeechTTS({
-            text: answer,
-            voice: vInfo.voiceId,
-            provider: vInfo.provider,
-            modelId: vInfo.modelId,
-            speed: session.speech_speed,
-          });
-          audioUrl = speechRes.audioPath;
-          lipSyncData = speechRes.lipSyncData;
-        } catch (e) {
-          console.warn("Q&A speech synthesis fallback:", e);
-        }
-      }
 
       // Tight lead time for real-time interactive interruption (80ms buffer instead of 650ms)
       if (audioUrl) {
@@ -1264,46 +1225,12 @@ export function useClassroom(sessionId: string) {
   const startSession = async () => {
     if (!isLecturerRef.current) return;
 
-    const hasScript = itemsRef.current.length > 0;
-    const hasRoadmap = Boolean(session?.roadmap || syncStore().roadmap);
+    console.log(`${getTimeTag()} 🚀 [START/RESUME CLICK] Start/Resume broadcast clicked by lecturer`);
 
-    // Dynamic Gemini Live Mode: runs when roadmap exists or no scripted items
-    if (!hasScript || hasRoadmap) {
-      console.log(`▶️ [Classroom] Starting dynamic Gemini Live session ${sessionId}...`);
-      admitAllParticipants();
+    // Synchronously unlock Web Audio context inside the click gesture
+    geminiLive.resumeAudio().catch(() => {});
 
-      setSessionStatus("running");
-      sessionStatusRef.current = "running";
-      syncStore().setStatus("running");
-      setStoppedReason(undefined);
-      syncStore().setStoppedReason(undefined);
-
-      sequenceRef.current++;
-      await api.updateClassroomSession(sessionId, {
-        status: "running",
-        sequence: sequenceRef.current,
-        driverTabId: myTabIdRef.current,
-      });
-
-      await geminiLive.connectConductor();
-      geminiLive.startLecture();
-      return;
-    }
-
-    if (itemsRef.current.length === 0) {
-      toast.error("No lecture curriculum found. Please generate the topic roadmap before starting broadcast.");
-      return;
-    }
-
-    console.log(`▶️ [Classroom] Starting live broadcast for session ${sessionId} (${itemsRef.current.length} items)...`);
     admitAllParticipants();
-
-    // Only reset sequence on initial fresh start from zero
-    const isInitialStart = sessionStatusRef.current === "created" && currentIndexRef.current === 0 && sequenceRef.current === 0;
-    if (isInitialStart) {
-      sequenceRef.current = 0;
-      lastSeqRef.current = -1;
-    }
 
     setSessionStatus("running");
     sessionStatusRef.current = "running";
@@ -1313,43 +1240,22 @@ export function useClassroom(sessionId: string) {
 
     sequenceRef.current++;
 
-    // Atomically claim conductor lease in PostgreSQL
-    const claimRes = await api.updateClassroomSession(sessionId, {
+    // Parallel execution: initiate DB session update concurrently with Gemini Live startup
+    const dbUpdatePromise = api.updateClassroomSession(sessionId, {
       status: "running",
       sequence: sequenceRef.current,
       driverTabId: myTabIdRef.current,
     });
 
-    if (claimRes?.session?.active_driver_tab_id && claimRes.session.active_driver_tab_id !== myTabIdRef.current) {
-      console.warn("[Classroom] CAS conductor claim lost to another lecturer tab.");
-      isConductorLeaseActiveRef.current = false;
-      return;
-    }
+    await geminiLive.connectConductor();
+    geminiLive.startLecture();
 
-    isConductorLeaseActiveRef.current = true;
-    if (typeof claimRes?.session?.driver_lease_version === "number") {
-      driverLeaseVersionRef.current = claimRes.session.driver_lease_version;
-    }
-
-    sequenceRef.current++;
-    const targetEpochMs = Math.round(getSynchronizedEpochMs() + LEAD_TIME_MS);
-
-    broadcastEvent({
-      type: "RESUME",
-      sequence: sequenceRef.current,
-      driverLeaseVersion: driverLeaseVersionRef.current,
-      itemId: itemsRef.current[currentIndexRef.current]?.id || "speech_0",
-      targetEpochMs,
-    });
-
-    const cur = itemsRef.current[currentIndexRef.current] || itemsRef.current[0];
-    if (cur) {
-      executeLectureItem(cur);
-    }
+    dbUpdatePromise.catch((e) => console.warn("DB update warning:", e));
   };
 
   const pauseSession = async () => {
     if (!isLecturerRef.current) return;
+    console.log(`${getTimeTag()} ⏸️ [PAUSE CLICK] Lecture pause clicked by lecturer`);
     if (geminiLive.connectionStatus === "connected") {
       geminiLive.disconnect();
     }
@@ -1379,6 +1285,7 @@ export function useClassroom(sessionId: string) {
 
   const endSession = async () => {
     if (!isLecturerRef.current) return;
+    console.log(`${getTimeTag()} 🛑 [END CLICK] Lecture end broadcast clicked by lecturer`);
     if (geminiLive.connectionStatus === "connected") {
       geminiLive.disconnect();
     }
@@ -1412,6 +1319,7 @@ export function useClassroom(sessionId: string) {
 
   const restartSession = async () => {
     if (!isLecturerRef.current) return;
+    console.log(`${getTimeTag()} 🔄 [RESTART CLICK] Lecture restart clicked by lecturer`);
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;

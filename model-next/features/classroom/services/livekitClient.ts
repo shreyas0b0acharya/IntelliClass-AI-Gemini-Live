@@ -29,30 +29,49 @@ export interface LivekitConnectionConfig {
 export async function connectToLivekitRoom(
   config: LivekitConnectionConfig
 ): Promise<Room> {
+  console.log(`🎥 [LiveKit Client] Connecting to LiveKit room... (url: "${config.url}", isConductor: ${config.isConductor})`);
+
   const room = new Room({
     adaptiveStream: true,
     dynacast: true,
   });
 
-  if (config.onTrackSubscribed) {
-    room.on(RoomEvent.TrackSubscribed, config.onTrackSubscribed);
-  }
+  room.on(RoomEvent.Connected, () => {
+    console.log(`✅ [LiveKit Client] Connected! Room name: "${room.name}", Local identity: "${room.localParticipant.identity}", State: "${room.state}"`);
+  });
+
+  room.on(RoomEvent.Disconnected, (reason) => {
+    console.warn(`⚪ [LiveKit Client] Disconnected from room. Reason:`, reason);
+  });
+
+  room.on(RoomEvent.Reconnecting, () => {
+    console.log("🔄 [LiveKit Client] Reconnecting to room...");
+  });
+
+  room.on(RoomEvent.Reconnected, () => {
+    console.log("✅ [LiveKit Client] Reconnected successfully.");
+  });
+
+  room.on(RoomEvent.TrackSubscribed, (track: Track, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+    console.log(`🎧 [LiveKit Client] TrackSubscribed: kind="${track.kind}", name="${publication.trackName}", source="${track.source}", from="${participant.identity}"`);
+    config.onTrackSubscribed?.(track, publication, participant);
+  });
 
   if (config.onTrackUnsubscribed) {
     room.on(RoomEvent.TrackUnsubscribed, config.onTrackUnsubscribed);
   }
 
   if (config.onParticipantConnected) {
-    room.on(RoomEvent.ParticipantConnected, config.onParticipantConnected);
+    room.on(RoomEvent.ParticipantConnected, (p) => {
+      console.log(`👤 [LiveKit Client] Participant joined: "${p.identity}"`);
+      config.onParticipantConnected?.(p);
+    });
   }
 
   if (config.onParticipantDisconnected) {
-    room.on(RoomEvent.ParticipantDisconnected, config.onParticipantDisconnected);
-  }
-
-  if (config.onError) {
-    room.on(RoomEvent.Disconnected, () => {
-      // Disconnection handling
+    room.on(RoomEvent.ParticipantDisconnected, (p) => {
+      console.log(`👤 [LiveKit Client] Participant left: "${p.identity}"`);
+      config.onParticipantDisconnected?.(p);
     });
   }
 
@@ -69,13 +88,15 @@ export async function publishBridgedAudioTrack(
   room: Room,
   mediaStreamTrack: MediaStreamTrack
 ): Promise<LocalAudioTrack> {
+  console.log(`📡 [LiveKit Client] Publishing Web Audio bridged track ("ai-professor-audio") to SFU...`);
   const localAudioTrack = new LocalAudioTrack(mediaStreamTrack);
 
-  await room.localParticipant.publishTrack(localAudioTrack, {
+  const publication = await room.localParticipant.publishTrack(localAudioTrack, {
     name: "ai-professor-audio",
     source: Track.Source.Microphone,
   });
 
+  console.log(`✅ [LiveKit Client] Bridged audio track published! (trackSid="${publication.trackSid}", name="${publication.trackName}")`);
   return localAudioTrack;
 }
 
@@ -87,5 +108,6 @@ export async function setStudentMicrophone(
   room: Room,
   enabled: boolean
 ): Promise<void> {
+  console.log(`🎤 [LiveKit Client] Setting student microphone enabled: ${enabled}`);
   await room.localParticipant.setMicrophoneEnabled(enabled);
 }

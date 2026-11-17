@@ -15,6 +15,8 @@ import {
   getSynchronizedEpochMs,
 } from "@/features/avatar";
 import { Navbar } from "@/components/shared";
+import { Loader2 } from "lucide-react";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 interface TTSResult {
   audioPath: string;
@@ -22,6 +24,8 @@ interface TTSResult {
 }
 
 export default function App() {
+  const hasMounted = useIsMounted();
+
   const [model, setModel] = useState("men-avatarsdk");
   const [animations, setAnimations] = useState<string[]>([]);
   const [animation, setAnimation] = useState("weight shift");
@@ -273,6 +277,20 @@ export default function App() {
       handleStopSpeech();
     }
   };
+
+  if (!hasMounted) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden flex flex-col bg-background">
+        <Navbar />
+        <main className="relative flex-1 w-full flex flex-col items-center justify-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+            Loading 3D Avatar Lab...
+          </span>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden flex flex-col bg-background">

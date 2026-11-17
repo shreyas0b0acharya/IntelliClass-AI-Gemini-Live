@@ -49,6 +49,20 @@ export function setMasterVolume(vol: number): void {
       masterGainNode.gain.value = currentVolume;
     }
   }
+
+  // Update all HTML5 Audio elements in DOM (e.g. LiveKit student playback)
+  if (typeof document !== "undefined") {
+    document.querySelectorAll("audio").forEach((el) => {
+      el.volume = currentVolume;
+    });
+  }
+
+  // Broadcast to Gemini Live player and custom listeners
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("intelliclass:volume", { detail: { volume: currentVolume } })
+    );
+  }
 }
 
 export function getMasterVolume(): number {

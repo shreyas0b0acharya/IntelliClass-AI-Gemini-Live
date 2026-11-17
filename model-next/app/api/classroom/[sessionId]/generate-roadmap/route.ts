@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateRoadmapFlow } from "@/ai/flows/generate-roadmap";
+import { db } from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
@@ -61,19 +62,33 @@ export async function POST(
     const initialTopicId = roadmap.topics[0]?.id || null;
 
     // 3. Persist generated roadmap and initial topic to database
-    const { error: updateError } = await admin
-      .from("sessions")
-      .update({
-        roadmap,
-        current_topic_id: initialTopicId,
-        topic,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId);
+    try {
+      await db.query(
+        `UPDATE public.sessions
+         SET roadmap = $1::jsonb,
+             current_topic_id = $2,
+             topic = $3,
+             updated_at = NOW()
+         WHERE id = $4`,
+        [JSON.stringify(roadmap), initialTopicId, topic, sessionId]
+      );
+      console.log(`✅ [generateRoadmap] Successfully saved roadmap (${roadmap.topics?.length} topics) to DB via direct pool.`);
+    } catch (dbErr) {
+      console.warn("Direct DB update failed, falling back to Supabase client:", dbErr);
+      const { error: updateError } = await admin
+        .from("sessions")
+        .update({
+          roadmap,
+          current_topic_id: initialTopicId,
+          topic,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
 
-    if (updateError) {
-      console.error("Failed to persist roadmap to session:", updateError);
-      return NextResponse.json({ error: "Failed to persist roadmap" }, { status: 500 });
+      if (updateError) {
+        console.error("Failed to persist roadmap to session:", updateError);
+        return NextResponse.json({ error: "Failed to persist roadmap" }, { status: 500 });
+      }
     }
 
     return NextResponse.json({

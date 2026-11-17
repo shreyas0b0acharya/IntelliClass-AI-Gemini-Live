@@ -2,14 +2,14 @@ import "server-only";
 
 // Ordered hierarchy of preferred generation models from best & stable to fast fallbacks
 export const PREFERRED_MODELS: readonly string[] = [
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
   "gemini-flash-lite-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
   "gemini-3.8-flash",
   "gemini-3.7-flash",
-  "gemini-flash-latest",
   "gemini-3-flash-preview",
-  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
 ] as const;
 
 export interface ModelManagerStatus {
@@ -20,7 +20,7 @@ export interface ModelManagerStatus {
 }
 
 // In-memory state holding the currently active primary and fallback chain
-let primaryModel: string = "gemini-3.5-flash";
+let primaryModel: string = "gemini-flash-lite-latest";
 let fallbackChain: string[] = [...PREFERRED_MODELS];
 let lastCheckedAt: string | null = null;
 let isChecking: boolean = false;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Volume2, Volume1, VolumeX, Volume } from "lucide-react";
 import { setMasterVolume, getMasterVolume } from "@/features/avatar";
 import { Slider } from "@/components/ui/slider";
@@ -24,6 +24,19 @@ export function VolumeControl({ variant = "menu" }: VolumeControlProps) {
     }
     return false;
   });
+
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<{ volume: number }>;
+      if (typeof customEvent.detail?.volume === "number") {
+        const v = Math.round(customEvent.detail.volume * 100);
+        setVolumeState(v);
+        setIsMuted(v === 0);
+      }
+    };
+    window.addEventListener("intelliclass:volume", handleSync);
+    return () => window.removeEventListener("intelliclass:volume", handleSync);
+  }, []);
 
   const handleVolumeChange = (value: number[]) => {
     const newVol = value[0] ?? 100;

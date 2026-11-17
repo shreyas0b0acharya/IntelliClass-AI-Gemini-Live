@@ -3,15 +3,15 @@
 import { use, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { api } from "@/lib/api";
 import {
   getModelPreferences,
   GenderSelector,
   VoiceSpeedControls,
-  HeadTTSTestButton,
 } from "@/features/settings";
 import type { Course, CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { AvatarPreview, type HeadTTSData } from "@/features/avatar";
 import { MaterialImageCarousel, MaterialViewerModal } from "@/features/materials";
 import { ThemeToggle } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,23 @@ import {
   Radio,
 } from "lucide-react";
 import { toast } from "sonner";
-import { parseLectureScript } from "@/features/classroom/types/lecture-item";
 import { LectureScriptModal } from "@/features/classroom";
 import type { SessionRoadmap } from "@/features/classroom/types/roadmap";
 import { cn } from "@/lib/utils";
+
+// Pure CSR Dynamic Import for 3D Avatar Preview (skips SSR evaluation)
+const AvatarPreview = dynamic(
+  () => import("@/features/avatar/components/AvatarPreview").then((m) => m.AvatarPreview),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full min-h-[320px] flex flex-col items-center justify-center gap-3 bg-muted/20 rounded-2xl border border-border/40 select-none">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground font-medium">Loading 3D preview...</span>
+      </div>
+    ),
+  }
+);
 
 interface SelectedFileConfig {
   selected: boolean;
@@ -50,6 +63,7 @@ export default function NewSessionPage({
   const router = useRouter();
 
   // Course & Files State
+  const hasMounted = useIsMounted();
   const [course, setCourse] = useState<Course | null>(null);
   const [courseFiles, setCourseFiles] = useState<CourseFile[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
@@ -59,7 +73,7 @@ export default function NewSessionPage({
   // Form Fields
   const [topic, setTopic] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
-  const [voiceId, setVoiceId] = useState("am_fenrir");
+  const [voiceId, setVoiceId] = useState("Fenrir");
   const [speed, setSpeed] = useState(1.0);
   const [customPrompt, setCustomPrompt] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<Record<string, SelectedFileConfig>>({});
@@ -68,14 +82,6 @@ export default function NewSessionPage({
   const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // 3D Avatar Preview & Speech Test State
-  const [isTestingVoice, setIsTestingVoice] = useState(false);
-  const [previewAudioPath, setPreviewAudioPath] = useState<string | undefined>();
-  const [previewLipSyncData, setPreviewLipSyncData] = useState<HeadTTSData | undefined>();
-  const [previewPrompt] = useState(
-    "Welcome to today's lecture. We will explore key concepts step-by-step."
-  );
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,13 +133,10 @@ export default function NewSessionPage({
   const handleGenderChange = (newGender: "male" | "female") => {
     setGender(newGender);
     if (newGender === "female") {
-      setVoiceId("af_bella");
+      setVoiceId("Aoede");
     } else {
-      setVoiceId("am_fenrir");
+      setVoiceId("Fenrir");
     }
-    setPreviewAudioPath(undefined);
-    setPreviewLipSyncData(undefined);
-    setIsTestingVoice(false);
   };
 
   // Handle direct file upload inside new session page
@@ -256,13 +259,11 @@ export default function NewSessionPage({
   };
 
   // Delivery Mode & Review State
-  const [lectureMode, setLectureMode] = useState<"gemini_live" | "scripted">("gemini_live");
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [generatedScript, setGeneratedScript] = useState<string>("");
   const [generatedRoadmap, setGeneratedRoadmap] = useState<SessionRoadmap | null>(null);
   const [showScriptModal, setShowScriptModal] = useState(false);
 
-  // Submission handler: Create Session + Generate AI Lecture (Roadmap or Script)
+  // Submission handler: Create Session + Generate AI Lecture Roadmap
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!topic.trim()) {
@@ -271,15 +272,10 @@ export default function NewSessionPage({
     }
 
     setIsSubmitting(true);
-    setStatusMessage(
-      lectureMode === "gemini_live"
-        ? "Creating broadcast session & generating AI topic roadmap..."
-        : "Creating classroom broadcast session..."
-    );
+    setStatusMessage("Creating Gemini Live classroom & generating AI topic roadmap...");
 
     try {
-      // 1. Create Session (Server automatically generates unique meeting code)
-      console.log("📝 [New Session] Creating course session for topic:", topic, "Mode:", lectureMode);
+      console.log("📝 [New Session] Creating Gemini Live session for topic:", topic);
       const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
       const { session } = await api.createCourseSession(courseId, {
         topic: topic.trim(),
@@ -288,7 +284,7 @@ export default function NewSessionPage({
         speech_speed: speed,
       });
 
-      // 2. Format selected sources
+      // Format selected sources
       const sources = Object.entries(selectedFiles)
         .filter(([_, config]) => config.selected)
         .map(([fileName, config]) => ({
@@ -299,46 +295,22 @@ export default function NewSessionPage({
 
       setCreatedSessionId(session.id);
 
-      if (lectureMode === "gemini_live") {
-        // 3a. Gemini Live: Generate 4-8 topic roadmap in 2-3 seconds
-        setStatusMessage("AI Professor is generating 4-to-8 interactive roadmap topics via Gemini AI...");
-        console.log(`🤖 [New Session] Calling generateRoadmap for session ${session.id}...`);
-        const roadmapRes = await api.generateRoadmap(session.id, {
-          lectureTopic: topic.trim(),
-          targetDurationMinutes: 30,
-          sources: sources.length > 0 ? sources : undefined,
-          customPrompt: customPrompt.trim() || undefined,
-        });
+      // Generate 4-8 topic roadmap
+      setStatusMessage("AI Professor is generating 4-to-8 interactive roadmap topics via Gemini AI...");
+      console.log(`🤖 [New Session] Calling generateRoadmap for session ${session.id}...`);
+      const roadmapRes = await api.generateRoadmap(session.id, {
+        lectureTopic: topic.trim(),
+        targetDurationMinutes: 30,
+        sources: sources.length > 0 ? sources : undefined,
+        customPrompt: customPrompt.trim() || undefined,
+      });
 
-        console.log(`✅ [New Session] Generated roadmap (${roadmapRes.roadmap?.topics?.length} topics) for session ${session.id}`);
-        setGeneratedRoadmap(roadmapRes.roadmap);
-        setGeneratedScript("");
-        setIsSubmitting(false);
-        setStatusMessage("");
-        setShowScriptModal(true);
-        toast.success("AI Topic Roadmap prepared! Click 'Start Live Broadcast' to launch the classroom.");
-      } else {
-        // 3b. Scripted Mode: Generate full text script (legacy)
-        const modelPersonaName = gender === "female" ? "Dr. Clara" : "Prof. Arthur";
-        setStatusMessage("AI Professor is generating structured lesson script & visual cues via Gemini 3.8 Flash...");
-        console.log(`🤖 [New Session] Calling generateSessionScript for session ${session.id} (Model Persona: "${modelPersonaName}")...`);
-        const scriptRes = await api.generateSessionScript(session.id, {
-          courseId,
-          topic: topic.trim(),
-          lecturerName: modelPersonaName,
-          sources: sources.length > 0 ? sources : undefined,
-          customPrompt: customPrompt.trim() || undefined,
-          voice: voiceId,
-        });
-
-        console.log(`✅ [New Session] Generated script (${scriptRes.script?.length} chars). Presenting for lecturer review.`);
-        setGeneratedScript(scriptRes.script);
-        setGeneratedRoadmap(null);
-        setIsSubmitting(false);
-        setStatusMessage("");
-        setShowScriptModal(true);
-        toast.success("AI Curriculum Script prepared! Please review and confirm to enter the live classroom.");
-      }
+      console.log(`✅ [New Session] Generated roadmap (${roadmapRes.roadmap?.topics?.length} topics) for session ${session.id}`);
+      setGeneratedRoadmap(roadmapRes.roadmap);
+      setIsSubmitting(false);
+      setStatusMessage("");
+      setShowScriptModal(true);
+      toast.success("AI Topic Roadmap prepared! Click 'Start Live Broadcast' to launch the classroom.");
     } catch (err: unknown) {
       console.error("❌ [New Session] Create session error:", err);
       let msg = err instanceof Error ? err.message : "Failed to create session";
@@ -356,20 +328,13 @@ export default function NewSessionPage({
     }
   };
 
-  const handleSaveAndApproveScript = async (newScript: string) => {
-    if (!createdSessionId) return;
-    setGeneratedScript(newScript);
-    await api.updateClassroomSession(createdSessionId, { script: newScript });
-    toast.success("Curriculum script updated successfully!");
-  };
-
   const handleLaunchLiveSession = () => {
     if (!createdSessionId) return;
     setShowScriptModal(false);
     router.push(`/classroom/${createdSessionId}`);
   };
 
-  if (loadingInitial) {
+  if (!hasMounted || loadingInitial) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
         <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-primary animate-spin">
@@ -430,26 +395,17 @@ export default function NewSessionPage({
             onClick={handleSubmit}
             disabled={isSubmitting || !topic.trim()}
             variant="default"
-            className={lectureMode === "gemini_live" ? "bg-primary hover:bg-primary/90" : ""}
+            className="bg-primary hover:bg-primary/90"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 mr-1.5" />
-                <span>
-                  {lectureMode === "gemini_live"
-                    ? "Generating Topic Roadmap..."
-                    : "Preparing Lecture Script..."}
-                </span>
-              </>
-            ) : lectureMode === "gemini_live" ? (
-              <>
-                <Radio className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
-                <span>Create Live Gemini Classroom</span>
+                <span>Generating Topic Roadmap...</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                <span>Generate Lecture Script</span>
+                <Radio className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
+                <span>Create Live Gemini Classroom</span>
               </>
             )}
           </Button>
@@ -484,42 +440,29 @@ export default function NewSessionPage({
                     Classroom Delivery Engine
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Choose how the AI professor instructs and interacts with students
+                    Real-time conversational instruction powered by Google Gemini Live
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              <div className="pt-1">
                 {/* Gemini Live Mode Card */}
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => setLectureMode("gemini_live")}
-                  onKeyDown={(e) => e.key === "Enter" && setLectureMode("gemini_live")}
-                  className={cn(
-                    "relative rounded-2xl p-4 border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 text-left group",
-                    lectureMode === "gemini_live"
-                      ? "border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm ring-1 ring-primary/20"
-                      : "border-border/60 hover:border-border hover:bg-muted/40 bg-card/40"
-                  )}
+                  data-testid="mode-card-gemini-live"
+                  className="relative rounded-2xl p-4 border-2 border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm ring-1 ring-primary/20 flex flex-col justify-between gap-3 text-left group"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div
-                        className={cn(
-                          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                          lectureMode === "gemini_live"
-                            ? "bg-primary text-primary-foreground shadow-xs"
-                            : "bg-muted text-muted-foreground group-hover:text-foreground"
-                        )}
-                      >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-primary text-primary-foreground shadow-xs">
                         <Radio className="h-4.5 w-4.5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-sm text-foreground">Gemini Live</span>
+                          <span className="font-bold text-sm text-foreground">Gemini Live AI</span>
                           <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            Recommended
+                            Active Engine
                           </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -527,13 +470,8 @@ export default function NewSessionPage({
                         </p>
                       </div>
                     </div>
-                    <div
-                      className={cn(
-                        "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 transition-colors",
-                        lectureMode === "gemini_live" ? "border-primary bg-primary" : "border-muted-foreground/40"
-                      )}
-                    >
-                      {lectureMode === "gemini_live" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    <div className="w-4 h-4 rounded-full border-2 border-primary bg-primary flex items-center justify-center shrink-0 mt-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
                     </div>
                   </div>
 
@@ -550,70 +488,6 @@ export default function NewSessionPage({
                     </span>
                     <span className="bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 rounded-md">
                       🗺️ Topic Roadmap
-                    </span>
-                  </div>
-                </div>
-
-                {/* Scripted Lecture Mode Card */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setLectureMode("scripted")}
-                  onKeyDown={(e) => e.key === "Enter" && setLectureMode("scripted")}
-                  className={cn(
-                    "relative rounded-2xl p-4 border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 text-left group",
-                    lectureMode === "scripted"
-                      ? "border-primary bg-primary/[0.04] dark:bg-primary/[0.08] shadow-sm ring-1 ring-primary/20"
-                      : "border-border/60 hover:border-border hover:bg-muted/40 bg-card/40"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={cn(
-                          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                          lectureMode === "scripted"
-                            ? "bg-primary text-primary-foreground shadow-xs"
-                            : "bg-muted text-muted-foreground group-hover:text-foreground"
-                        )}
-                      >
-                        <FileText className="h-4.5 w-4.5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-sm text-foreground">Scripted Mode</span>
-                          <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                            Fallback
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Linear Speech Segments
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 transition-colors",
-                        lectureMode === "scripted" ? "border-primary bg-primary" : "border-muted-foreground/40"
-                      )}
-                    >
-                      {lectureMode === "scripted" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Pre-generates a fixed sentence-by-sentence script using HeadTTS neural voices and visual checkpoints. Non-conversational.
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-[10px] text-muted-foreground font-medium">
-                    <span className="bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 rounded-md">
-                      📝 Full Script
-                    </span>
-                    <span className="bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 rounded-md">
-                      🗣️ HeadTTS
-                    </span>
-                    <span className="bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 rounded-md">
-                      ⏳ ~45s Generation
                     </span>
                   </div>
                 </div>
@@ -855,7 +729,7 @@ export default function NewSessionPage({
                   Instructor Persona &amp; Voice
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Select the 3D instructor model and HeadTTS neural voice profile for this lecture.
+                  Select the 3D instructor model and Gemini Live neural voice profile for this lecture.
                 </p>
               </div>
 
@@ -896,28 +770,9 @@ export default function NewSessionPage({
               {/* 3D Canvas Preview Frame */}
               <AvatarPreview
                 gender={gender}
-                isSpeaking={isTestingVoice}
-                audioPath={previewAudioPath}
-                lipSyncData={previewLipSyncData}
-                onLipSyncEnd={() => setIsTestingVoice(false)}
+                isSpeaking={false}
                 className="w-full h-72 rounded-2xl"
               />
-
-              {/* Reusable HeadTTS Test Button */}
-              <div className="pt-0.5">
-                <HeadTTSTestButton
-                  text={previewPrompt}
-                  voice={voiceId}
-                  speed={speed}
-                  isPlaying={isTestingVoice}
-                  onPlayStateChange={setIsTestingVoice}
-                  onDataReceived={(path, data) => {
-                    setPreviewAudioPath(path);
-                    setPreviewLipSyncData(data);
-                  }}
- className="w-full h-11 cursor-pointer "
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -932,21 +787,18 @@ export default function NewSessionPage({
         mediaAssets={mediaAssets}
       />
 
-      {/* Pre-Flight Script Review & Approval Gate */}
+      {/* Pre-Flight Gemini Live Lecture Roadmap Review */}
       {createdSessionId && (
         <LectureScriptModal
           open={showScriptModal}
           onOpenChange={setShowScriptModal}
-          items={parseLectureScript(generatedScript).items}
-          currentIndex={0}
           topic={topic}
           isLecturer={true}
           status="created"
-          rawScript={generatedScript}
           sessionId={createdSessionId}
           roadmap={generatedRoadmap}
-          lectureMode={lectureMode}
-          initialViewMode={lectureMode === "gemini_live" ? "roadmap" : "cards"}
+          lectureMode="gemini_live"
+          initialViewMode="roadmap"
           onGenerateRoadmap={async () => {
             if (!createdSessionId) return;
             const sources = Object.entries(selectedFiles)
@@ -966,7 +818,6 @@ export default function NewSessionPage({
               toast.success("AI lecture roadmap updated!");
             }
           }}
-          onSaveScript={handleSaveAndApproveScript}
           onStartSession={handleLaunchLiveSession}
         />
       )}

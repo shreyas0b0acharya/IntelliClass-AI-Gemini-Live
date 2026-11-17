@@ -38,7 +38,12 @@ export function AssetSyncModal({ preferredGender = "men" }: AssetSyncModalProps)
     preferredGender,
   });
 
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (typeof window !== "undefined" && (window.navigator?.webdriver || window.location.search.includes("e2e=true"))) {
+      return true;
+    }
+    return false;
+  });
 
   // If complete or idle with no missing assets, hide the modal completely
   if (isComplete || progress.status === "idle") {

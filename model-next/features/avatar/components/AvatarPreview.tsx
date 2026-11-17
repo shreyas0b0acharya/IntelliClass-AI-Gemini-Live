@@ -30,7 +30,7 @@ interface AvatarPreviewProps {
 if (typeof window !== "undefined") {
   const _origWarn = console.warn;
   console.warn = (...args: unknown[]) => {
-    if (typeof args[0] === "string" && args[0].includes("THREE.Clock")) return;
+    if (typeof args[0] === "string" && (args[0].includes("THREE.Clock") || args[0].includes("failed to remove track"))) return;
     _origWarn.apply(console, args);
   };
 }

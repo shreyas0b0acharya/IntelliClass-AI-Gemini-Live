@@ -9,12 +9,11 @@ export type { ModelPreferences };
 import {
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_FEMALE_VOICE_ID,
-  DEFAULT_ELEVENLABS_VOICE_ID,
-  DEFAULT_ELEVENLABS_MODEL_ID,
   DEFAULT_TTS_PROVIDER,
   DEFAULT_SPEECH_SPEED,
   MALE_MODEL_PRESETS,
   FEMALE_MODEL_PRESETS,
+  GEMINI_LIVE_VOICES,
 } from "@/config";
 
 export { MALE_MODEL_PRESETS, FEMALE_MODEL_PRESETS };
@@ -29,8 +28,6 @@ export const DEFAULT_MODEL_PREFERENCES: ModelPreferences = {
   speechPitch: 1.0,
   modelQuality: "high",
   ttsProvider: DEFAULT_TTS_PROVIDER,
-  elevenLabsVoiceId: DEFAULT_ELEVENLABS_VOICE_ID,
-  elevenLabsModelId: DEFAULT_ELEVENLABS_MODEL_ID,
 };
 
 import type { VoiceOption, VoiceGender, TTSModelOption } from "@/features/classroom/types/speech";
@@ -51,21 +48,18 @@ export const UNIFIED_VOICE_REGISTRY: VoiceOption[] = ALL_DEFAULT_VOICE_OPTIONS;
  * If voice is not in known registry, preserves ID and marks gender as "unknown" (never guesses "male").
  */
 export function getVoiceMetadata(voiceId?: string, customList?: VoiceOption[]): VoiceOption {
-  if (!voiceId) return HEADTTS_VOICE_OPTIONS[0];
+  if (!voiceId) return GEMINI_LIVE_VOICES[0];
 
-  const pool = customList && customList.length > 0 ? customList : UNIFIED_VOICE_REGISTRY;
-  const found = pool.find((v) => v.id === voiceId);
+  const pool = customList && customList.length > 0 ? customList : GEMINI_LIVE_VOICES;
+  const found = pool.find((v) => v.id.toLowerCase() === voiceId.toLowerCase());
   if (found) return found;
 
-  const isEleven = voiceId.length >= 18 || voiceId.startsWith("elevenlabs:");
-  const cleanId = voiceId.replace("elevenlabs:", "");
-
   return {
-    id: cleanId,
-    name: `Custom Voice (${cleanId.slice(0, 6)}...)`,
-    provider: isEleven ? "elevenlabs" : "headtts",
-    gender: "unknown", // Unknown gender: never guess "male"
-    description: "Dynamically resolved voice",
+    id: voiceId,
+    name: voiceId,
+    provider: "gemini_live",
+    gender: voiceId.toLowerCase().includes("aoede") || voiceId.toLowerCase().includes("kore") ? "female" : "male",
+    description: "Gemini Live voice",
   };
 }
 

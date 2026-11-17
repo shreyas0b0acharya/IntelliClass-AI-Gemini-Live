@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { HeadTTSData, LipSyncProps } from "../types/lipSync.types";
 import { getMouthConfig, VISEMES, LIP_SYNC_CONFIG } from "../services/lipSync.config";
 import { getSynchronizedEpochMs } from "../services/clockSync";
+import { liveAudioSync } from "../services/liveAudioSync";
 
 // ─────────────────────────────────────────────
 // Mesh helpers
@@ -231,7 +232,8 @@ export function useLipSync({
 
     if (!headMesh) return;
 
-    const isPlaying = play || isPlayingRef.current;
+    const liveAnalysis = liveAudioSync.getAnalysis(delta);
+    const isPlaying = play || isPlayingRef.current || liveAnalysis.isSpeaking;
 
     if (!isPlaying) {
       updateMeshMorphs(headMesh, teethMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta, false);
@@ -244,19 +246,36 @@ export function useLipSync({
       data?.vdurations?.length ?? 0
     );
 
-    // ── Fallback: If no pre-computed viseme data or viseme array empty, drive gentle conversational cadence ──
+    // ── Live Stream / Fallback: If no pre-computed Rhubarb viseme data, drive from real-time audio analysis ──
     if (!data || count === 0) {
+      if (liveAnalysis.hasActiveAudio) {
+        if (liveAnalysis.isSpeaking) {
+          updateMeshMorphs(
+            headMesh,
+            teethMesh,
+            liveAnalysis.targetMorphs,
+            liveAnalysis.targetJaw,
+            LIP_SYNC_CONFIG.smoothingSpeed,
+            delta,
+            true
+          );
+        } else {
+          // Smooth resting transition during conversational pauses
+          updateMeshMorphs(headMesh, teethMesh, {}, 0, LIP_SYNC_CONFIG.smoothingSpeed, delta, false);
+        }
+        return;
+      }
+
+      // If no live audio stream is active (e.g. static preview), subtle conversational cadence
       const t = state.clock.getElapsedTime();
-      // Conversational syllable cadence (~3.2 Hz natural speaking rhythm + subtle sub-harmonics)
       const syllable = Math.max(0, Math.sin(t * 12.0) * 0.6 + Math.sin(t * 6.5) * 0.4);
       const emphasis = Math.sin(t * 2.8) > 0.3 ? 1.15 : 0.85;
-      // Gentle conversational jaw drop: 0.02 to 0.22 max (never wide gaping)
-      const targetJaw = THREE.MathUtils.clamp(syllable * 0.18 * emphasis, 0.02, 0.22);
+      const targetJaw = THREE.MathUtils.clamp(syllable * 0.16 * emphasis, 0.02, 0.18);
 
       const targetMorphs: Record<string, number> = {
-        aa: THREE.MathUtils.clamp(syllable * 0.22, 0.02, 0.24),
-        E: THREE.MathUtils.clamp(Math.sin(t * 14.0) * 0.15, 0, 0.18),
-        ou: THREE.MathUtils.clamp(Math.cos(t * 9.0) * 0.12, 0, 0.15),
+        aa: THREE.MathUtils.clamp(syllable * 0.20, 0.02, 0.22),
+        E: THREE.MathUtils.clamp(Math.sin(t * 14.0) * 0.12, 0, 0.15),
+        ou: THREE.MathUtils.clamp(Math.cos(t * 9.0) * 0.10, 0, 0.12),
       };
 
       updateMeshMorphs(headMesh, teethMesh, targetMorphs, targetJaw, LIP_SYNC_CONFIG.smoothingSpeed, delta, true);

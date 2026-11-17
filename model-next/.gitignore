@@ -48,7 +48,13 @@ public/generated/
 *.glb
 *.gltf
 *.fbx
+
+# playwright
+test-results/
+playwright-report/
+playwright/.auth/
 *.obj
 *.blend
 
+scratch/
 zips/

@@ -1,55 +1,35 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
-import type { LectureItem } from "../types/lecture-item";
-import { parseLectureScript } from "../types/lecture-item";
+import { useState, useEffect } from "react";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   BookOpen,
-  Volume2,
-  Clock,
-  HelpCircle,
-  Play,
-  CheckCircle2,
   Sparkles,
-  Edit3,
-  List,
-  Save,
   Loader2,
   X,
-  Copy,
-  Trash2,
-  ArrowRight,
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  Lightbulb,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import type { ClassroomSession } from "@/lib/supabase/types";
 import type { SessionRoadmap } from "../types/roadmap";
-import { RoadmapInspector } from "./RoadmapInspector";
+import type { ClassroomSession } from "@/lib/supabase/types";
+import { getTimeTag } from "../services/liveAudioPlayer";
+import { cn } from "@/lib/utils";
 
 export interface LectureScriptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  items?: LectureItem[];
+  items?: unknown[];
   currentIndex?: number;
   topic: string;
   isLecturer: boolean;
@@ -59,8 +39,8 @@ export interface LectureScriptModalProps {
   meetingCode?: string;
   roadmap?: SessionRoadmap | null;
   currentTopicId?: string | null;
-  initialViewMode?: "roadmap" | "cards" | "edit";
-  lectureMode?: "gemini_live" | "scripted";
+  initialViewMode?: string;
+  lectureMode?: string;
   onGenerateRoadmap?: () => Promise<void>;
   onSelectTopic?: (topicId: string) => void;
   onSaveScript?: (newScript: string) => Promise<void>;
@@ -72,141 +52,49 @@ export interface LectureScriptModalProps {
 export function LectureScriptModal({
   open,
   onOpenChange,
-  items: passedItems,
-  currentIndex = 0,
   topic,
   isLecturer,
   status = "created",
-  rawScript = "",
   sessionId,
-  meetingCode,
   roadmap,
   currentTopicId,
-  initialViewMode,
-  lectureMode,
   onGenerateRoadmap,
   onSelectTopic,
-  onSaveScript,
-  onDeleteScript,
-  onUpdated,
   onStartSession,
 }: LectureScriptModalProps) {
-  const [viewMode, setViewMode] = useState<"roadmap" | "cards" | "edit">(initialViewMode || "roadmap");
-  const [localRoadmap, setLocalRoadmap] = useState<SessionRoadmap | null>(roadmap || null);
-  const [localTopicId, setLocalTopicId] = useState<string | null>(currentTopicId || null);
   const [isGeneratingRoadmap, setIsGeneratingRoadmap] = useState(false);
-  const [editedScript, setEditedScript] = useState<string>(rawScript);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [fetchedRoadmap, setFetchedRoadmap] = useState<SessionRoadmap | null>(null);
 
-  // Keep local roadmap in sync with prop updates
-  const [prevRoadmapProp, setPrevRoadmapProp] = useState(roadmap);
-  if (roadmap !== prevRoadmapProp) {
-    setPrevRoadmapProp(roadmap);
-    setLocalRoadmap(roadmap || null);
-  }
-
-  // Sync editedScript whenever modal opens or rawScript updates (stripping legacy [PAUSE] tags)
-  const [prevOpen, setPrevOpen] = useState(open);
-  const [prevRawScript, setPrevRawScript] = useState(rawScript);
-
-  if (open !== prevOpen || rawScript !== prevRawScript) {
-    setPrevOpen(open);
-    setPrevRawScript(rawScript);
-    if (open) {
-      const sanitized = (rawScript || "").replace(/\[PAUSE\]/gi, " ").trim();
-      setEditedScript(sanitized);
-      if (initialViewMode) {
-        setViewMode(initialViewMode);
-      } else if (lectureMode === "gemini_live" || (roadmap && roadmap.topics && roadmap.topics.length > 0)) {
-        setViewMode("roadmap");
-      } else if (!sanitized || sanitized.length === 0) {
-        setViewMode(roadmap ? "roadmap" : "edit");
-      } else {
-        setViewMode("cards");
-      }
-    }
-  }
-
-  // Compute items if not passed explicitly
-  const items: LectureItem[] = useMemo(() => {
-    if (passedItems && passedItems.length > 0) return passedItems;
-    if (rawScript && rawScript.trim().length > 0) {
-      return parseLectureScript(rawScript).items;
-    }
-    return [];
-  }, [passedItems, rawScript]);
-
-  const speechCount = items.filter((i) => i.type === "speech").length;
-  const totalWords = items
-    .filter((i) => i.type === "speech")
-    .reduce((acc, i) => acc + (i.type === "speech" ? i.text.split(/\s+/).filter(Boolean).length : 0), 0);
-  const estDurationMin = Math.max(1, Math.round(totalWords / 130));
-
-  const handleCopyScript = () => {
-    const textToCopy = editedScript || rawScript;
-    if (!textToCopy?.trim()) {
-      toast.error("No script text to copy.");
-      return;
-    }
-    navigator.clipboard.writeText(textToCopy);
-    toast.success("Full lecture script copied to clipboard!");
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      if (onSaveScript) {
-        await onSaveScript(editedScript.trim());
-      } else if (sessionId) {
-        const { session: updated } = await api.updateClassroomSession(sessionId, {
-          script: editedScript.trim(),
+  // Self-healing fallback: if modal opens and roadmap is empty, fetch immediately from backend
+  useEffect(() => {
+    if (open && sessionId && (!roadmap?.topics || roadmap.topics.length === 0)) {
+      api.getClassroomSession(sessionId)
+        .then((res) => {
+          if (res?.session?.roadmap?.topics?.length) {
+            setFetchedRoadmap(res.session.roadmap);
+          }
+        })
+        .catch((err) => {
+          console.warn("[LectureScriptModal] Failed to fetch session roadmap:", err);
         });
-        if (onUpdated && updated) {
-          onUpdated(updated);
-        }
-      }
-      toast.success("Lecture script saved successfully!");
-      setViewMode("cards");
-    } catch {
-      toast.error("Failed to save edited script.");
-    } finally {
-      setIsSaving(false);
     }
-  };
+  }, [open, sessionId, roadmap]);
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      if (onDeleteScript) {
-        await onDeleteScript();
-      } else if (sessionId) {
-        const { session: updated } = await api.updateClassroomSession(sessionId, {
-          script: "",
-        });
-        if (onUpdated && updated) {
-          onUpdated(updated);
-        }
-      }
-      setEditedScript("");
-      toast.success("Lecture script deleted.");
-      setShowDeleteConfirm(false);
-      setViewMode("edit");
-    } catch {
-      toast.error("Failed to delete script.");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const activeRoadmap = (roadmap?.topics && roadmap.topics.length > 0)
+    ? roadmap
+    : (fetchedRoadmap?.topics && fetchedRoadmap.topics.length > 0)
+    ? fetchedRoadmap
+    : null;
 
-  const insertTag = (tag: string) => {
-    setEditedScript((prev) => (prev ? `${prev} ${tag} ` : `${tag} `));
-  };
+  const topics = activeRoadmap?.topics || [];
+  const activeTopicId = selectedTopicId || currentTopicId || topics[0]?.id;
+  const activeTopic = topics.find((t) => t.id === activeTopicId) || topics[0];
 
-  const canSave = Boolean(onSaveScript || sessionId);
-  const canDelete = Boolean(onDeleteScript || sessionId);
-  const hasScriptContent = Boolean(rawScript?.trim() || editedScript?.trim());
+  const totalMinutes = topics.reduce(
+    (acc, t) => acc + (t.estimatedDurationMinutes || 6),
+    0
+  );
 
   const handleGenerateRoadmap = async () => {
     setIsGeneratingRoadmap(true);
@@ -216,8 +104,6 @@ export function LectureScriptModal({
       } else if (sessionId) {
         const res = await api.generateRoadmap(sessionId, { lectureTopic: topic });
         if (res?.roadmap) {
-          setLocalRoadmap(res.roadmap);
-          if (res.currentTopicId) setLocalTopicId(res.currentTopicId);
           toast.success("AI lecture roadmap generated successfully!");
         }
       }
@@ -230,508 +116,249 @@ export function LectureScriptModal({
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          showCloseButton={false}
-          className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[82vw] max-w-[96vw] sm:max-w-[92vw] md:max-w-[88vw] lg:max-w-[85vw] max-h-[92vh] h-[90vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl"
-        >
-          {/* Header */}
-          <DialogHeader className="shrink-0 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/50 bg-card/40 backdrop-blur-md">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-              {/* Title & Topic Details */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-xs shrink-0">
-                  <BookOpen className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground truncate">
-                      {lectureMode === "gemini_live" || (localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0)
-                        ? "Gemini Live Lecture Roadmap"
-                        : "Curriculum & Lecture Script"}
-                    </DialogTitle>
-                    {lectureMode === "gemini_live" && (
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        Gemini Live
-                      </span>
-                    )}
-                    {meetingCode && (
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold">
-                        Code: {meetingCode}
-                      </span>
-                    )}
-                  </div>
-                  <p
-                    className="text-xs text-muted-foreground truncate mt-0.5"
-                    title={
-                      localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0
-                        ? `${topic} • ${localRoadmap.topics.length} topics • ~${localRoadmap.totalEstimatedMinutes} mins`
-                        : `${topic} • ${items.length} segments • ~${estDurationMin} mins`
-                    }
-                  >
-                    {localRoadmap && localRoadmap.topics?.length > 0 && items.length === 0
-                      ? `${topic} • ${localRoadmap.topics.length} interactive topics • ~${localRoadmap.totalEstimatedMinutes} mins total`
-                      : `${topic} • ${items.length} segments • ~${estDurationMin} mins`}
-                  </p>
-                </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[82vw] max-w-5xl max-h-[90vh] h-[85vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl"
+      >
+        {/* Header */}
+        <DialogHeader className="shrink-0 p-5 sm:p-6 pb-4 border-b border-border/50 bg-card/40 backdrop-blur-md">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-xs shrink-0">
+                <BookOpen className="h-5 w-5" />
               </div>
-
-              {/* Action Buttons & Close Button */}
-              <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-end sm:self-center flex-wrap sm:flex-nowrap">
-                {/* Copy script button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyScript}
-                  disabled={!hasScriptContent}
-                  className="h-9 px-2.5 sm:px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shadow-2xs"
-                  title="Copy full script"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Copy</span>
-                </Button>
-
-                {/* Delete script button */}
-                {isLecturer && canDelete && hasScriptContent && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="h-9 px-2.5 sm:px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-destructive/20 text-destructive hover:bg-destructive/10 transition-all shadow-2xs"
-                    title="Delete script text"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Delete Script</span>
-                  </Button>
-                )}
-
-                {/* Toggle Roadmap / Segment View / Edit Script */}
-                {isLecturer && (
-                  <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50">
-                    <Button
-                      variant={viewMode === "roadmap" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("roadmap")}
-                      className="h-7 px-2.5 text-xs font-semibold rounded-lg"
-                    >
-                      <Sparkles className="h-3 w-3 mr-1 text-chart-4" />
-                      <span>Roadmap</span>
-                    </Button>
-                    <Button
-                      variant={viewMode === "cards" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("cards")}
-                      className="h-7 px-2.5 text-xs font-semibold rounded-lg"
-                    >
-                      <List className="h-3 w-3 mr-1" />
-                      <span>Script Items</span>
-                    </Button>
-                    {canSave && (
-                      <Button
-                        variant={viewMode === "edit" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => {
-                          setEditedScript(
-                            rawScript ||
-                              items
-                                .map((i) => (i.type === "speech" ? i.text : `[${i.type.toUpperCase()}]`))
-                                .join(" ")
-                          );
-                          setViewMode("edit");
-                        }}
-                        className="h-7 px-2.5 text-xs font-semibold rounded-lg"
-                      >
-                        <Edit3 className="h-3 w-3 mr-1 text-primary" />
-                        <span>Edit Text</span>
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {/* Start or Resume Live Session (Classroom) */}
-                {isLecturer && (status === "created" || status === "paused") && onStartSession && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => {
-                      onOpenChange(false);
-                      onStartSession();
-                    }}
-                    disabled={items.length === 0 && (!localRoadmap || !localRoadmap.topics || localRoadmap.topics.length === 0)}
-                    className="h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all shrink-0"
-                  >
-                    <Play className="h-3.5 w-3.5" fill="currentColor" />
-                    <span>{status === "paused" ? "Resume Class" : "Start Live Broadcast"}</span>
-                  </Button>
-                )}
-
-                {/* Direct Link to Studio if accessed from outside classroom */}
-                {!onStartSession && sessionId && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    asChild
-                    className="h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all shrink-0"
-                  >
-                    <Link href={`/classroom/${sessionId}`}>
-                      <Play className="h-3.5 w-3.5 fill-currentColor" />
-                      <span>{status === "running" ? "Enter Live" : "Open Studio"}</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                )}
-
-                {/* Close Button */}
-                <DialogClose asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 rounded-xl bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground shrink-0 transition-colors"
-                    aria-label="Close dialog"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </Button>
-                </DialogClose>
-              </div>
-            </div>
-
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-border/40 text-center">
-              {viewMode === "roadmap" || (localRoadmap && localRoadmap.topics.length > 0 && items.length === 0) ? (
-                <>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      Roadmap Topics
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
-                      {localRoadmap?.topics?.length || 0} Core Modules
-                    </span>
-                  </div>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      Delivery Engine
-                    </span>
-                    <span className="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                      Gemini Live AI (Adaptive)
-                    </span>
-                  </div>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      Estimated Duration
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-primary flex items-center justify-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      ~{localRoadmap?.totalEstimatedMinutes || 30} min
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      Speech Segments
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
-                      {speechCount} Sentences
-                    </span>
-                  </div>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      Word Count
-                    </span>
-                    <span className="text-xs sm:text-sm font-mono font-bold text-foreground">
-                      {totalWords} Words
-                    </span>
-                  </div>
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground uppercase font-bold tracking-wider block">
-                      {status === "running" ? "Live Progress" : "Estimated Time"}
-                    </span>
-                    {status === "running" ? (
-                      <span className="text-xs font-mono font-bold text-primary">
-                        {items.length > 0 ? Math.round(((currentIndex + 1) / items.length) * 100) : 0}% Complete
-                      </span>
-                    ) : (
-                      <span className="text-xs sm:text-sm font-mono font-bold text-primary flex items-center justify-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        ~{estDurationMin} min
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </DialogHeader>
-
-          {/* Content Area - Scrolls independently */}
-          <div className="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto space-y-3.5">
-            {viewMode === "roadmap" ? (
-              <RoadmapInspector
-                roadmap={localRoadmap || null}
-                currentTopicId={localTopicId || null}
-                isLecturer={isLecturer}
-                isGenerating={isGeneratingRoadmap}
-                onGenerateRoadmap={onGenerateRoadmap || sessionId ? handleGenerateRoadmap : undefined}
-                onSelectTopic={onSelectTopic}
-              />
-            ) : viewMode === "edit" ? (
-              <div className="space-y-4 max-w-6xl mx-auto h-full flex flex-col">
-                <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-muted-foreground">
-                  <span>
-                    Fine-tune the lecture script below. Insert engagement checkpoints or visual assets to pace the AI avatar.
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-base sm:text-lg font-bold tracking-tight">
+                    Gemini Live Lecture Roadmap
+                  </DialogTitle>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    Gemini Live
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => insertTag("[ENGAGEMENT]")}
-                      className="px-2 py-0.5 rounded-md bg-chart-4/10 text-chart-4 hover:bg-chart-4/20 font-mono text-[11px] font-semibold transition-colors cursor-pointer"
-                    >
-                      + [ENGAGEMENT]
-                    </button>
-                  </div>
                 </div>
-
-                <Textarea
-                  value={editedScript}
-                  onChange={(e) => setEditedScript(e.target.value)}
-                  placeholder="Paste or write the lecture script here..."
-                  className="flex-1 min-h-[360px] w-full resize-y font-mono text-xs sm:text-sm leading-relaxed p-4 rounded-2xl bg-card border-border/60 shadow-inner"
-                />
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>{editedScript.split(/\s+/).filter(Boolean).length} words</span>
-                  <div className="flex items-center gap-2.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditedScript(rawScript || "");
-                        setViewMode("cards");
-                      }}
-                      className="h-9 px-4 rounded-xl"
-                    >
-                      <span>Cancel</span>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="h-9 px-4 rounded-xl inline-flex items-center gap-1.5 shadow-xs"
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-3.5 w-3.5" />
-                          <span>Save Script</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground truncate max-w-xl">
+                  {topic || "Interactive Lecture"} • {topics.length} interactive topic{topics.length === 1 ? "" : "s"} • ~{totalMinutes || 30} mins total
+                </p>
               </div>
-            ) : items.length === 0 ? (
-              <div className="p-10 text-center space-y-3 border border-dashed border-black/10 dark:border-white/10 rounded-2xl bg-black/[0.01] dark:bg-white/[0.01] max-w-md mx-auto my-auto">
-                <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center mx-auto text-muted-foreground">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">No script generated yet</p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
-                    Generate the lecture script from course syllabus materials or edit the script text directly before starting the broadcast.
-                  </p>
-                </div>
-                {isLecturer && canSave && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => setViewMode("edit")}
-                    className="h-9 px-4 rounded-xl inline-flex items-center gap-1.5"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    <span>Write or Paste Script</span>
-                  </Button>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {isLecturer && (status === "created" || status === "paused") && onStartSession && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    console.log(
+                      `${getTimeTag()} 🖱️ [START/RESUME BUTTON CLICKED] User clicked "${status === "paused" ? "Resume Broadcast" : "Start Live Broadcast"}" on LectureScriptModal`
+                    );
+                    onOpenChange(false);
+                    onStartSession();
+                  }}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 rounded-xl gap-2 shadow-sm"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  <span>{status === "paused" ? "Resume Broadcast" : "Start Live Broadcast"}</span>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Content Body */}
+        <div className="flex-1 overflow-hidden flex flex-col p-4 sm:p-6 gap-4">
+          {/* Top Meta Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/50 text-center">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                Roadmap Topics
+              </div>
+              <div className="text-sm font-bold font-mono text-foreground mt-0.5">
+                {topics.length} Core Modules
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/50 text-center">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                Delivery Engine
+              </div>
+              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                Gemini Live AI (Adaptive)
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/50 text-center">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                Estimated Duration
+              </div>
+              <div className="text-sm font-bold font-mono text-primary mt-0.5">
+                ~{totalMinutes || 30} min
+              </div>
+            </div>
+          </div>
+
+          {/* Main Topics Container */}
+          {topics.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center rounded-2xl border border-dashed border-border/70 bg-card/20">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-3">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">
+                No Topic Roadmap Generated
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
+                Generate a dynamic 4-to-8 topic lecture roadmap powered by Gemini AI to guide real-time classroom teaching.
+              </p>
+              <Button
+                onClick={handleGenerateRoadmap}
+                disabled={isGeneratingRoadmap}
+                className="gap-2 rounded-xl"
+              >
+                {isGeneratingRoadmap ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
                 )}
-              </div>
-            ) : (
-              <div className="space-y-3.5 max-w-6xl mx-auto pb-4">
-                {items.map((item, idx) => {
-                  const isCurrent = idx === currentIndex && status === "running";
-                  const isCompleted = idx < currentIndex && status === "running";
+                <span>Generate AI Lecture Roadmap</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 overflow-hidden min-h-0">
+              {/* Left Column: Topics List */}
+              <div className="md:col-span-5 flex flex-col gap-2 overflow-y-auto pr-1">
+                <div className="flex items-center justify-between px-1 mb-1">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Lecture Topics ({topics.length})
+                  </span>
+                  {isLecturer && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={handleGenerateRoadmap}
+                      disabled={isGeneratingRoadmap}
+                      className="h-6 text-[11px] text-primary gap-1"
+                    >
+                      {isGeneratingRoadmap ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3 w-3" />
+                      )}
+                      <span>Regenerate</span>
+                    </Button>
+                  )}
+                </div>
 
-                  if (item.type === "speech") {
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                          isCurrent
-                            ? "bg-primary/10 border-primary/40 ring-1 ring-ring/40 shadow-sm"
-                            : isCompleted
-                              ? "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 opacity-70"
-                              : "bg-card dark:bg-muted/40 border-border/60 hover:border-border"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                              #{idx + 1}
-                            </span>
-                            <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                              <Volume2 className="h-3.5 w-3.5" />
-                              Speech Segment
-                            </span>
-                          </div>
-
-                          {isCurrent ? (
-                            <span className="text-xs font-bold text-chart-2 dark:text-chart-2 bg-chart-2/15 px-2.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                              <Sparkles className="h-2.5 w-2.5" />
-                              NOW SPEAKING
-                            </span>
-                          ) : isCompleted ? (
-                            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3 text-chart-2" /> Spoken
-                            </span>
-                          ) : (
-                            <span className="text-[11px] font-mono text-muted-foreground">
-                              {item.text.split(/\s+/).filter(Boolean).length} words
-                            </span>
-                          )}
-                        </div>
-
-                        <p
-                          className={`text-xs sm:text-sm leading-relaxed font-medium ${
-                            isCurrent ? "text-foreground font-semibold" : "text-muted-foreground"
-                          }`}
-                        >
-                          {item.text}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === "engagement") {
-                    return (
-                      <div
-                        key={item.id}
-                        className="p-4 rounded-2xl bg-chart-4/10 border border-chart-4/20 text-xs text-chart-4 dark:text-chart-4 flex items-start gap-3"
-                      >
-                        <HelpCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold text-xs uppercase tracking-wider">
-                            Engagement Checkpoint
-                          </p>
-                          <p className="text-xs sm:text-sm text-foreground mt-0.5">
-                            {item.prompt || "Check your understanding"}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === "image" || item.type === "video") {
-                    const resolvedUrl = item.mediaRef.startsWith("/api/media/")
-                      ? item.mediaRef
-                      : item.mediaRef.replace(/course-files\/(.+)$/, "/api/media/$1");
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                          isCurrent
-                            ? "bg-chart-5/15 border-chart-5/40 ring-1 ring-chart-5/40 shadow-sm"
-                            : "bg-chart-5/5 dark:bg-chart-5/10 border-chart-5/20"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-14 h-12 sm:w-20 sm:h-14 rounded-xl overflow-hidden bg-black/10 shrink-0 border border-black/10 dark:border-white/10 flex items-center justify-center">
-                            {item.type === "video" ? (
-                              <video src={resolvedUrl} className="w-full h-full object-cover" muted />
-                            ) : (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={resolvedUrl}
-                                alt={item.caption || "Visual asset"}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-mono font-bold text-muted-foreground bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
-                                #{idx + 1}
-                              </span>
-                              <p className="font-bold text-xs uppercase tracking-wider text-chart-5 dark:text-chart-5">
-                                Projected {item.type === "video" ? "Video" : "Slide"}
-                              </p>
-                            </div>
-                            <p
-                              className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-sm sm:max-w-xl mt-0.5"
-                              title={item.caption || item.mediaRef}
-                            >
-                              {item.caption || "Visual Diagram Asset"}
-                            </p>
-                          </div>
-                        </div>
-
+                {topics.map((t) => {
+                  const isSelected = t.id === activeTopicId;
+                  const isCurrent = t.id === currentTopicId;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        setSelectedTopicId(t.id);
+                        if (isLecturer && onSelectTopic) {
+                          onSelectTopic(t.id);
+                        }
+                      }}
+                      className={cn(
+                        "p-3 rounded-2xl border text-left cursor-pointer transition-all",
+                        isSelected
+                          ? "bg-primary/10 border-primary/40 shadow-xs"
+                          : "bg-card/50 border-border/50 hover:bg-muted/40 text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-muted-foreground">
+                          {t.order}. {t.title}
+                        </span>
                         {isCurrent && (
-                          <span className="text-xs font-bold text-chart-5 dark:text-chart-5 bg-chart-5/15 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse shrink-0">
-                            <Sparkles className="h-2.5 w-2.5" />
-                            ON STAGE
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-chart-2 bg-chart-2/10 px-1.5 py-0.5 rounded-full border border-chart-2/20">
+                            <Radio className="h-2.5 w-2.5 animate-pulse" />
+                            LIVE
                           </span>
                         )}
                       </div>
-                    );
-                  }
-
-                  return null;
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {t.description}
+                      </p>
+                      <div className="text-[10px] text-muted-foreground mt-2 font-mono">
+                        ~{t.estimatedDurationMinutes || 6} mins
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Delete Script Confirmation Alert */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="max-w-sm rounded-2xl">
-          <AlertDialogHeader>
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-2">
-              <Trash2 className="h-5 w-5" />
+              {/* Right Column: Topic Details */}
+              <div className="md:col-span-7 flex flex-col gap-3 overflow-y-auto p-4 rounded-2xl border border-border/50 bg-card/30">
+                {activeTopic ? (
+                  <>
+                    <div className="border-b border-border/40 pb-3">
+                      <div className="text-[11px] uppercase tracking-wider font-bold text-primary">
+                        Topic {activeTopic.order}
+                      </div>
+                      <h4 className="text-base font-bold text-foreground mt-0.5">
+                        {activeTopic.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {activeTopic.description}
+                      </p>
+                    </div>
+
+                    {activeTopic.learningObjectives && activeTopic.learningObjectives.length > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Learning Objectives
+                        </div>
+                        <ul className="space-y-1">
+                          {activeTopic.learningObjectives.map((obj, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                              <span>{obj}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {((activeTopic.suggestedAnalogies && activeTopic.suggestedAnalogies.length > 0) || ((activeTopic as any).pedagogicalAnalogies && (activeTopic as any).pedagogicalAnalogies.length > 0)) && (
+                      <div className="space-y-1.5 pt-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                          <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                          <span>Real-World Pedagogical Analogies</span>
+                        </div>
+                        <div className="space-y-2">
+                          {(activeTopic.suggestedAnalogies || (activeTopic as any).pedagogicalAnalogies || []).map((analogy: string, i: number) => (
+                            <div
+                              key={i}
+                              className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground leading-relaxed italic"
+                            >
+                              &ldquo;{analogy}&rdquo;
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+                    Select a topic to inspect details.
+                  </div>
+                )}
+              </div>
             </div>
-            <AlertDialogTitle>Delete Generated Script?</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to clear this session&apos;s generated lecture script? You can still regenerate a fresh script anytime from course materials.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-col gap-2">
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <span>Yes, Delete Script</span>
-              )}
-            </AlertDialogAction>
-            <AlertDialogCancel disabled={isDeleting} className="w-full mt-0 h-9">
-              Cancel
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+
+export default LectureScriptModal;

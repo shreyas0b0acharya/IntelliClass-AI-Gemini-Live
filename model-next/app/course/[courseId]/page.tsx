@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, BookOpen, Presentation, FileText, Plus, Upload } from "lucide-react";
 import Link from "next/link";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 export default function CourseDetailPage({
   params,
@@ -22,6 +23,8 @@ export default function CourseDetailPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") === "materials" ? "materials" : "sessions";
+
+  const hasMounted = useIsMounted();
 
   const [course, setCourse] = useState<Course | null>(null);
   const { isLecturer } = useAuth();
@@ -43,7 +46,7 @@ export default function CourseDetailPage({
     };
   }, [courseId]);
 
-  if (!course) {
+  if (!hasMounted || !course) {
     return (
       <div className="space-y-8 animate-pulse">
         <div className="flex items-center justify-between">

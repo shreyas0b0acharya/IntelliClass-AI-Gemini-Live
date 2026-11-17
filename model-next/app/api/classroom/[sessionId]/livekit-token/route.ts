@@ -50,11 +50,14 @@ export async function POST(
     const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL;
 
     if (!apiKey || !apiSecret || !livekitUrl) {
+      console.error("❌ [LiveKit Token API] LiveKit credentials missing from environment.");
       return NextResponse.json(
         { error: "LiveKit server credentials are not properly configured" },
         { status: 500 }
       );
     }
+
+    console.log(`🎫 [LiveKit Token API] Minting token for session "${sessionId}", identity="${identity}", isConductor=${isConductor}`);
 
     const at = new AccessToken(apiKey, apiSecret, {
       identity,
@@ -70,12 +73,14 @@ export async function POST(
     at.addGrant({
       roomJoin: true,
       room: `classroom:${sessionId}`,
-      canPublish: isConductor,
+      canPublish: true, // Allows both faculty and students to publish mic audio when unmuted
       canSubscribe: true,
       canPublishData: true,
     });
 
     const token = await at.toJwt();
+
+    console.log(`✅ [LiveKit Token API] Successfully minted JWT token for room "classroom:${sessionId}"`);
 
     return NextResponse.json({
       token,
@@ -87,7 +92,7 @@ export async function POST(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
-    console.error("API POST /api/classroom/[sessionId]/livekit-token error:", err);
+    console.error("❌ API POST /api/classroom/[sessionId]/livekit-token error:", err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

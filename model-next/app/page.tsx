@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { Navbar, SessionCodeInput } from "@/components/shared";
 import { useAuth } from "@/features/auth";
 import { Button } from "@/components/ui/button";
@@ -92,14 +93,15 @@ const STEPS = [
 
 export default function HomePage() {
   const router = useRouter();
+  const hasMounted = useIsMounted();
   const { user, profile, isLecturer, isLoading } = useAuth();
 
   // If a faculty member visits root while logged in, redirect them directly to the Faculty Studio
   useEffect(() => {
-    if (!isLoading && user && isLecturer) {
+    if (hasMounted && !isLoading && user && isLecturer) {
       router.replace("/dashboard");
     }
-  }, [isLoading, user, isLecturer, router]);
+  }, [hasMounted, isLoading, user, isLecturer, router]);
 
   // Handle incoming Supabase auth recovery codes and errors landing on root
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function HomePage() {
   }, [router]);
 
   // ── A. LOGGED-IN STUDENT VIEW: CLEAN MINIMAL JOIN SCREEN ────────────────
-  if (!isLoading && user && !isLecturer) {
+  if (hasMounted && !isLoading && user && !isLecturer) {
     return (
       <div className="min-h-screen w-full bg-muted dark:bg-black text-foreground dark:text-foreground flex flex-col antialiased selection:bg-primary selection:text-white transition-colors duration-300">
         <Navbar showLinks={false} />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar, ThemeToggle, NavUser } from "@/components/shared";
 import { useAuth } from "@/features/auth";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 
@@ -14,6 +15,7 @@ export default function CourseLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const hasMounted = useIsMounted();
   const { profile, isLecturer, isLoading } = useAuth();
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function CourseLayout({
     }
   }, [isLoading, profile, isLecturer, router]);
 
-  if (isLoading || !profile || !isLecturer) {
+  if (!hasMounted || isLoading || !profile || !isLecturer) {
     return (
       <div className="h-screen w-screen bg-white dark:bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/10 flex items-center justify-center text-primary animate-spin">

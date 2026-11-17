@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase/client";
@@ -38,6 +39,8 @@ import {
 import { toast } from "sonner";
 
 export default function DashboardPage() {
+  const hasMounted = useIsMounted();
+
   const { user, profile, isLecturer, isLoading: isAuthLoading } = useAuth();
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -184,7 +187,7 @@ export default function DashboardPage() {
     };
   }, [loadData, isAuthLoading, user]);
 
-  if (isAuthLoading && !profile) {
+  if (!hasMounted || (isAuthLoading && !profile)) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="flex items-center justify-between">

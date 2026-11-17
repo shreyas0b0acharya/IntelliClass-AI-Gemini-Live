@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { supabase } from "@/lib/supabase/client";
 import { api, ApiError } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
@@ -29,6 +30,8 @@ export default function SessionPreJoinPage({
 }) {
   const { code } = use(params);
   const router = useRouter();
+
+  const hasMounted = useIsMounted();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -150,7 +153,7 @@ export default function SessionPreJoinPage({
     router.push(`/classroom/${session.id}`);
   };
 
-  if (loading) {
+  if (!hasMounted || loading) {
     return (
       <div className="h-screen w-screen bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-14 h-14 rounded-3xl bg-primary/10 flex items-center justify-center text-primary animate-spin">

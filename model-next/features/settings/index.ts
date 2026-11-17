@@ -4,7 +4,6 @@
 export { AccountProfileSettings } from "./components/AccountProfileSettings";
 export { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 export { GenderSelector } from "./components/GenderSelector";
-export { HeadTTSTestButton } from "./components/HeadTTSTestButton";
 export { ModelNameInput } from "./components/ModelNameInput";
 export { VoiceSpeedControls } from "./components/VoiceSpeedControls";
 

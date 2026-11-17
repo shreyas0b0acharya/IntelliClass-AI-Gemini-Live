@@ -4,6 +4,7 @@ import { SessionProgressHUD } from "./SessionProgressHUD";
 import { ProjectionBoard } from "./ProjectionBoard";
 import { SubtitleBar } from "./SubtitleBar";
 import { QuestionInput } from "./QuestionInput";
+import { GoogleMeetControls } from "./GoogleMeetControls";
 import type { MediaItemDisplay } from "../hooks/useClassroom";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
@@ -36,6 +37,17 @@ interface StageOverlayProps {
   onQuestionChange?: (val: string) => void;
   onQuestionSubmit?: (e?: React.FormEvent) => void;
 
+  // Google Meet in-call controls
+  isLecturer?: boolean;
+  isAudioMuted?: boolean;
+  onToggleAudioMute?: () => void;
+  onToggleCaptions?: () => void;
+  onOpenParticipants?: () => void;
+  onLeaveCall?: () => void;
+  participantsCount?: number;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+
   // Responsive Layout
   isCompact?: boolean;
   isShortLandscape?: boolean;
@@ -61,6 +73,15 @@ export function StageOverlay({
   onToggleMic,
   onQuestionChange,
   onQuestionSubmit,
+  isLecturer = false,
+  isAudioMuted = false,
+  onToggleAudioMute,
+  onToggleCaptions,
+  onOpenParticipants,
+  onLeaveCall,
+  participantsCount = 1,
+  onToggleChat,
+  isChatOpen = false,
   isCompact = false,
   isShortLandscape = false,
 }: StageOverlayProps) {
@@ -105,7 +126,7 @@ export function StageOverlay({
         </div>
       )}
 
-      {/* ── Bottom Information & Interaction Cluster ── */}
+      {/* ── Bottom Information & Google Meet Interaction Cluster ── */}
       <div
         className={cn(
           "w-full flex flex-col items-center gap-2 pointer-events-none transition-all",
@@ -134,7 +155,27 @@ export function StageOverlay({
             />
           </div>
         )}
+
+        {/* ── Google Meet Style Floating Control Bar ── */}
+        <div className="w-full flex justify-center pointer-events-auto pt-1">
+          <GoogleMeetControls
+            isLecturer={Boolean(isLecturer || canEditCurriculum)}
+            isMicActive={Boolean(isMicActive)}
+            onToggleMic={onToggleMic || (() => {})}
+            isAudioMuted={isAudioMuted}
+            onToggleAudioMute={onToggleAudioMute}
+            showCaptions={Boolean(showCaptions)}
+            onToggleCaptions={onToggleCaptions || (() => {})}
+            onOpenParticipants={onOpenParticipants || (() => {})}
+            onOpenScript={onOpenScript}
+            onLeaveCall={onLeaveCall || (() => {})}
+            participantsCount={participantsCount}
+            onToggleChat={onToggleChat}
+            isChatOpen={isChatOpen}
+          />
+        </div>
       </div>
     </div>
   );
 }
+export default StageOverlay;

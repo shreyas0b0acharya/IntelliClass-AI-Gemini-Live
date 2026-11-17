@@ -273,13 +273,13 @@ export function ClassroomHeader({
               </DropdownMenuItem>
             )}
 
-            {/* Curriculum Script (Lecturer only) */}
+            {/* Curriculum Roadmap (Lecturer only) */}
             {capabilities.canEditCurriculum && (
  <DropdownMenuItem onClick={onOpenScript} className=" cursor-pointer ">
                 <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="font-semibold text-xs text-foreground">Curriculum Script</span>
-                  <span className="text-xs text-muted-foreground">{scriptItemCount} lecture segments</span>
+                  <span className="font-semibold text-xs text-foreground">Lecture Roadmap</span>
+                  <span className="text-xs text-muted-foreground">{scriptItemCount ? `${scriptItemCount} topics` : "AI Topic Roadmap"}</span>
                 </div>
               </DropdownMenuItem>
             )}

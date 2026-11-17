@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Radio, AlertTriangle, Loader2 } from "lucide-react";
 import type { SessionStateStatus } from "../types/classroom";
 import { unlockAudioContext } from "@/features/avatar";
+import { getTimeTag } from "../services/liveAudioPlayer";
 
 interface SessionControllerProps {
   status: SessionStateStatus;
@@ -32,6 +33,9 @@ export function SessionController({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const handleAction = async (name: string, fn: () => void | Promise<void>) => {
+    console.log(
+      `${getTimeTag()} 🖱️ [START/RESUME BUTTON CLICKED] User clicked "${name}" on Session Controller`
+    );
     try {
       await unlockAudioContext();
     } catch { }

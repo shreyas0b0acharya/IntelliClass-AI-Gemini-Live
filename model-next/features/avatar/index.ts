@@ -66,6 +66,8 @@ export {
   VISEMES,
   LIP_SYNC_CONFIG,
 } from "./services/lipSync.config";
+export { liveAudioSync } from "./services/liveAudioSync";
+export type { LiveLipSyncAnalysis } from "./services/liveAudioSync";
 
 // Types
 export type {

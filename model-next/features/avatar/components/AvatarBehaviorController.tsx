@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AvatarBehaviorContext } from "./AvatarBehaviorContext";
 import { createSpeechLayer, type BehaviorState, type BehaviorStore } from "../types/behavior.types";
+import { liveAudioSync } from "../services/liveAudioSync";
 
 interface AvatarBehaviorControllerProps {
   behaviorState?: BehaviorState;
@@ -149,16 +150,29 @@ export function AvatarBehaviorController({
     const safeDelta = Math.min(delta, 0.1);
     const s = store.current;
 
-    if (isSpeaking) lastSpeakingAt.current = t;
+    const liveSpeaking = liveAudioSync.isSpeaking();
+    const effectiveSpeaking = isSpeaking || liveSpeaking;
+
+    if (effectiveSpeaking) lastSpeakingAt.current = t;
     const withinSpeechBoundaryGrace = t - lastSpeakingAt.current < 0.35;
     const currentMode: BehaviorState =
-      isSpeaking || withinSpeechBoundaryGrace ? "talking" : behaviorState;
+      effectiveSpeaking || withinSpeechBoundaryGrace ? "talking" : behaviorState;
     s.state = currentMode;
 
     // While real speech is being planned, the planner supplies the meaningful blinks, glances,
     // brow movements and head nods; the random "living" layer backs off so they do not fight.
     const speech = s.speech;
     const speechOn = currentMode === "talking" && !!speech && speech.active > 0.5;
+
+    // Real-time audio emphasis accents (brow flash, slight head nod, eye widening) during live audio
+    const liveEmphasis = liveAudioSync.getEmphasis();
+    if (speech && currentMode === "talking" && liveEmphasis > 0.05) {
+      speech.browInnerUp = Math.max(speech.browInnerUp, liveEmphasis * 0.35);
+      speech.browOuterUpLeft = Math.max(speech.browOuterUpLeft, liveEmphasis * 0.22);
+      speech.browOuterUpRight = Math.max(speech.browOuterUpRight, liveEmphasis * 0.22);
+      speech.headPitch = Math.max(speech.headPitch, liveEmphasis * 0.035);
+      speech.eyeWide = Math.max(speech.eyeWide, liveEmphasis * 0.20);
+    }
 
     if (speech) {
       if (speech.inhaleRequest !== lastInhaleRequest.current) {

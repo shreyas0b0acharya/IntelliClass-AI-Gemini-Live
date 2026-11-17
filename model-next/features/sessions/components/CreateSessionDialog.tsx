@@ -10,7 +10,6 @@ import {
   GenderSelector,
   ModelNameInput,
   VoiceSpeedControls,
-  HeadTTSTestButton,
 } from "@/features/settings";
 import {
   DEFAULT_MALE_VOICE_ID,
@@ -136,15 +135,13 @@ function CreateSessionModalContent({
       }
 
       const sessionId = sessionData.id;
-      setStatusStep(`Synthesizing lecture with ${lecturerName || "AI Lecturer"}...`);
+      setStatusStep(`Generating AI lecture roadmap with ${lecturerName || "AI Professor"}...`);
 
       const sources = selectedFiles.map((fileName) => ({ fileName }));
 
-      await api.generateSessionScript(sessionId, {
-        courseId,
-        topic: topic.trim(),
-        sources,
-        voice: voiceId,
+      await api.generateRoadmap(sessionId, {
+        lectureTopic: topic.trim(),
+        sources: sources.length > 0 ? sources : undefined,
         customPrompt: lecturerName ? `You are ${lecturerName}, an expert professor.` : undefined,
       });
 
@@ -187,7 +184,7 @@ function CreateSessionModalContent({
                 Launch AI Lecture
               </DialogTitle>
  <DialogDescription className="">
-                Customize your 3D lecturer persona, curriculum topic, and HeadTTS neural audio.
+                Customize your 3D lecturer persona, topic roadmap, and Gemini Live audio.
               </DialogDescription>
             </div>
           </div>
@@ -330,28 +327,11 @@ function CreateSessionModalContent({
               </span>
             </div>
 
-            {/* 3D Viewport with real-time HeadTTS LipSync */}
+            {/* 3D Viewport Preview */}
             <AvatarPreview
               gender={gender}
-              isSpeaking={isTestingVoice}
-              audioPath={previewAudioPath}
-              lipSyncData={previewLipSyncData}
-              onLipSyncEnd={() => setIsTestingVoice(false)}
+              isSpeaking={false}
               className="w-full h-60 rounded-2xl"
-            />
-
-            {/* Reusable HeadTTS Test Button */}
-            <HeadTTSTestButton
-              text={previewPrompt}
-              voice={voiceId}
-              speed={speed}
-              isPlaying={isTestingVoice}
-              onPlayStateChange={setIsTestingVoice}
-              onDataReceived={(path, data) => {
-                setPreviewAudioPath(path);
-                setPreviewLipSyncData(data);
-              }}
- className="w-full h-10 cursor-pointer "
             />
           </div>
         </div>

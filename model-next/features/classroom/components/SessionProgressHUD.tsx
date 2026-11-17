@@ -65,16 +65,14 @@ export function SessionProgressHUD({
                 <span className="truncate">
                   {isShortLandscape
                     ? `T${activeTopic.order}/${topicCount}: ${activeTopic.title}`
-                    : `Topic ${activeTopic.order} of ${topicCount}: "${activeTopic.title}" • Live AI`}
+                    : `Topic ${activeTopic.order} of ${topicCount}: "${activeTopic.title}" • Gemini Live`}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-chart-2 dark:text-chart-2 font-semibold text-xs">
                 <Radio className="h-3.5 w-3.5 animate-pulse text-chart-2 shrink-0" />
                 <span className="truncate">
-                  {isShortLandscape
-                    ? `Part ${currentIndex + 1}/${totalItems || 1} • ${percent}%`
-                    : `Segment ${currentIndex + 1} of ${totalItems || 1} • ${percent}% Spoken`}
+                  Live Classroom Broadcast • Gemini Live AI
                 </span>
               </div>
             )
@@ -87,22 +85,22 @@ export function SessionProgressHUD({
             <div className="flex items-center gap-1.5 text-muted-foreground font-semibold text-xs">
               <CheckCircle2 className="h-3.5 w-3.5 text-chart-2 shrink-0" />
               <span>
-                Complete ({roadmap ? `${topicCount} Topics` : `${totalItems} Segments`})
+                Complete ({topicCount > 0 ? `${topicCount} Topics` : "Gemini Live Lecture"})
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-primary dark:text-primary font-semibold text-xs">
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
               <span>
-                {roadmap
+                {topicCount > 0
                   ? `Live AI Roadmap • ${topicCount} Topics Ready`
-                  : "Standby • Ready to Begin"}
+                  : "Gemini Live • Ready to Broadcast"}
               </span>
             </div>
           )}
         </div>
 
-        {/* View Script & Plan CTA (Role Gated: Only for Lecturers, Optionally Openable) */}
+        {/* View Roadmap CTA (Role Gated: Only for Lecturers, Optionally Openable) */}
         {canEditCurriculum && (
           <Button
             size="xs"
@@ -111,13 +109,7 @@ export function SessionProgressHUD({
             className="h-6 sm:h-7 shrink-0 inline-flex items-center "
           >
             <BookOpen className="h-3 w-3 text-primary" />
-            <span>
-              {roadmap
-                ? "Roadmap"
-                : isCompact || isShortLandscape
-                ? "Script"
-                : "Curriculum Script"}
-            </span>
+            <span>Roadmap</span>
           </Button>
         )}
       </div>

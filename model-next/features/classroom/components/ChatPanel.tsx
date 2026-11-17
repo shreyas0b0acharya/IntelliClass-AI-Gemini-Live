@@ -3,18 +3,31 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
-import { Sparkles, MessageSquare, User } from "lucide-react";
+import { Sparkles, MessageSquare, User, Send, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/lib/supabase/types";
 
 interface ChatPanelProps {
   sessionId: string;
   userId?: string;
+  courseId?: string;
+  sessionTopic?: string;
+  userName?: string;
 }
 
-export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
+export function ChatPanel({
+  sessionId,
+  userId,
+  courseId,
+  sessionTopic,
+  userName = "Student",
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inputText, setInputText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,13 +36,14 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
         const { messages: fetchedMessages } = await api.getMessages(sessionId);
         if (fetchedMessages) setMessages(fetchedMessages);
       } catch (err) {
-        console.error("Error fetching messages:", err);
+        console.warn("Message poll notice:", err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
 
     const channel = supabase
       .channel(`chat:classroom:${sessionId}`)
@@ -42,12 +56,19 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
           filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as ChatMessage]);
+          const newMsg = payload.new as ChatMessage;
+          if (newMsg) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          }
         }
       )
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [sessionId]);
@@ -58,13 +79,76 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
     }
   }, [messages]);
 
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!inputText.trim() || isSending) return;
+
+    const questionText = inputText.trim();
+    setInputText("");
+    setIsSending(true);
+
+    try {
+      // 1. Optimistic user message in chat
+      const tempId = `temp_${Date.now()}`;
+      const userMsg: ChatMessage = {
+        id: tempId,
+        session_id: sessionId,
+        user_id: userId || null,
+        role: "user",
+        message: questionText,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+
+      // 2. Persist user message to Supabase
+      await api.sendMessage(sessionId, {
+        role: "user",
+        message: questionText,
+        user_id: userId,
+      });
+
+      // 3. Generate instant AI reply in chat (pure text — does NOT interrupt spoken class lecture)
+      if (courseId) {
+        const askRes = await api.askQuestion(sessionId, {
+          question: questionText,
+          courseId,
+          studentName: userName,
+          lecturerName: "Prof. Arthur",
+          sessionTopic: sessionTopic || "Live Lecture",
+        });
+
+        if (askRes?.answer) {
+          const aiMsg: ChatMessage = {
+            id: `ai_${Date.now()}`,
+            session_id: sessionId,
+            user_id: null,
+            role: "ai",
+            message: askRes.answer,
+            created_at: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, aiMsg]);
+
+          // Persist AI answer to DB
+          await api.sendMessage(sessionId, {
+            role: "ai",
+            message: askRes.answer,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to process chat message:", err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-card/40 backdrop-blur-xl border-l border-border/40 overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border/40 bg-card/60 flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-primary" />
-          Live Chat & Transcript
+          Live Chat &amp; Transcript
         </h3>
         <span className="text-xs text-muted-foreground font-semibold px-2 py-0.5 rounded-full bg-muted/60">
           {messages.length} notes
@@ -76,16 +160,16 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
         {loading ? (
           <div className="space-y-4 animate-pulse">
             <div className="flex flex-col gap-1 items-start">
- <Skeleton className="h-3 w-28 " />
- <Skeleton className="h-16 w-3/4 " />
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-16 w-3/4" />
             </div>
             <div className="flex flex-col gap-1 items-end">
- <Skeleton className="h-3 w-16 " />
- <Skeleton className="h-12 w-2/3 " />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-12 w-2/3" />
             </div>
             <div className="flex flex-col gap-1 items-start">
- <Skeleton className="h-3 w-28 " />
- <Skeleton className="h-20 w-4/5 " />
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-20 w-4/5" />
             </div>
           </div>
         ) : messages.length === 0 ? (
@@ -95,7 +179,7 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
             </div>
             <p className="text-xs font-bold text-foreground">Lecture stream initialized</p>
             <p className="text-xs text-muted-foreground max-w-xs">
-              Questions asked to Professor Sharma and AI answers will be transcribed here in real-time.
+              Questions asked in chat will be answered by Prof. Arthur right here without interrupting the spoken lecture.
             </p>
           </div>
         ) : (
@@ -113,7 +197,7 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
                 <div className="flex items-center gap-1.5 px-1 w-full justify-between">
                   {isAI ? (
                     <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" /> Professor Sharma
+                      <Sparkles className="h-3 w-3" /> Professor Arthur
                     </span>
                   ) : (
                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -123,9 +207,6 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
                   {msg.created_at && (
                     <span className="text-xs text-muted-foreground/70 font-mono">
                       {new Date(msg.created_at).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
@@ -150,12 +231,32 @@ export function ChatPanel({ sessionId, userId }: ChatPanelProps) {
         )}
       </div>
 
-      {/* Footer Notice */}
-      <div className="p-3 bg-muted/20 border-t border-border/30 text-center">
-        <p className="text-xs text-muted-foreground font-medium">
-          Ask questions below — Professor Sharma will pause and explain.
-        </p>
-      </div>
+      {/* Google Meet In-Call Message Input */}
+      <form
+        onSubmit={handleSendMessage}
+        className="p-3 bg-card/70 border-t border-border/40 flex items-center gap-2"
+      >
+        <Input
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="Send a message to everyone..."
+          disabled={isSending}
+          className="h-10 flex-1 text-xs rounded-xl bg-background/60 focus-visible:ring-primary/40"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!inputText.trim() || isSending}
+          className="h-10 w-10 p-0 rounded-xl shrink-0"
+        >
+          {isSending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </Button>
+      </form>
     </div>
   );
 }
+export default ChatPanel;

@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import {
   useClassroom,
   useClassroomStore,
   useClassroomLayout,
-  AvatarStage,
   AudioUnlockModal,
   LeaveClassroomDialog,
   ParticipantsModal,
@@ -48,6 +49,22 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+// Pure CSR Dynamic Import — skips SSR evaluation of Three.js / Canvas
+const AvatarStage = dynamic(
+  () => import("@/features/classroom/components/AvatarStage").then((m) => m.AvatarStage),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-card/60 backdrop-blur-md rounded-2xl md:rounded-3xl border border-border/40 select-none">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          Initializing 3D Stage...
+        </p>
+      </div>
+    ),
+  }
+);
+
 export default function ClassroomPage({
   params,
 }: {
@@ -58,6 +75,9 @@ export default function ClassroomPage({
   const classroom = useClassroom(sessionId);
   const store = useClassroomStore();
   const layout = useClassroomLayout();
+  const isLecturer = Boolean(classroom.isLecturer);
+
+  const isMounted = useIsMounted();
 
   // Active view tab for compact/mobile layouts ("stage" vs "chat")
   const [activeTab, setActiveTab] = useState<"stage" | "chat">("stage");
@@ -70,6 +90,34 @@ export default function ClassroomPage({
   const [courseFiles, setCourseFiles] = useState<CourseFile[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedViewFile, setSelectedViewFile] = useState<CourseFile | null>(null);
+
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const handleToggleAudioMute = useCallback(() => {
+    setIsAudioMuted((prev) => {
+      const next = !prev;
+      classroom.geminiLive.setAudioMuted(next);
+      if (typeof document !== "undefined") {
+        document.querySelectorAll("audio").forEach((el) => {
+          el.muted = next;
+        });
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("intelliclass:volume", { detail: { volume: next ? 0 : 1 } })
+        );
+      }
+      toast.info(next ? "Classroom audio muted" : "Classroom audio unmuted");
+      return next;
+    });
+  }, [classroom.geminiLive]);
+
+  const handleToggleMic = useCallback(() => {
+    if (isLecturer) {
+      classroom.geminiLive.toggleConductorMic(!classroom.geminiLive.isMicActive);
+    } else {
+      classroom.geminiLive.toggleStudentMic(!classroom.geminiLive.isMicActive);
+    }
+  }, [isLecturer, classroom.geminiLive]);
 
   // Live Closed Captions (CC) toggle — persistent per user across sessions
   const [showCaptions, setShowCaptions] = useState<boolean>(() => {
@@ -137,13 +185,12 @@ export default function ClassroomPage({
     assetStorage.setAudioStreaming(Boolean(classroom.currentSpeech));
   }, [classroom.currentSpeech]);
 
-  const isLecturer = Boolean(classroom.isLecturer);
   const capabilities = useMemo(
     () => getCapabilities(isLecturer ? "lecturer" : "student"),
     [isLecturer]
   );
 
-  if (!classroom.session || !classroom.user) {
+  if (!isMounted || !classroom.session || !classroom.user) {
     return (
       <div className="h-dvh min-h-dvh w-screen flex flex-col items-center justify-center gap-4 bg-background">
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary animate-spin">
@@ -200,8 +247,11 @@ export default function ClassroomPage({
       {/* Audio Unlock Overlay */}
       {!classroom.audioUnlocked && (
         <AudioUnlockModal
-          onUnlock={() => classroom.setAudioUnlocked(true)}
-          topic={classroom.session.topic}
+          onUnlock={() => {
+            classroom.setAudioUnlocked(true);
+            classroom.geminiLive.resumeAudio().catch(() => {});
+          }}
+          topic={classroom.session?.topic || "Live Classroom"}
           isLecturer={isLecturer}
         />
       )}
@@ -237,12 +287,13 @@ export default function ClassroomPage({
         onOpenChange={setShowScriptModal}
         items={store.items}
         currentIndex={store.currentIndex}
-        topic={classroom.session.topic}
+        topic={classroom.session?.topic || ""}
         isLecturer={isLecturer}
         status={classroom.sessionStatus}
-        rawScript={classroom.session.script || ""}
-        roadmap={classroom.geminiLive.roadmap || store.roadmap}
-        currentTopicId={classroom.geminiLive.currentTopicId || store.currentTopicId}
+        sessionId={sessionId}
+        rawScript={classroom.session?.script || ""}
+        roadmap={classroom.geminiLive.roadmap || store.roadmap || classroom.session?.roadmap}
+        currentTopicId={classroom.geminiLive.currentTopicId || store.currentTopicId || classroom.session?.current_topic_id}
         onGenerateRoadmap={classroom.generateRoadmap}
         onSelectTopic={classroom.selectTopic}
         onSaveScript={classroom.updateScript}
@@ -515,7 +566,7 @@ export default function ClassroomPage({
                 lipSyncData={classroom.currentSpeech?.lipSyncData}
                 targetEpochMs={classroom.currentSpeech?.targetEpochMs}
                 sequence={classroom.currentSpeech?.sequence}
-                speechText={classroom.currentSpeech?.text}
+                speechText={classroom.currentSpeech?.text || classroom.currentSubtitle}
                 onLipSyncEnd={() => {}}
                 subtitle={classroom.currentSubtitle}
                 activeMedia={classroom.activeMedia || store.activeMedia}
@@ -544,9 +595,22 @@ export default function ClassroomPage({
                 showCaptions={showCaptions}
                 showProgressHUD={showProgressHUD}
                 canAskDoubt={capabilities.canAskDoubt}
-                canSpeak={classroom.geminiLive.hasFloor}
+                canSpeak={true}
                 isMicActive={classroom.geminiLive.isMicActive}
-                onToggleMic={() => classroom.geminiLive.toggleStudentMic(!classroom.geminiLive.isMicActive)}
+                onToggleMic={handleToggleMic}
+                isLecturer={isLecturer}
+                isAudioMuted={isAudioMuted}
+                onToggleAudioMute={handleToggleAudioMute}
+                onToggleCaptions={handleToggleCaptions}
+                onOpenParticipants={() => setShowParticipantsModal(true)}
+                onLeaveCall={() => setShowLeaveDialog(true)}
+                participantsCount={classroom.participants.length}
+                onToggleChat={() => {
+                  if (layout.isCompact) {
+                    setActiveTab((prev) => (prev === "chat" ? "stage" : "chat"));
+                  }
+                }}
+                isChatOpen={activeTab === "chat"}
                 userQuestion={classroom.userQuestion}
                 onQuestionChange={classroom.setUserQuestion}
                 onQuestionSubmit={(e) => {
@@ -577,7 +641,13 @@ export default function ClassroomPage({
             )
           )}
         >
-          <ChatPanel sessionId={sessionId} userId={classroom.user.id} />
+          <ChatPanel
+            sessionId={sessionId}
+            userId={classroom.user?.id}
+            courseId={courseId}
+            sessionTopic={classroom.session?.topic}
+            userName={classroom.profile?.name || classroom.user?.email?.split("@")[0] || "Student"}
+          />
         </div>
       </div>
 

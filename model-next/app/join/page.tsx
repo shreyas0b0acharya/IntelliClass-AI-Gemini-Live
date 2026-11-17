@@ -2,10 +2,12 @@
 
 import { Navbar, SessionCodeInput } from "@/components/shared";
 import { useAuth } from "@/features/auth";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { Presentation, KeyRound } from "lucide-react";
 import Link from "next/link";
 
 export default function JoinPage() {
+  const hasMounted = useIsMounted();
   const { profile } = useAuth();
 
   return (
@@ -25,7 +27,7 @@ export default function JoinPage() {
               Join Live Class
             </h1>
             <p className="text-base text-muted-foreground dark:text-muted-foreground leading-relaxed">
-              {profile?.name ? `Welcome, ${profile.name}. ` : ""}
+              {hasMounted && profile?.name ? `Welcome, ${profile.name}. ` : ""}
               Enter the code provided by your professor to enter the live AI classroom.
             </p>
           </div>

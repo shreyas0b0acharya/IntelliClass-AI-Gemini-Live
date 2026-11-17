@@ -1,7 +1,6 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { VOICE_OPTIONS, ELEVENLABS_VOICE_OPTIONS } from "../services/settings";
 import {
   Select,
   SelectContent,
@@ -11,6 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+export const GEMINI_LIVE_VOICES = [
+  { id: "Puck", name: "Puck (Male, Clear & Engaging)", gender: "male" },
+  { id: "Fenrir", name: "Fenrir (Male, Deep & Academic)", gender: "male" },
+  { id: "Charon", name: "Charon (Neutral, Calm & Intellectual)", gender: "male" },
+  { id: "Aoede", name: "Aoede (Female, Warm & Expressive)", gender: "female" },
+  { id: "Kore", name: "Kore (Female, Gentle & Clear)", gender: "female" },
+];
 
 interface VoiceSpeedControlsProps {
   gender: "male" | "female";
@@ -36,26 +43,32 @@ export function VoiceSpeedControls({
   onSpeedChange,
   disabled = false,
 }: VoiceSpeedControlsProps) {
-  const filteredHeadTTS = VOICE_OPTIONS.filter((v) => v.gender === gender);
-  const filteredElevenLabs = ELEVENLABS_VOICE_OPTIONS.filter((v) => v.gender === gender);
+  // Map any legacy IDs to Gemini Live voices
+  let normalizedVoiceId = voiceId;
+  if (voiceId === "am_fenrir" || !voiceId) normalizedVoiceId = gender === "male" ? "Fenrir" : "Aoede";
+  if (voiceId === "af_bella") normalizedVoiceId = "Aoede";
+
+  const filteredVoices = GEMINI_LIVE_VOICES.filter((v) => v.gender === gender);
 
   return (
     <div className="space-y-4">
-      {/* Custom Radix Select for Voice Selection */}
+      {/* Voice Selection */}
       <div className="space-y-2">
-        <Label>
-          Voice Profile &amp; Engine
-        </Label>
-        <Select value={voiceId} onValueChange={onVoiceChange} disabled={disabled}>
+        <Label>Gemini Live Voice Profile</Label>
+        <Select
+          value={normalizedVoiceId}
+          onValueChange={onVoiceChange}
+          disabled={disabled}
+        >
           <SelectTrigger className="w-full h-11 cursor-pointer">
-            <SelectValue placeholder="Select voice profile..." />
+            <SelectValue placeholder="Select Gemini Live voice..." />
           </SelectTrigger>
           <SelectContent className="rounded-xl border shadow-xl p-1">
             <SelectGroup>
-              <SelectLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-2 py-1.5">
-                Local Voices (HeadTTS - Fast &amp; Offline)
+              <SelectLabel className="text-[10px] uppercase font-bold text-primary tracking-wider px-2 py-1.5">
+                Gemini Live Neural Audio
               </SelectLabel>
-              {filteredHeadTTS.map((v) => (
+              {filteredVoices.map((v) => (
                 <SelectItem
                   key={v.id}
                   value={v.id}
@@ -65,39 +78,19 @@ export function VoiceSpeedControls({
                 </SelectItem>
               ))}
             </SelectGroup>
-            {filteredElevenLabs.length > 0 && (
-              <SelectGroup className="mt-1 pt-1 border-t border-border">
-                <SelectLabel className="text-[10px] uppercase font-bold text-primary tracking-wider px-2 py-1.5 flex items-center justify-between">
-                  <span>Natural Cloud (ElevenLabs)</span>
-                  <span className="text-[9px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">Low Latency</span>
-                </SelectLabel>
-                {filteredElevenLabs.map((v) => (
-                  <SelectItem
-                    key={v.id}
-                    value={v.id}
-                    className="rounded-lg py-2 text-xs font-medium cursor-pointer"
-                  >
-                    {v.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            )}
           </SelectContent>
         </Select>
       </div>
 
-      {/* macOS Native Segmented Control for Speech Pace */}
+      {/* Speech Pace */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
- <Label className="">
-            Speech Pace
-          </Label>
- <span className="font-mono text-primary bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-full">
+          <Label>Speech Pace</Label>
+          <span className="font-mono text-primary bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-full text-xs">
             {speed.toFixed(2)}x
           </span>
         </div>
 
-        {/* Apple HIG Segmented Control */}
         <div className="bg-black/5 dark:bg-white/10 p-1 rounded-xl flex gap-1">
           {SPEED_PRESETS.map((preset) => {
             const isSelected = Math.abs(speed - preset.value) < 0.05;

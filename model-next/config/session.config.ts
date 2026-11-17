@@ -35,6 +35,11 @@ export const SESSION_ALLOWED_UPDATE_FIELDS = [
   "driver_lease_version",
   "target_epoch_ms",
   "duration_ms",
+  "roadmap",
+  "current_topic_id",
+  "covered_topic_ids",
+  "live_resumption_handle",
+  "live_session_stats",
 ] as const;
 
 export type SessionAllowedUpdateField = (typeof SESSION_ALLOWED_UPDATE_FIELDS)[number];

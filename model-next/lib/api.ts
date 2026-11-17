@@ -251,13 +251,11 @@ export const api = {
       voice?: string;
     }
   ) => {
-    return fetchApi<{ status: string; script: string }>(
-      `/api/classroom/${sessionId}/generate-script`,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    );
+    return api.generateRoadmap(sessionId, {
+      lectureTopic: data.topic,
+      sources: data.sources,
+      customPrompt: data.customPrompt,
+    });
   },
 
   generateRoadmap: async (

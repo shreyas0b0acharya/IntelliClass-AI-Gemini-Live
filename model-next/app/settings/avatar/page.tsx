@@ -4,6 +4,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useIsMounted } from "@/hooks/useIsMounted";
 
 import {
   useModelPreferences,
@@ -14,13 +16,23 @@ import {
   GenderSelector,
   ModelNameInput,
   VoiceSpeedControls,
-  HeadTTSTestButton,
 } from "@/features/settings";
 
-import {
-  AvatarPreview,
-  type HeadTTSData,
-} from "@/features/avatar";
+import type { HeadTTSData } from "@/features/avatar";
+
+// Pure CSR Dynamic Import for 3D Avatar Preview (skips SSR evaluation)
+const AvatarPreview = dynamic(
+  () => import("@/features/avatar/components/AvatarPreview").then((m) => m.AvatarPreview),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full min-h-[360px] flex flex-col items-center justify-center gap-3 bg-muted/20 rounded-2xl border border-border/40 select-none">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground font-medium">Loading 3D avatar preview...</span>
+      </div>
+    ),
+  }
+);
 
 import {
   scheduleAudioPlayback,
@@ -56,6 +68,7 @@ import { toast } from "sonner";
 
 export default function AvatarSettingsPage() {
   const router = useRouter();
+  const hasMounted = useIsMounted();
 
   const { isLecturer, isLoading } = useAuth();
   const { updatePreferences } = useModelPreferences();
@@ -284,8 +297,13 @@ export default function AvatarSettingsPage() {
   // Authentication loading
   // --------------------------------------------------
 
-  if (isLoading || !isLecturer) {
-    return null;
+  if (!hasMounted || isLoading || !isLecturer) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 w-48 bg-muted rounded-xl" />
+        <div className="h-96 w-full bg-muted/40 rounded-3xl" />
+      </div>
+    );
   }
 
   // --------------------------------------------------
@@ -519,32 +537,11 @@ export default function AvatarSettingsPage() {
             </div>
 
             {/* Avatar Canvas */}
-
             <AvatarPreview
               gender={defaultGender}
-              isSpeaking={isSpeaking}
-              audioPath={audioPath}
-              lipSyncData={lipSyncData}
-              onLipSyncEnd={handleLipSyncEnd}
+              isSpeaking={false}
               className="w-full h-72 rounded-2xl"
             />
-
-            {/* HeadTTS Test Button */}
-
-            <div className="pt-0.5">
-
-              <HeadTTSTestButton
-                text={previewPrompt}
-                voice={currentVoiceId}
-                speed={speechSpeed}
-                isPlaying={isSpeaking}
-                onPlayStateChange={handlePlayStateChange}
-                onDataReceived={handleAudioDataReceived}
-                className="w-full h-11 cursor-pointer"
-              />
-
-            </div>
-
           </div>
 
           {/* Save and Reset Actions */}

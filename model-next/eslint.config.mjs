@@ -30,6 +30,7 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-empty-object-type": "off",
 
       // React
+      "react-hooks/preserve-manual-memoization": "off",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/purity": "warn",

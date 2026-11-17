@@ -4,9 +4,9 @@
   "private": true,
   "description": "IntelliClass AI - Polyglot Monorepo: Realtime 3D Avatar Classroom, Multi-modal RAG & Lip-sync TTS",
   "scripts": {
-    "start": "concurrently -k -p \"[{name}]\" -n \"FRONTEND,HEADTTS,AI-BACKEND\" -c \"cyan.bold,magenta.bold,yellow.bold\" \"pnpm --filter model-next start\" \"pnpm --filter @met4citizen/headtts start\" \"node scripts/run-ai.mjs\"",
+    "start": "pnpm --filter model-next start",
     "start:frontend": "pnpm --filter model-next start",
-    "dev": "concurrently -k -p \"[{name}]\" -n \"FRONTEND,HEADTTS,AI-BACKEND\" -c \"cyan.bold,magenta.bold,yellow.bold\" \"pnpm --filter model-next dev\" \"pnpm --filter @met4citizen/headtts start\" \"node scripts/run-ai.mjs\"",
+    "dev": "pnpm --filter model-next dev",
     "dev:frontend": "pnpm --filter model-next dev",
     "dev:tts": "pnpm --filter @met4citizen/headtts start",
     "dev:ai": "node scripts/run-ai.mjs",

@@ -21,19 +21,16 @@ export { MobileViewSwitcher } from "./components/MobileViewSwitcher";
 export { ClassroomConfigModal } from "./components/ClassroomConfigModal";
 export { SessionPersonaModal } from "./components/SessionPersonaModal";
 export { RoadmapInspector } from "./components/RoadmapInspector";
+export { GoogleMeetControls } from "./components/GoogleMeetControls";
 
 // Hooks
 export { useClassroom } from "./hooks/useClassroom";
 export { useClassroomSync } from "./hooks/useClassroomSync";
-export { useSpeechQueue } from "./hooks/useSpeechQueue";
 export { useGeminiLiveSession } from "./hooks/useGeminiLiveSession";
 export { useClassroomLayout, type ClassroomLayoutFacts } from "./hooks/useClassroomLayout";
 
 // Store
 export { useClassroomStore } from "./store/classroomStore";
-
-// Services
-export { fetchSpeechTTS } from "./services/tts";
 
 // Types
 export type {
