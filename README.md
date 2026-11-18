@@ -1,143 +1,76 @@
-# IntelliClass AI &mdash; Polyglot Monorepo
+downladoed nova.glb from the https://vtubeme.com/free-vrm-avatars/nova
+placded in the C:\AMyFiles\Projects\collegeProjects\FinalYearProject\lipsync\public\models\nova.glb
 
-<div align="center">
+i installed this package permanently as i check to conevert with many models :
+pnpm add -D gltfjsx
 
-![IntelliClass AI](https://img.shields.io/badge/Architecture-Polyglot_Monorepo-blue.svg)
-![Next.js 16](https://img.shields.io/badge/Frontend-Next.js_16_React_19-black.svg)
-![FastAPI](https://img.shields.io/badge/AI_Engine-FastAPI_Python_3.10-009688.svg)
-![HeadTTS](https://img.shields.io/badge/Microservice-Kokoro_TTS_ONNX-orange.svg)
-![PNPM Workspaces](https://img.shields.io/badge/Package_Manager-pnpm_v11-f69220.svg)
+if u dont want u can use the pnpm dlx or npx for installation
 
-**Intelligent AI Lecturer with Real-time 3D Lip-Synced Avatar, Multi-Modal PDF Visual RAG, and WebGL Classroom Studio.**
+pnpm gltfjsx public/models/nova.glb -o src/components/Avatar.jsx -r public
 
-</div>
+`gltfjsx` is used to **convert a `.glb/.gltf` 3D model into a React component**.
 
----
+### In short:
 
-## 🏛️ System Architecture & Ports
-
-```
-                               ┌──────────────────────────────────────────────┐
-                               │               Client Browser                 │
-                               │        (React 19 / WebGL 3D Avatar)          │
-                               └──────────────┬───────────────────────────────┘
-                                              │
-                                              │ HTTP / WebSockets
-                                              ▼
-                               ┌──────────────────────────────────────────────┐
-                               │          Next.js Frontend & API Gateway      │
-                               │               (model-next :3000)             │
-                               └──────┬───────────────────────────────┬───────┘
-                                      │                               │
-                      HTTP / Synthesize Proxies          REST RAG / Extraction
-                                      │                               │
-                                      ▼                               ▼
-       ┌──────────────────────────────────────────────┐  ┌──────────────────────────────────────────────┐
-       │             HeadTTS Microservice             │  │            FastAPI AI Backend                │
-       │               (HeadTTS :8882)                │  │             (ai-backend :8000)               │
-       │  • Kokoro ONNX Text-to-Speech                │  │  • PyMuPDF Visual Asset & Text Extraction    │
-       │  • Viseme & Phoneme Timestamp Generation     │  │  • Gemini 2.5 Flash Script Generation & RAG  │
-       │  • WAV Audio Stream Buffer                   │  │  • Vector Chunk Embeddings Storage           │
-       └──────────────────────────────────────────────┘  └──────────────────────┬───────────────────────┘
-                                                                                │
-                                                                                ▼
-                                                                 ┌──────────────────────────────┐
-                                                                 │      Supabase Cloud DB       │
-                                                                 │   (Postgres, Auth, Storage)  │
-                                                                 └──────────────────────────────┘
+```text
+nova.glb
+   ↓
+gltfjsx
+   ↓
+Avatar.jsx
+   ↓
+React Three Fiber
+   ↓
+3D Avatar in your React app
 ```
 
-| Service | Directory | Tech Stack | Local Port | Health Check |
-| :--- | :--- | :--- | :--- | :--- |
-| **Frontend & Studio** | [`model-next`](./model-next) | Next.js 16, React 19, Three.js / R3F, Tailwind CSS | `http://localhost:3000` | `GET /api/health` |
-| **AI RAG Engine** | [`ai-backend`](./ai-backend) | Python 3.10+, FastAPI, PyMuPDF, Google Gemini SDK | `http://localhost:8000` | `GET /health` |
-| **Lip-Sync TTS Engine** | [`HeadTTS`](./HeadTTS) | Node.js, Transformers.js, Kokoro TTS (ONNX) | `http://localhost:8882` | `GET /health` |
+It helps you:
 
----
+* 🧩 **Import GLB models easily** into React
+* 🎨 Access **meshes and materials**
+* 🦴 Access **bones/rigs**
+* 🎬 Access **animations**
+* 👄 Access **morph targets** for facial/lip-sync animation
+* ⚛️ Control the model using normal React/JS/TS code
 
-## 🚀 Quick Start
+**It does NOT create animations or lip-sync.** It only converts the model into React-friendly code.
 
-### 1. Prerequisites
-- **Node.js**: `v18.x` or `v20.x+`
-- **pnpm**: `v9.x` or `v11.x` (`npm install -g pnpm`)
-- **Python**: `3.10+`
 
-### 2. Installation
-From the root of the repository:
 
-```bash
-# 1. Install Node workspace dependencies
-pnpm install
 
-# 2. Setup Python virtual environment & AI backend dependencies
-pnpm setup:python
-```
+install HeadTTS form  git clone https://github.com/met4citizen/HeadTTS.git
 
-### 3. Environment Configuration
-Copy environment blueprints to their respective folders:
+pnpm start -- --trace 255 to check the current status of that
+2. Check whether the model was cached
 
-```bash
-# Frontend
-cp .env.example model-next/.env.local
+Run:
 
-# AI Backend
-cp .env.example ai-backend/.env
-```
+Get-ChildItem "$env:USERPROFILE\.cache\huggingface\hub" -Recurse -ErrorAction SilentlyContinue |
+  Where-Object { $_.Length -gt 100MB } |
+  Select-Object FullName, Length
 
-### 4. Running the Complete System
+Also check the Transformers cache inside HeadTTS:
 
-```bash
-# Run all 3 services concurrently in one terminal
-pnpm dev
-```
+Get-ChildItem ".\node_modules\@huggingface\transformers\.cache" -Recurse -ErrorAction SilentlyContinue |
+  Select-Object FullName, Length
 
-Or run services individually:
+The repository provides several versions of the model. The standard FP32 model is ~326 MB, while the FP16 version is ~163 MB and q8f16 is ~86 MB.
 
-```bash
-pnpm dev:frontend   # Starts Next.js on :3000
-pnpm dev:tts        # Starts HeadTTS on :8882
-pnpm dev:ai         # Starts FastAPI AI Backend on :8000
-```
 
-### 5. Health Verification
-Verify all 3 services are responding:
+    "dtype": "fp16", insted of   "dtype": "fp32",in C:\AMyFiles\Projects\collegeProjects\FinalYearProject\HeadTTS\headtts-node.json
 
-```bash
-pnpm health
-```
 
----
 
-## 🛠️ Monorepo Scripts Reference
+    
+PS C:\AMyFiles\Projects\collegeProjects\FinalYearProject> curl.exe -X POST http://localhost:8882/v1/synthesize `
+>>   -H "Content-Type: application/json" `
+>>   -d '{"input":"Hello students, welcome to the classroom.","voice":"af_bella","language":"en-us","speed":1,"audioEncoding":"wav"}' `
+>>   -o headtts-response.json
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100 207.1k 100 207.0k 100    123 283.6k    168                              0
+PS C:\AMyFiles\Projects\collegeProjects\FinalYearProject> Get-Content .\headtts-response.json -Raw | ConvertFrom-Json | Select-Object visemes, vtimes, vdurations, phonemes
 
-| Command | Action |
-| :--- | :--- |
-| `pnpm start` | Starts Next.js in production build mode (`next start`), HeadTTS, and FastAPI simultaneously |
-| `pnpm start:frontend` | Starts production `model-next` build server |
-| `pnpm dev` | Starts Next.js frontend (`next dev`), HeadTTS, and FastAPI simultaneously |
-| `pnpm dev:frontend` | Starts `model-next` development server |
-| `pnpm dev:tts` | Starts `HeadTTS` ONNX synthesis server |
-| `pnpm dev:ai` | Starts `ai-backend` FastAPI server with auto-reload |
-| `pnpm build` | Builds `model-next` for production |
-| `pnpm typecheck` | Validates TypeScript across all workspaces |
-| `pnpm health` | Polls all 3 service health endpoints and prints status |
-| `pnpm setup:python` | Creates `.venv` in `ai-backend` and installs dependencies |
-| `pnpm clean` | Cleans `.next`, `dist`, `__pycache__`, and build caches |
-| `pnpm clean:deep` | Deep reset (removes `node_modules` and Python `.venv`) |
-
----
-
-## 🪟 Windows One-Click Launchers
-
-You can launch the complete ecosystem with live health checks using our dedicated Windows scripts:
-
-- **PowerShell**: `./scripts/start-all.ps1`
-- **Command Prompt**: `./scripts/start-all.bat`
-
----
-
-## 🎨 3D Models & Animations
-
-> [!IMPORTANT]
-> For the 3D character models (`.glb` / `.gltf`), textures, and custom skeletal animation files, please **ask the repository owner**.
-
+visemes         vtimes                vdurations         phonemes
+-------         ------                ----------         --------
+{E, RR, O, SS…} {489, 541, 590, 769…} {72, 69, 147, 70…} {ə, l, O, s…}

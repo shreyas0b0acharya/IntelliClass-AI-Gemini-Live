@@ -1,90 +1,66 @@
-# ==========================================
-# IntelliClass AI Polyglot Monorepo .gitignore
-# ==========================================
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
-node_modules/
-.pnpm-store/
-.pnpm-debug.log*
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Python virtual environment & cache
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.pytest_cache/
+# testing
+/coverage
 
-# Next.js Build & Cache
-.next/
-out/
-*.tsbuildinfo
-.turbo/
+# next.js
+/.next/
+/out/
 
-# Environment files & Secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.local
-*.pem
-*.key
+# production
+/build
 
-# Git migration backups
-*.git.bak/
-.git.bak
-
-# Operating System & IDE
+# misc
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
+*.pem
 
-# Archives & Large Files
-*.zip
-*.tar.gz
-*.rar
-*.7z
-zips/
-*.dump
-**/backups/
-**/model-next/supabase/
-
-
-# 3D Assets & Models (Hosted on Supabase Storage)
-*.glb
-*.gltf
-*.fbx
-*.obj
-*.blend
-**/public/models/
-**/public/animations/
-**/public/generated/
-
-
-# Logs
-logs/
-*.log
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# 3D models and animation assets (hosted in Supabase Storage)
+public/animations/
+public/models/
+public/generated/
+*.glb
+*.gltf
+*.fbx
+
+# playwright
+test-results/
+playwright-report/
+playwright/.auth/
+*.obj
+*.blend
+
+scratch/
+zips/
+certificates
+.vercel
+.env*
+
+.vercel
+.env*

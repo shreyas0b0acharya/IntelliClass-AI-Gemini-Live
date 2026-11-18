@@ -1,17 +1,5 @@
-packages:
-  - "model-next"
-  - "HeadTTS"
-
 allowBuilds:
   '@firebase/util': true
-  onnxruntime-node: true
   protobufjs: true
-  sharp: true
-  unrs-resolver: true
-
-onlyBuiltDependencies:
-  - "@firebase/util"
-  - "onnxruntime-node"
-  - "protobufjs"
-  - "sharp"
-  - "unrs-resolver"
+  sharp: false
+  unrs-resolver: false
