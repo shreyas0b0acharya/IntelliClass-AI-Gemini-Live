@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Next.js Build Outputs
+.next/
+out/
+build/
+
+# Test Artifacts & Logs
+test-results/
+playwright-report/
+playwright/.auth/
+*.log
+.pnpm-debug.log*
+
+# Git & Turborepo
+.git/
+.turbo/
