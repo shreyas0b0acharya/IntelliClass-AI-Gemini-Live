@@ -48,25 +48,47 @@ export function useCachedAsset(targetUrl?: string): CachedAssetResult {
 
     let isCurrent = true;
 
-    // Check memory first
-    const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
-    if (syncUrl) return;
+    const resolveUrl = () => {
+      const syncUrl = assetStorage.getSynchronousObjectUrl(targetUrl);
+      if (syncUrl) {
+        setState({ url: syncUrl, isLoading: false, error: null });
+        return;
+      }
 
-    assetStorage
-      .getAssetUrl(targetUrl)
-      .then((resolved) => {
-        if (!isCurrent) return;
-        setState({ url: resolved, isLoading: false, error: null });
-      })
-      .catch((err) => {
-        if (!isCurrent) return;
-        console.warn(`[useCachedAsset] Error resolving asset ${targetUrl}:`, err);
-        // Fallback to targetUrl rather than breaking
-        setState({ url: targetUrl, isLoading: false, error: err });
-      });
+      assetStorage
+        .getAssetUrl(targetUrl)
+        .then((resolved) => {
+          if (!isCurrent) return;
+          setState({ url: resolved, isLoading: false, error: null });
+        })
+        .catch((err) => {
+          if (!isCurrent) return;
+          console.warn(`[useCachedAsset] Error resolving asset ${targetUrl}:`, err);
+          // Fallback to targetUrl rather than breaking
+          setState({ url: targetUrl, isLoading: false, error: err });
+        });
+    };
+
+    resolveUrl();
+
+    // Re-check when background sync completes an item or P0 tier
+    const handleAssetsReady = () => {
+      if (isCurrent) {
+        resolveUrl();
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("intelliclass:assets-ready", handleAssetsReady);
+      window.addEventListener("intelliclass:asset-synced", handleAssetsReady);
+    }
 
     return () => {
       isCurrent = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("intelliclass:assets-ready", handleAssetsReady);
+        window.removeEventListener("intelliclass:asset-synced", handleAssetsReady);
+      }
     };
   }, [targetUrl]);
 

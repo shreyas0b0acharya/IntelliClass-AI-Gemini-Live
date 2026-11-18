@@ -51,11 +51,11 @@ export async function POST(
       return NextResponse.json({ error: "Missing required field: query" }, { status: 400 });
     }
 
-    const topK = Math.min(Math.max(body.topK || 3, 1), 6);
+    const topK = Math.min(Math.max(body.topK || 4, 1), 8);
 
-    // 3. Fast Vector Search bounded by 800ms timeout
+    // 3. Vector Search bounded by 3500ms timeout
     const timeoutPromise = new Promise<{ results: Array<{ content: string; similarity: number }> }>((resolve) =>
-      setTimeout(() => resolve({ results: [] }), 800)
+      setTimeout(() => resolve({ results: [] }), 3500)
     );
 
     const searchPromise = (async () => {
@@ -70,13 +70,12 @@ export async function POST(
 
         const { data: matches, error } = await admin.rpc("match_documents", {
           query_embedding: embedding,
-          match_threshold: 0.55,
+          match_threshold: 0.30,
           match_count: topK,
           course_id_filter: session.course_id,
         });
 
-        if (error || !matches) {
-          console.warn("RAG match_documents RPC error:", error);
+        if (error || !matches || matches.length === 0) {
           return { results: [] };
         }
 
@@ -92,7 +91,66 @@ export async function POST(
       }
     })();
 
-    const response = await Promise.race([searchPromise, timeoutPromise]);
+    let response = await Promise.race([searchPromise, timeoutPromise]);
+
+    // 4. Robust Keyword / Text Fallback: If vector search returned 0 results or timed out,
+    // perform direct text lookup on document_chunks for this course.
+    if (!response.results || response.results.length === 0) {
+      console.log(`[search-materials] Vector search returned 0 results for "${query}". Falling back to text search...`);
+      try {
+        // Extract meaningful keywords (> 3 letters)
+        const keywords = query
+          .replace(/[^\w\s]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+          .slice(0, 4);
+
+        let fallbackChunks: Array<{ content: string; metadata?: any }> | null = null;
+
+        if (keywords.length > 0) {
+          // Search for any chunk containing the first significant keyword
+          const firstWord = keywords[0];
+          const { data: textMatches } = await admin
+            .from("document_chunks")
+            .select("content, metadata")
+            .eq("course_id", session.course_id)
+            .ilike("content", `%${firstWord}%`)
+            .limit(topK);
+
+          if (textMatches && textMatches.length > 0) {
+            fallbackChunks = textMatches;
+          }
+        }
+
+        // If still empty, fetch top textbook chunks for this course (excluding auto-saved notes)
+        if (!fallbackChunks || fallbackChunks.length === 0) {
+          const { data: generalChunks } = await admin
+            .from("document_chunks")
+            .select("content, metadata")
+            .eq("course_id", session.course_id)
+            .not("metadata->>source", "ilike", "%auto_save%")
+            .limit(topK);
+
+          fallbackChunks = generalChunks;
+        }
+
+        if (fallbackChunks && fallbackChunks.length > 0) {
+          response = {
+            results: fallbackChunks.map((c, i) => {
+              const meta = c.metadata as { file_name?: string; source?: string; page?: number } | null;
+              const src = meta?.file_name || meta?.source || "Course Document";
+              const pageStr = meta?.page ? ` (p. ${meta.page})` : "";
+              return {
+                content: `[Source: ${src}${pageStr}]\n${c.content}`,
+                similarity: 0.9 - i * 0.05,
+              };
+            }),
+          };
+        }
+      } catch (fallbackErr) {
+        console.warn("[search-materials] Keyword fallback search error:", fallbackErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -12,6 +12,8 @@ import {
 import type { SessionRoadmap } from "../types/roadmap";
 import { useClassroomStore } from "../store/classroomStore";
 import { liveAudioSync } from "@/features/avatar";
+import { api } from "@/lib/api";
+import type { ClassroomInteractionRecord } from "../types/interaction";
 
 export interface UseGeminiLiveSessionOptions {
   sessionId: string;
@@ -24,6 +26,31 @@ export interface UseGeminiLiveSessionOptions {
   onError?: (error: unknown) => void;
   initialRoadmap?: SessionRoadmap | null;
   initialTopicId?: string | null;
+  initialNotes?: Array<ClassroomInteractionRecord | { id: string; topicId?: string; text: string; timestamp: string }> | null;
+}
+
+function normalizeInteractionRecord(
+  item: ClassroomInteractionRecord | { id?: string; topicId?: string; text?: string; timestamp?: string },
+  idx: number
+): ClassroomInteractionRecord & { text: string; topicId?: string } {
+  if ("speaker" in item && "type" in item && (item as ClassroomInteractionRecord).speaker) {
+    const rec = item as ClassroomInteractionRecord;
+    return {
+      ...rec,
+      text: rec.text || "",
+      topicId: rec.topicId,
+    };
+  }
+  return {
+    id: item.id || `init_${idx}`,
+    sequence: idx + 1,
+    timestamp: item.timestamp || new Date().toISOString(),
+    topicId: item.topicId,
+    speaker: "professor",
+    speakerName: "Professor",
+    type: "lecture_speech",
+    text: item.text || "",
+  };
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -36,7 +63,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     if (session?.access_token) {
       headers["Authorization"] = `Bearer ${session.access_token}`;
     }
-  } catch {}
+  } catch { }
   return headers;
 }
 
@@ -51,6 +78,7 @@ export function useGeminiLiveSession({
   onError,
   initialRoadmap,
   initialTopicId,
+  initialNotes,
 }: UseGeminiLiveSessionOptions) {
   const [connectionStatus, setConnectionStatus] = useState<
     "disconnected" | "connecting" | "connected" | "error"
@@ -78,9 +106,83 @@ export function useGeminiLiveSession({
   const animFrameRef = useRef<number | null>(null);
   const localMicStreamRef = useRef<MediaStream | null>(null);
   const micAudioCtxRef = useRef<AudioContext | null>(null);
+  const micSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const micMuteGainRef = useRef<GainNode | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
 
+  // Auto-Save Notes & Durable Checkpoint State with Structured Interaction Capture
+  const notesBufferRef = useRef<Array<ClassroomInteractionRecord & { text: string; topicId?: string }>>(
+    Array.isArray(initialNotes)
+      ? initialNotes.map((n, idx) => normalizeInteractionRecord(n, idx))
+      : []
+  );
+  const accumulatedSpeechTurnRef = useRef<string>("");
+  const lastSubtitleRef = useRef<string>("");
+  const notesVersionRef = useRef<number>(1);
+  const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const flushNotesAndSaveCheckpoint = useCallback(async () => {
+    // Flush in-flight turn text if any
+    let inFlight = accumulatedSpeechTurnRef.current.trim();
+    if (inFlight.length <= 5 && lastSubtitleRef.current?.trim()) {
+      inFlight = lastSubtitleRef.current.trim();
+    }
+    // Clean out internal tool/JSON tokens
+    inFlight = inFlight.replace(/```json[\s\S]*?```/g, "").replace(/\{"name":.*?\}/g, "").trim();
+
+    if (inFlight.length > 5) {
+      if (!notesBufferRef.current.some((n) => n.text === inFlight)) {
+        notesBufferRef.current.push({
+          id: `int_${Date.now()}_${notesBufferRef.current.length}`,
+          sequence: notesBufferRef.current.length + 1,
+          timestamp: new Date().toISOString(),
+          topicId: currentTopicIdRef.current || undefined,
+          speaker: "professor",
+          speakerName: "Professor",
+          type: "lecture_speech",
+          text: inFlight,
+        });
+      }
+      accumulatedSpeechTurnRef.current = "";
+    }
+
+    // Only the faculty conductor saves lecture notes and session checkpoints to the backend
+    if (!isConductor || !sessionId || notesBufferRef.current.length === 0) return;
+    try {
+      const checkpoint = {
+        classId: sessionId,
+        currentTopicId: currentTopicIdRef.current,
+        notes: notesBufferRef.current,
+        notesVersion: notesVersionRef.current++,
+        lastNoteSequence: notesBufferRef.current.length,
+        checkpointAt: new Date().toISOString(),
+      };
+      await api.updateClassroomSession(sessionId, {
+        live_session_stats: checkpoint,
+      });
+      console.log(`${getTimeTag()} 💾 [Notes Auto-Save] Auto-saved ${notesBufferRef.current.length} notes & checkpoint to database`);
+    } catch (err: unknown) {
+      // Suppress 403 warnings for unauthorized/read-only participant contexts
+      if ((err as { status?: number })?.status === 403) return;
+      console.warn("Notes auto-save flush warning:", err);
+    }
+  }, [sessionId, isConductor]);
+
+  const getNotes = useCallback(() => {
+    return [...notesBufferRef.current];
+  }, []);
+
+  const getInteractionRecords = useCallback(() => {
+    return [...notesBufferRef.current];
+  }, []);
+
   // Sync prop updates to state and refs
+  useEffect(() => {
+    if (Array.isArray(initialNotes) && initialNotes.length > 0 && notesBufferRef.current.length === 0) {
+      notesBufferRef.current = initialNotes.map((n, idx) => normalizeInteractionRecord(n, idx));
+    }
+  }, [initialNotes]);
+
   useEffect(() => {
     if (initialRoadmap) {
       setRoadmap(initialRoadmap);
@@ -116,6 +218,20 @@ export function useGeminiLiveSession({
       try {
         console.log(`${getTimeTag()} 🎤 [Microphone] Initializing PCM resampler worklet for incoming stream...`);
 
+        // Clean up any existing source/worklet to prevent duplicated streams
+        if (micSourceNodeRef.current) {
+          try { micSourceNodeRef.current.disconnect(); } catch {}
+          micSourceNodeRef.current = null;
+        }
+        if (micMuteGainRef.current) {
+          try { micMuteGainRef.current.disconnect(); } catch {}
+          micMuteGainRef.current = null;
+        }
+        if (workletNodeRef.current) {
+          try { workletNodeRef.current.disconnect(); } catch {}
+          workletNodeRef.current = null;
+        }
+
         // Reuse or create mic audio context
         let micCtx = micAudioCtxRef.current;
         if (!micCtx || micCtx.state === "closed") {
@@ -135,17 +251,62 @@ export function useGeminiLiveSession({
         await micCtx.audioWorklet.addModule("/worklets/pcm-resampler.js");
 
         const source = micCtx.createMediaStreamSource(stream);
-        const workletNode = new AudioWorkletNode(micCtx, "pcm-resampler");
+        micSourceNodeRef.current = source;
 
+        const workletNode = new AudioWorkletNode(micCtx, "pcm-resampler");
+        workletNodeRef.current = workletNode;
+
+        let consecutiveVoiceChunks = 0;
         workletNode.port.onmessage = (e: MessageEvent) => {
-          if (clientRef.current && e.data instanceof ArrayBuffer) {
-            // Stream audio chunk directly to Gemini Live
-            clientRef.current.sendAudioChunk(e.data);
+          let buffer: ArrayBuffer | null = null;
+          let rms = 0;
+          if (e.data instanceof ArrayBuffer) {
+            buffer = e.data;
+          } else if (e.data && e.data.buffer instanceof ArrayBuffer) {
+            buffer = e.data.buffer;
+            rms = Number(e.data.rms) || 0;
+          }
+          if (!buffer) return;
+
+          // Local Interruption Detection:
+          // When actual user speech is detected (RMS > 0.025 for >= 2 consecutive 40ms chunks):
+          if (rms > 0.025) {
+            consecutiveVoiceChunks++;
+            if (consecutiveVoiceChunks >= 2) {
+              if (playerRef.current && playerRef.current.getCurrentRms() > 0.01) {
+                console.log(
+                  `${getTimeTag()} ⚡ [Local Interruption] User speech detected (RMS: ${rms.toFixed(3)}) while professor is speaking. Flushing local audio.`
+                );
+                playerRef.current.flush();
+                setIsSpeaking(false);
+                setCurrentRms(0);
+                liveAudioSync.reset();
+              }
+              if (continuationTimeoutRef.current) {
+                clearTimeout(continuationTimeoutRef.current);
+                continuationTimeoutRef.current = null;
+              }
+            }
+          } else {
+            consecutiveVoiceChunks = 0;
+          }
+
+          if (clientRef.current) {
+            // Stream clean 40ms audio chunk directly to Gemini Live
+            clientRef.current.sendAudioChunk(buffer);
           }
         };
 
         source.connect(workletNode);
-        workletNodeRef.current = workletNode;
+
+        // CRITICAL Web Audio optimization: Connect worklet to destination through gain=0
+        // This guarantees the browser audio thread actively pulls buffers through the worklet!
+        const muteGain = micCtx.createGain();
+        muteGain.gain.value = 0;
+        workletNode.connect(muteGain);
+        muteGain.connect(micCtx.destination);
+        micMuteGainRef.current = muteGain;
+
         console.log(`${getTimeTag()} ✅ [Microphone] PCM resampler worklet running and streaming audio.`);
       } catch (err) {
         console.warn(`${getTimeTag()} ⚠️ [Microphone] Failed to initialize PCM resampler worklet:`, err);
@@ -191,50 +352,57 @@ export function useGeminiLiveSession({
   }, [setVolume]);
 
   // 3. Connect Conductor (Gemini Live + LiveKit publisher)
-  const connectConductor = useCallback(async () => {
-    try {
-      console.log(`${getTimeTag()} 🚀 [Conductor Connect] Conductor connecting to session "${sessionId}"...`);
-      setConnectionStatus("connecting");
+  const connectConductor = useCallback(
+    async (options?: { isResume?: boolean; lastSpokenSentence?: string; activeTopicId?: string }) => {
+      try {
+        console.log(`${getTimeTag()} 🚀 [Conductor Connect] Conductor connecting to session "${sessionId}" (isResume=${Boolean(options?.isResume)})...`);
+        setConnectionStatus("connecting");
 
-      // C. Initialize Audio Player early and resume immediately inside user gesture
-      const player = playerRef.current || new BoundedLiveAudioPlayer();
-      playerRef.current = player;
-      await player.resume();
+        // C. Initialize Audio Player early and resume immediately inside user gesture
+        const player = playerRef.current || new BoundedLiveAudioPlayer();
+        playerRef.current = player;
+        await player.resume();
 
-      // Configure first sentence elapsed latency telemetry
-      player.onFirstSentencePlayback = () => {
-        if (startClickTimestampRef.current) {
-          const elapsedSec = ((Date.now() - startClickTimestampRef.current) / 1000).toFixed(2);
-          console.log(
-            `${getTimeTag()} 🎙️ [FIRST SENTENCE STARTED] Professor speech began speaking! (Elapsed from click: +${elapsedSec}s)`
-          );
-        } else {
-          console.log(`${getTimeTag()} 🎙️ [FIRST SENTENCE STARTED] Professor speech began speaking!`);
-        }
-      };
+        // Configure first sentence elapsed latency telemetry
+        player.onFirstSentencePlayback = () => {
+          if (startClickTimestampRef.current) {
+            const elapsedSec = ((Date.now() - startClickTimestampRef.current) / 1000).toFixed(2);
+            console.log(
+              `${getTimeTag()} 🎙️ [FIRST SENTENCE STARTED] Professor speech began speaking! (Elapsed from click: +${elapsedSec}s)`
+            );
+          } else {
+            console.log(`${getTimeTag()} 🎙️ [FIRST SENTENCE STARTED] Professor speech began speaking!`);
+          }
+        };
 
-      // Start RMS monitoring loop for avatar lip-sync
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = requestAnimationFrame(updateRms);
+        // Start RMS monitoring loop for avatar lip-sync
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = requestAnimationFrame(updateRms);
 
-      // PIPELINE PARALLELISM: Mint Gemini Live token and LiveKit token concurrently!
-      console.log(`${getTimeTag()} 🎫 [Token Minting] Fetching live-token and livekit-token in parallel...`);
-      const tokenFetchStart = Date.now();
+        // PIPELINE PARALLELISM: Mint Gemini Live token and LiveKit token concurrently!
+        console.log(`${getTimeTag()} 🎫 [Token Minting] Fetching live-token and livekit-token in parallel...`);
+        const tokenFetchStart = Date.now();
 
-      const authHeaders = await getAuthHeaders();
+        const authHeaders = await getAuthHeaders();
 
-      const [liveRes, lkRes] = await Promise.all([
-        fetch(`/api/classroom/${sessionId}/live-token`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({ participantId, participantName }),
-        }),
-        fetch(`/api/classroom/${sessionId}/livekit-token`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({ participantId, participantName }),
-        }),
-      ]);
+        const [liveRes, lkRes] = await Promise.all([
+          fetch(`/api/classroom/${sessionId}/live-token`, {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              participantId,
+              participantName,
+              isResume: options?.isResume,
+              lastSpokenSentence: options?.lastSpokenSentence,
+              activeTopicId: options?.activeTopicId || currentTopicIdRef.current,
+            }),
+          }),
+          fetch(`/api/classroom/${sessionId}/livekit-token`, {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({ participantId, participantName }),
+          }),
+        ]);
 
       const tokenFetchDuration = Date.now() - tokenFetchStart;
       console.log(`${getTimeTag()} ⚡ [Token Minting] Parallel fetch completed in ${tokenFetchDuration}ms!`);
@@ -244,7 +412,7 @@ export function useGeminiLiveSession({
         try {
           const errJson = await liveRes.json();
           errDetail = errJson.error || errJson.message || errDetail;
-        } catch {}
+        } catch { }
         throw new Error(`Failed to obtain Gemini Live token: ${errDetail}`);
       }
       if (!lkRes.ok) {
@@ -252,7 +420,7 @@ export function useGeminiLiveSession({
         try {
           const errJson = await lkRes.json();
           errDetail = errJson.error || errJson.message || errDetail;
-        } catch {}
+        } catch { }
         throw new Error(`Failed to obtain LiveKit token: ${errDetail}`);
       }
 
@@ -327,10 +495,53 @@ export function useGeminiLiveSession({
         onOpen: () => {
           setConnectionStatus("connected");
         },
+        onTextReceived: (text: string) => {
+          accumulatedSpeechTurnRef.current += text;
+        },
         onSubtitleReceived: (text: string) => {
+          if (text?.trim()) lastSubtitleRef.current = text.trim();
           onSubtitleReceived?.(text);
         },
+        onInterrupted: () => {
+          console.log(`${getTimeTag()} 🛑 [Gemini Live Session] Turn interrupted by user speech! Resetting speaking state.`);
+          setIsSpeaking(false);
+          setCurrentRms(0);
+          accumulatedSpeechTurnRef.current = "";
+          if (continuationTimeoutRef.current) {
+            clearTimeout(continuationTimeoutRef.current);
+            continuationTimeoutRef.current = null;
+          }
+        },
         onTurnComplete: () => {
+          let cleanTurn = accumulatedSpeechTurnRef.current.trim();
+          if (cleanTurn.length <= 5 && lastSubtitleRef.current?.trim()) {
+            cleanTurn = lastSubtitleRef.current.trim();
+          }
+          // Strip internal tool tokens / JSON system artifacts
+          cleanTurn = cleanTurn.replace(/```json[\s\S]*?```/g, "").replace(/\{"name":.*?\}/g, "").trim();
+
+          if (cleanTurn.length > 5) {
+            const lastUnansweredQuestion = [...notesBufferRef.current]
+              .reverse()
+              .find((n) => n.type === "student_question");
+            const isCorrelatedAnswer = Boolean(lastUnansweredQuestion);
+
+            const record: ClassroomInteractionRecord = {
+              id: `turn_${Date.now()}_${notesBufferRef.current.length}`,
+              sequence: notesBufferRef.current.length + 1,
+              timestamp: new Date().toISOString(),
+              topicId: currentTopicIdRef.current || undefined,
+              speaker: "professor",
+              speakerName: "Professor",
+              type: isCorrelatedAnswer ? "professor_answer" : "lecture_speech",
+              text: cleanTurn,
+              correlatedId: isCorrelatedAnswer ? lastUnansweredQuestion?.id : undefined,
+            };
+            notesBufferRef.current.push(record as any);
+            accumulatedSpeechTurnRef.current = "";
+            flushNotesAndSaveCheckpoint();
+          }
+
           // Automatic pedagogical topic continuation:
           if (isLecturingActiveRef.current) {
             if (continuationTimeoutRef.current) clearTimeout(continuationTimeoutRef.current);
@@ -343,17 +554,47 @@ export function useGeminiLiveSession({
           }
         },
         onAdvanceTopic: async (args) => {
-          if (args.nextTopicId) {
-            console.log(`${getTimeTag()} 🗺️ [Gemini Live] Advancing topic to "${args.nextTopicId}"`);
-            setCurrentTopicId(args.nextTopicId);
-            currentTopicIdRef.current = args.nextTopicId;
-            useClassroomStore.getState().setCurrentTopicId(args.nextTopicId);
-            onAdvanceTopic?.(args.nextTopicId);
+          let resolvedTopicId = args.nextTopicId;
+          if (!resolvedTopicId && args.completedTopicId) {
+            const activeRoadmap = roadmapRef.current || useClassroomStore.getState().roadmap;
+            const topics = activeRoadmap?.topics || [];
+            const completedIdx = topics.findIndex((t) => t.id === args.completedTopicId);
+            if (completedIdx >= 0 && completedIdx < topics.length - 1) {
+              resolvedTopicId = topics[completedIdx + 1].id;
+            }
+          }
+
+          if (resolvedTopicId) {
+            console.log(`${getTimeTag()} 🗺️ [Gemini Live] Advancing topic to "${resolvedTopicId}"`);
+            setCurrentTopicId(resolvedTopicId);
+            currentTopicIdRef.current = resolvedTopicId;
+            useClassroomStore.getState().setCurrentTopicId(resolvedTopicId);
+            onAdvanceTopic?.(resolvedTopicId);
           }
         },
         onProjectMedia: async (assetId, caption) => {
           console.log(`${getTimeTag()} 🖼️ [Gemini Live] Projecting media asset "${assetId}"`);
           onProjectMedia?.(assetId, caption);
+        },
+        onRecordLearningInsight: async (args) => {
+          console.log(`${getTimeTag()} 🧠 [Learning Insight] "${args.title}" (${args.insightType})`);
+          const insightRecord: ClassroomInteractionRecord = {
+            id: `insight_${Date.now()}_${notesBufferRef.current.length}`,
+            sequence: notesBufferRef.current.length + 1,
+            timestamp: new Date().toISOString(),
+            topicId: args.topicId || currentTopicIdRef.current || undefined,
+            speaker: "professor",
+            speakerName: "Professor",
+            type: args.insightType as any,
+            text: `${args.title}: ${args.content}`,
+            meta: {
+              conceptName: args.title,
+              isMisconception: args.insightType === "student_misconception",
+              demonstratedUnderstanding: args.demonstratedUnderstanding,
+            },
+          };
+          notesBufferRef.current.push(insightRecord as any);
+          flushNotesAndSaveCheckpoint().catch(console.warn);
         },
         onError: (err) => {
           console.error(`${getTimeTag()} 🔴 [Gemini Live Client] Error:`, err);
@@ -405,7 +646,7 @@ export function useGeminiLiveSession({
         try {
           const errJson = await lkRes.json();
           errDetail = errJson.error || errJson.message || errDetail;
-        } catch {}
+        } catch { }
         throw new Error(`Failed to obtain LiveKit token: ${errDetail}`);
       }
       const lkData = await lkRes.json();
@@ -441,15 +682,26 @@ export function useGeminiLiveSession({
 
   // 5. Lecture Controls
   const startLecture = useCallback(
-    (customKickoffPrompt?: string) => {
+    (customKickoffPrompt?: string | { isResume?: boolean; lastSpokenSentence?: string; customPrompt?: string }) => {
       // Record exact Start click timestamp for latency measurement
       startClickTimestampRef.current = Date.now();
       console.log(`${getTimeTag()} ▶️ [START/RESUME CLICK] Start/Resume lecture initiated!`);
 
+      let customKickoffPromptStr: string | undefined;
+      let forceResume: boolean | undefined;
+      let lastSpokenText: string | undefined;
+      if (typeof customKickoffPrompt === "object" && customKickoffPrompt !== null) {
+        customKickoffPromptStr = customKickoffPrompt.customPrompt;
+        forceResume = customKickoffPrompt.isResume;
+        lastSpokenText = customKickoffPrompt.lastSpokenSentence;
+      } else if (typeof customKickoffPrompt === "string") {
+        customKickoffPromptStr = customKickoffPrompt;
+      }
+
       if (playerRef.current) {
         playerRef.current.resetFirstSentenceFlag();
         playerRef.current.startClickTime = startClickTimestampRef.current;
-        playerRef.current.resume().catch(() => {});
+        playerRef.current.resume().catch(() => { });
       }
 
       if (!clientRef.current) {
@@ -459,25 +711,45 @@ export function useGeminiLiveSession({
       isLecturingActiveRef.current = true;
 
       const activeRoadmap = roadmapRef.current || roadmap || useClassroomStore.getState().roadmap;
-      const firstTopic = activeRoadmap?.topics?.[0];
-      const initialTopicTitle = firstTopic?.title || "Foundations and Overview";
-      const initialTopicDesc = firstTopic?.description || "";
-      const analogies =
-        firstTopic?.suggestedAnalogies ||
-        (firstTopic as unknown as { pedagogicalAnalogies?: string[] })?.pedagogicalAnalogies ||
-        [];
-      const analogyNote = analogies.length ? `Ground the concept in this analogy: "${analogies[0]}".` : "";
+      const allTopics = activeRoadmap?.topics || [];
+      const totalTopics = allTopics.length;
 
-      console.log(`${getTimeTag()} 🎙️ [Gemini Live] Kickoff prompt dispatched for Topic 1: "${initialTopicTitle}"...`);
+      // Determine resume vs fresh start based on currentTopicId, prior notes, or forced flag
+      const activeTopicId = currentTopicIdRef.current || allTopics[0]?.id;
+      const activeTopicIdx = activeTopicId ? allTopics.findIndex((t) => t.id === activeTopicId) : 0;
+      const hasPriorNotes = notesBufferRef.current.length > 0;
+      const isResume = forceResume !== undefined ? forceResume : (activeTopicIdx > 0 || hasPriorNotes || Boolean(lastSpokenText));
+
+      const activeTopic = allTopics[activeTopicIdx] || allTopics[0];
+      const activeTopicTitle = activeTopic?.title || "Current Topic";
+      const activeTopicDesc = activeTopic?.description || "";
+      const analogies =
+        (activeTopic as unknown as { suggestedAnalogies?: string[]; pedagogicalAnalogies?: string[] })?.suggestedAnalogies ||
+        (activeTopic as unknown as { pedagogicalAnalogies?: string[] })?.pedagogicalAnalogies ||
+        [];
+      const analogyNote = analogies.length ? ` Ground it in this analogy: "${analogies[0]}".` : "";
+      const objectives = activeTopic?.learningObjectives?.join("; ") || "";
+
+      // Build delivered-topics context for resume
+      const deliveredContext = isResume && activeTopicIdx > 0
+        ? `You have already delivered and completed the following topics: ${allTopics.slice(0, activeTopicIdx).map((t, idx) => `Topic ${idx + 1}: "${t.title}"`).join(", ")}. Do NOT repeat or re-introduce any of these completed topics.`
+        : "";
+
+      console.log(`${getTimeTag()} 🎙️ [Gemini Live] Kickoff → Topic ${activeTopicIdx + 1}/${totalTopics}: "${activeTopicTitle}" (resume=${isResume}, lastSpoken="${lastSpokenText?.slice(0, 40) || ''}")`);
 
       const prompt =
-        customKickoffPrompt ||
-        `Welcome students! Today we are beginning Topic 1: "${initialTopicTitle}". ${initialTopicDesc ? `Topic Overview: ${initialTopicDesc}.` : ""}
-${analogyNote}
+        customKickoffPromptStr ||
+        (isResume
+          ? `Welcome back, students! We are RESUMING this lecture directly on Topic ${activeTopicIdx + 1} of ${totalTopics}: "${activeTopicTitle}". ${deliveredContext}
+${lastSpokenText ? `Right before our pause, we were exploring: "${lastSpokenText}". Seamlessly continue directly from this explanation.` : ""}
+DO NOT greet or re-introduce the course. Pick up the teaching flow immediately on "${activeTopicTitle}".${activeTopicDesc ? ` Topic overview: ${activeTopicDesc}.` : ""}${analogyNote}
+${objectives ? `Core objectives to cover: ${objectives}.` : ""}
 
-Please deliver an engaging, continuous, in-depth conceptual lecture explaining this topic right now.
-Deliver at least 4 to 6 full spoken sentences explaining why this concept matters, unpacking the core mechanics step-by-step, and teaching with intellectual rigor and encouragement.
-Do not pause after a single greeting sentence or wait for replies; start lecturing thoroughly!`;
+First, call search_course_materials with query="${activeTopicTitle}" to retrieve relevant material, then deliver an engaging, continuous, in-depth lecture of at least 4–6 spoken sentences. Use the specific technical keywords and concepts from the uploaded course materials. Never use generic filler explanations.`
+          : `Welcome, students! We are beginning today's lecture. Topic 1 of ${totalTopics}: "${activeTopicTitle}".${activeTopicDesc ? ` Overview: ${activeTopicDesc}.` : ""}${analogyNote}
+${objectives ? `Learning objectives: ${objectives}.` : ""}
+
+First, call search_course_materials with query="${activeTopicTitle}" to retrieve relevant content from the uploaded course materials. Then deliver an engaging, continuous, in-depth lecture of at least 4–6 full spoken sentences explaining why this concept matters, unpacking core mechanics step by step using the specific terminology from the course documents. Do not pause after a greeting — start lecturing immediately!`);
 
       if (clientRef.current) {
         clientRef.current.sendTextMessage(prompt);
@@ -491,26 +763,51 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
       if (!clientRef.current) return;
       const activeRoadmap = roadmapRef.current || useClassroomStore.getState().roadmap;
       const activeTopicId = currentTopicIdRef.current;
-      const curTopic =
-        activeRoadmap?.topics?.find((t) => t.id === activeTopicId) || activeRoadmap?.topics?.[0];
+      const allTopics = activeRoadmap?.topics || [];
+      const curTopicIdx = activeTopicId ? allTopics.findIndex((t) => t.id === activeTopicId) : 0;
+      const curTopic = allTopics[curTopicIdx] || allTopics[0];
+      const topicTitle = curTopic?.title || "Current Topic";
+      const topicNumber = curTopicIdx + 1;
+      const totalTopics = allTopics.length;
+      const objectives = curTopic?.learningObjectives?.join("; ") || "";
 
       const prompt =
         directive ||
-        `Please continue teaching Topic "${curTopic?.title || 'Current Topic'}". Unpack the next technical concept, explain the trade-offs, and continue lecturing smoothly in a rich 4-to-6 sentence pedagogical flow.`;
+        `Continue teaching Topic ${topicNumber} of ${totalTopics}: "${topicTitle}".${objectives ? ` Remaining objectives: ${objectives}.` : ""}
+Unpack the next core concept, explain trade-offs and real-world implications, and deliver a rich 4–6 sentence pedagogical explanation grounded in the uploaded course materials and specific terminology. If you have finished this topic, call advance_topic then immediately begin the next one.`;
 
-      console.log(`${getTimeTag()} 🎙️ [Gemini Live] Continuing lecture for "${curTopic?.title}"...`);
+      console.log(`${getTimeTag()} 🎙️ [Gemini Live] Continuing lecture for Topic ${topicNumber}: "${topicTitle}"...`);
       clientRef.current.sendTextMessage(prompt);
     },
     []
   );
 
-  const sendUserPrompt = useCallback((text: string) => {
+  const sendUserPrompt = useCallback((text: string, studentName?: string) => {
     if (!clientRef.current) return;
     if (continuationTimeoutRef.current) {
       clearTimeout(continuationTimeoutRef.current);
       continuationTimeoutRef.current = null;
     }
     console.log(`${getTimeTag()} 🙋 [USER QUESTION] Sending student question to Professor: "${text}"`);
+
+    // Clean prompt wrapper to isolate pure student question text
+    const cleanQuestion = text
+      .replace(/^\[Question from [^\]]+\]:\s*"?/, "")
+      .replace(/"?\s*\n\nCRITICAL INSTRUCTION:[\s\S]*$/, "")
+      .trim();
+
+    const studentRecord: ClassroomInteractionRecord = {
+      id: `question_${Date.now()}_${notesBufferRef.current.length}`,
+      sequence: notesBufferRef.current.length + 1,
+      timestamp: new Date().toISOString(),
+      topicId: currentTopicIdRef.current || undefined,
+      speaker: "student",
+      speakerName: studentName || "Student",
+      type: "student_question",
+      text: cleanQuestion,
+    };
+    notesBufferRef.current.push(studentRecord as any);
+
     clientRef.current.sendTextMessage(text);
   }, []);
 
@@ -554,19 +851,64 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
 
   const toggleStudentMic = useCallback(
     async (enabled: boolean) => {
-      if (!roomRef.current) return;
       try {
         console.log(`${getTimeTag()} 🎤 [Student Mic] Toggling microphone: ${enabled ? "ON" : "OFF"}`);
-        await setStudentMicrophone(roomRef.current, enabled);
-        setIsMicActive(enabled);
-        if (!enabled && clientRef.current) {
-          clientRef.current.sendAudioStreamEnd();
+        if (enabled) {
+          // Immediately silence professor speech upon user opening microphone
+          if (playerRef.current) playerRef.current.flush();
+          setIsSpeaking(false);
+          setCurrentRms(0);
+          if (continuationTimeoutRef.current) {
+            clearTimeout(continuationTimeoutRef.current);
+            continuationTimeoutRef.current = null;
+          }
+          if (clientRef.current) clientRef.current.sendInterruptionSignal();
         }
-      } catch (err) {
+
+        if (roomRef.current) {
+          await setStudentMicrophone(roomRef.current, enabled);
+        }
+
+        // If local clientRef exists (direct sole-user or host interaction)
+        if (clientRef.current) {
+          if (enabled) {
+            if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+              });
+              localMicStreamRef.current = stream;
+              await setupAudioWorkletForStream(stream);
+            }
+          } else {
+            if (localMicStreamRef.current) {
+              localMicStreamRef.current.getTracks().forEach((t) => t.stop());
+              localMicStreamRef.current = null;
+            }
+            if (micSourceNodeRef.current) {
+              try { micSourceNodeRef.current.disconnect(); } catch {}
+              micSourceNodeRef.current = null;
+            }
+            if (workletNodeRef.current) {
+              try { workletNodeRef.current.disconnect(); } catch {}
+              workletNodeRef.current = null;
+            }
+            clientRef.current.sendAudioStreamEnd();
+          }
+        }
+
+        setIsMicActive(enabled);
+      } catch (err: unknown) {
         console.error(`${getTimeTag()} Failed to toggle student microphone:`, err);
+        const { toast } = await import("sonner");
+        const msg = err instanceof Error ? err.message : "Microphone not supported.";
+        if (msg.includes("getUserMedia") || msg.includes("secure") || msg.includes("undefined")) {
+          toast.error("Microphone requires HTTPS or localhost. Please connect over HTTPS on mobile.");
+        } else {
+          toast.error(msg);
+        }
       }
     },
-    []
+    [setupAudioWorkletForStream]
   );
 
   // 6. Conductor Local Microphone toggle (for asking questions into AI directly or testing)
@@ -575,6 +917,26 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
       if (!isConductor) return;
       if (enabled) {
         try {
+          if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+            const { toast } = await import("sonner");
+            toast.error("Microphone requires HTTPS or localhost. Please connect over HTTPS on mobile.");
+            return;
+          }
+
+          // Immediately pause/flush active professor playback & halt speech
+          if (playerRef.current) {
+            playerRef.current.flush();
+          }
+          setIsSpeaking(false);
+          setCurrentRms(0);
+          if (continuationTimeoutRef.current) {
+            clearTimeout(continuationTimeoutRef.current);
+            continuationTimeoutRef.current = null;
+          }
+          if (clientRef.current) {
+            clientRef.current.sendInterruptionSignal();
+          }
+
           console.log(`${getTimeTag()} 🎤 [Conductor Mic] Requesting user microphone access...`);
           const stream = await navigator.mediaDevices.getUserMedia({
             audio: {
@@ -589,12 +951,26 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
           console.log(`${getTimeTag()} 🎤 [Conductor Mic] Microphone active! Speak to Professor.`);
         } catch (err) {
           console.error(`${getTimeTag()} Failed to access local microphone:`, err);
+          const { toast } = await import("sonner");
+          toast.error("Could not access microphone. Please check permissions.");
         }
       } else {
         console.log(`${getTimeTag()} 🎤 [Conductor Mic] Muting microphone.`);
         if (localMicStreamRef.current) {
           localMicStreamRef.current.getTracks().forEach((t) => t.stop());
           localMicStreamRef.current = null;
+        }
+        if (micSourceNodeRef.current) {
+          try { micSourceNodeRef.current.disconnect(); } catch {}
+          micSourceNodeRef.current = null;
+        }
+        if (micMuteGainRef.current) {
+          try { micMuteGainRef.current.disconnect(); } catch {}
+          micMuteGainRef.current = null;
+        }
+        if (workletNodeRef.current) {
+          try { workletNodeRef.current.disconnect(); } catch {}
+          workletNodeRef.current = null;
         }
         if (clientRef.current) {
           clientRef.current.sendAudioStreamEnd();
@@ -621,10 +997,22 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
       localMicStreamRef.current.getTracks().forEach((t) => t.stop());
       localMicStreamRef.current = null;
     }
+    if (micSourceNodeRef.current) {
+      try { micSourceNodeRef.current.disconnect(); } catch {}
+      micSourceNodeRef.current = null;
+    }
+    if (micMuteGainRef.current) {
+      try { micMuteGainRef.current.disconnect(); } catch {}
+      micMuteGainRef.current = null;
+    }
+    if (workletNodeRef.current) {
+      try { workletNodeRef.current.disconnect(); } catch {}
+      workletNodeRef.current = null;
+    }
     if (micAudioCtxRef.current) {
       try {
         micAudioCtxRef.current.close();
-      } catch {}
+      } catch { }
       micAudioCtxRef.current = null;
     }
     if (clientRef.current) {
@@ -639,13 +1027,16 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
       playerRef.current.destroy();
       playerRef.current = null;
     }
+    if (notesBufferRef.current.length > 0) {
+      flushNotesAndSaveCheckpoint().catch(console.warn);
+    }
     liveAudioSync.disconnectStudentAudio();
     liveAudioSync.reset();
     setConnectionStatus("disconnected");
     setIsSpeaking(false);
     setCurrentRms(0);
     setIsMicActive(false);
-  }, []);
+  }, [flushNotesAndSaveCheckpoint]);
 
   useEffect(() => {
     return () => {
@@ -661,6 +1052,9 @@ Do not pause after a single greeting sentence or wait for replies; start lecturi
     isMicActive,
     roadmap,
     currentTopicId,
+    flushNotesAndSaveCheckpoint,
+    getNotes,
+    getInteractionRecords,
     resumeAudio,
     setAudioMuted,
     setVolume,

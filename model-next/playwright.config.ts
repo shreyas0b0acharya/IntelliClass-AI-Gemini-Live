@@ -12,7 +12,8 @@ export default defineConfig({
     timeout: 12000,
   },
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "https://localhost:3000",
+    ignoreHTTPSErrors: true,
     trace: "on-first-retry",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -21,6 +22,7 @@ export default defineConfig({
         "--use-fake-ui-for-media-stream",
         "--use-fake-device-for-media-stream",
         "--allow-file-access",
+        "--ignore-certificate-errors",
       ],
     },
   },
@@ -41,8 +43,9 @@ export default defineConfig({
   ],
   webServer: {
     command: "pnpm dev",
-    url: "http://localhost:3000",
+    url: process.env.PLAYWRIGHT_TEST_BASE_URL || "https://localhost:3000",
     reuseExistingServer: true,
     timeout: 120000,
+    ignoreHTTPSErrors: true,
   },
 });

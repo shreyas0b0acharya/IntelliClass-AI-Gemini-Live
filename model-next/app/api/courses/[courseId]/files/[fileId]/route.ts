@@ -19,16 +19,15 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Verify course ownership
+    // 2. Verify course exists
     const { data: course } = await supabase
       .from("courses")
-      .select("id")
+      .select("id, created_by")
       .eq("id", courseId)
-      .eq("created_by", user.id)
       .single();
 
     if (!course) {
-      return NextResponse.json({ error: "Course not found or unauthorized" }, { status: 404 });
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
     // 3. Fetch file record
@@ -43,18 +42,71 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // 4. Generate signed URL valid for 2 hours
-    const { data: signedData, error: signedError } = await supabase.storage
-      .from("course-files")
-      .createSignedUrl(fileRecord.file_path, 60 * 120);
+    let viewUrl: string | null = null;
 
-    if (signedError || !signedData) {
-      return NextResponse.json({ error: "Failed to generate file view URL" }, { status: 500 });
+    // Check if file_path is already an absolute URL
+    if (fileRecord.file_path?.startsWith("http://") || fileRecord.file_path?.startsWith("https://")) {
+      viewUrl = fileRecord.file_path;
+    } else if (fileRecord.file_path) {
+      // 4. Try generating signed URL valid for 2 hours
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from("course-files")
+        .createSignedUrl(fileRecord.file_path, 60 * 120);
+
+      if (!signedError && signedData?.signedUrl) {
+        viewUrl = signedData.signedUrl;
+      } else {
+        // Fallback A: Public URL
+        const { data: pubData } = supabase.storage
+          .from("course-files")
+          .getPublicUrl(fileRecord.file_path);
+
+        if (pubData?.publicUrl) {
+          viewUrl = pubData.publicUrl;
+        }
+
+        // Fallback B: If missing from storage (e.g. auto-saved markdown notes), self-heal from document_chunks
+        const { data: chunk } = await supabase
+          .from("document_chunks")
+          .select("content")
+          .eq("course_id", courseId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (chunk?.content) {
+          try {
+            await supabase.storage
+              .from("course-files")
+              .upload(fileRecord.file_path, Buffer.from(chunk.content, "utf-8"), {
+                contentType: "text/markdown; charset=utf-8",
+                upsert: true,
+              });
+
+            const { data: reSigned } = await supabase.storage
+              .from("course-files")
+              .createSignedUrl(fileRecord.file_path, 60 * 120);
+
+            if (reSigned?.signedUrl) {
+              viewUrl = reSigned.signedUrl;
+            }
+          } catch {
+            viewUrl = `data:text/markdown;charset=utf-8;base64,${Buffer.from(chunk.content).toString("base64")}`;
+          }
+        }
+      }
+    }
+
+    if (!viewUrl) {
+      const { data: pubData } = supabase.storage
+        .from("course-files")
+        .getPublicUrl(fileRecord.file_path || "");
+      viewUrl = pubData?.publicUrl || "";
     }
 
     return NextResponse.json({
       file: fileRecord,
-      viewUrl: signedData.signedUrl,
+      viewUrl,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";

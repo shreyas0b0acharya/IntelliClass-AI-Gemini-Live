@@ -1,71 +1,78 @@
 /**
  * LiveCaptionManager
  *
- * Intelligent sentence-buffered accumulator and audio-synchronized caption driver
- * for streaming Gemini Live transcription tokens.
+ * Real-time progressive streaming caption engine for Gemini Live dialogue.
  *
- * Solves:
- * 1. Rapid 1-word flickering: Accumulates streaming deltas into natural, coherent sentences.
- * 2. Word duplication: Filters out duplicate tokens across outputTranscription and modelTurn.
- * 3. Timing desync: Delays display by ~200ms to align with BoundedLiveAudioPlayer playhead buffer.
- * 4. Premature clearing: Holds completed sentences on screen for 3.2 seconds for natural readability.
- * 5. Instant clean flush on speaker turn interruption.
+ * Key Design:
+ * 1. Progressive Real-time Streaming: Words stream progressively onto the screen
+ *    in real time as spoken, with smooth 60ms batching instead of delaying by entire sentences.
+ * 2. Clean Sentence Transitions: The active sentence grows word-by-word. When finished
+ *    (terminal punctuation [.!?]), it stays cleanly visible until the next sentence begins.
+ * 3. Natural Readability Hold: Completed sentences stay visible for 8 seconds after speech
+ *    pauses so learners can comfortably read, before gracefully fading.
+ * 4. Instant Interruption Flush: Clears immediately when the user or conductor speaks.
  */
 
 export interface LiveCaptionOptions {
   onUpdate: (caption: string) => void;
-  audioSyncDelayMs?: number;
   sentenceHoldMs?: number;
   maxSentenceChars?: number;
 }
 
-export class LiveCaptionManager {
-  private activeSentence: string = "";
-  private displayCaption: string = "";
-  private pendingQueue: { text: string; readyAt: number }[] = [];
-  private flushTimer: NodeJS.Timeout | null = null;
-  private holdTimer: NodeJS.Timeout | null = null;
+export type AudioChunkStartCallback = (scheduledStartSec: number) => void;
 
+export class LiveCaptionManager {
+  private currentSentence: string = "";
+  private displayCaption: string = "";
+  private isSentenceComplete: boolean = false;
   private lastToken: string = "";
   private lastTokenTimestamp: number = 0;
-  private isSentenceComplete: boolean = false;
+
+  private renderTimer: NodeJS.Timeout | null = null;
+  private holdTimer: NodeJS.Timeout | null = null;
 
   private readonly onUpdate: (caption: string) => void;
-  private readonly audioSyncDelayMs: number;
   private readonly sentenceHoldMs: number;
   private readonly maxSentenceChars: number;
 
   constructor(options: LiveCaptionOptions) {
     this.onUpdate = options.onUpdate;
-    this.audioSyncDelayMs = options.audioSyncDelayMs ?? 200;
-    this.sentenceHoldMs = options.sentenceHoldMs ?? 3200;
-    this.maxSentenceChars = options.maxSentenceChars ?? 85;
+    this.sentenceHoldMs = options.sentenceHoldMs ?? 8000; // 8s hold for readability
+    this.maxSentenceChars = options.maxSentenceChars ?? 140;
+  }
+
+  /**
+   * Optional audio player sync notification.
+   */
+  public notifyAudioChunkStart(_audioCtxStartSec: number, _audioCtxCurrentSec: number, _durationSec?: number): void {
+    // Kept for interface compatibility with BoundedLiveAudioPlayer
   }
 
   /**
    * Add incoming streaming token from Gemini Live.
+   * Words stream progressively into the active sentence and display immediately.
    */
   public addToken(rawToken: string): void {
     if (!rawToken || !rawToken.trim()) return;
 
     const now = Date.now();
 
-    // 1. Deduplicate identical tokens arriving within 120ms (e.g. outputTranscription + part.text)
-    if (rawToken === this.lastToken && now - this.lastTokenTimestamp < 120) {
+    // 1. Deduplicate identical tokens arriving within 100ms
+    if (rawToken === this.lastToken && now - this.lastTokenTimestamp < 100) {
       return;
     }
     this.lastToken = rawToken;
     this.lastTokenTimestamp = now;
 
-    // Cancel any active hold/fade timer because new speech is arriving
+    // Cancel any active hold timer because speech is actively streaming
     if (this.holdTimer) {
       clearTimeout(this.holdTimer);
       this.holdTimer = null;
     }
 
-    // 2. Start a fresh sentence if previous one was finalized by terminal punctuation
+    // 2. If the previous sentence was completed, start fresh on the next sentence
     if (this.isSentenceComplete) {
-      this.activeSentence = "";
+      this.currentSentence = "";
       this.isSentenceComplete = false;
     }
 
@@ -73,77 +80,54 @@ export class LiveCaptionManager {
     const trimmed = rawToken.trim();
     const isPunctuation = /^[.,!?;:]+$/.test(trimmed);
 
-    if (this.activeSentence.length === 0) {
-      this.activeSentence = trimmed;
+    if (this.currentSentence.length === 0) {
+      this.currentSentence = trimmed;
     } else if (isPunctuation) {
-      this.activeSentence = `${this.activeSentence.trimEnd()}${trimmed} `;
+      this.currentSentence = `${this.currentSentence.trimEnd()}${trimmed} `;
     } else {
-      this.activeSentence = `${this.activeSentence.trimEnd()} ${trimmed}`;
+      this.currentSentence = `${this.currentSentence.trimEnd()} ${trimmed}`;
     }
 
     // 4. Check for sentence completion (terminal punctuation or max length wrap)
-    if (/[.!?]\s*$/.test(this.activeSentence) || this.activeSentence.length >= this.maxSentenceChars) {
+    if (/[.!?]\s*$/.test(this.currentSentence) || this.currentSentence.length >= this.maxSentenceChars) {
       this.isSentenceComplete = true;
     }
 
-    // 5. Schedule audio-synchronized display
-    const snapshot = this.activeSentence;
-    this.pendingQueue.push({
-      text: snapshot,
-      readyAt: now + this.audioSyncDelayMs,
-    });
-
-    this.scheduleQueueFlush();
+    // 5. Progressive rendering: schedule an immediate smooth update (60ms throttle)
+    this.scheduleRender();
   }
 
-  private scheduleQueueFlush(): void {
-    if (this.flushTimer) return;
+  private scheduleRender(): void {
+    if (this.renderTimer) return;
 
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null;
-      this.processQueue();
-    }, 40);
-  }
-
-  private processQueue(): void {
-    const now = Date.now();
-    let latestReadyText: string | null = null;
-
-    while (this.pendingQueue.length > 0 && this.pendingQueue[0].readyAt <= now) {
-      const item = this.pendingQueue.shift();
-      if (item) {
-        latestReadyText = item.text;
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = null;
+      const text = this.currentSentence.trim();
+      if (text && text !== this.displayCaption) {
+        this.displayCaption = text;
+        this.onUpdate(this.displayCaption);
       }
-    }
-
-    if (latestReadyText !== null && latestReadyText !== this.displayCaption) {
-      this.displayCaption = latestReadyText;
-      this.onUpdate(this.displayCaption);
-    }
-
-    // If more tokens are pending in future, schedule next check
-    if (this.pendingQueue.length > 0) {
-      const nextDelay = Math.max(20, this.pendingQueue[0].readyAt - now);
-      this.flushTimer = setTimeout(() => {
-        this.flushTimer = null;
-        this.processQueue();
-      }, nextDelay);
-    } else if (this.isSentenceComplete) {
-      // All ready tokens flushed and sentence is complete: start hold countdown
-      this.startHoldTimer();
-    }
+      if (this.isSentenceComplete) {
+        this.startHoldTimer();
+      }
+    }, 60);
   }
 
   /**
    * Called when model finishes its turn (turnComplete: true)
    */
   public onTurnComplete(): void {
-    // Immediately process any remaining queued tokens so full speech is displayed
-    if (this.activeSentence && this.activeSentence !== this.displayCaption) {
-      this.displayCaption = this.activeSentence;
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+      this.renderTimer = null;
+    }
+
+    const text = this.currentSentence.trim();
+    if (text && text !== this.displayCaption) {
+      this.displayCaption = text;
       this.onUpdate(this.displayCaption);
     }
-    this.pendingQueue = [];
+
     this.isSentenceComplete = true;
     this.startHoldTimer();
   }
@@ -153,27 +137,28 @@ export class LiveCaptionManager {
 
     this.holdTimer = setTimeout(() => {
       this.holdTimer = null;
+      // Fade out after hold period if no new speech has started
+      this.currentSentence = "";
       this.displayCaption = "";
-      this.activeSentence = "";
       this.isSentenceComplete = false;
       this.onUpdate("");
     }, this.sentenceHoldMs);
   }
 
   /**
-   * Called when student interrupts or lecture is stopped/paused.
+   * Called when user/student interrupts or turn break occurs.
+   * Instantly clears captions.
    */
   public onInterrupted(): void {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+      this.renderTimer = null;
     }
     if (this.holdTimer) {
       clearTimeout(this.holdTimer);
       this.holdTimer = null;
     }
-    this.pendingQueue = [];
-    this.activeSentence = "";
+    this.currentSentence = "";
     this.displayCaption = "";
     this.isSentenceComplete = false;
     this.lastToken = "";
@@ -181,6 +166,18 @@ export class LiveCaptionManager {
   }
 
   public destroy(): void {
-    this.onInterrupted();
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+      this.renderTimer = null;
+    }
+    if (this.holdTimer) {
+      clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+    }
+    this.currentSentence = "";
+    this.displayCaption = "";
+    this.isSentenceComplete = false;
+    this.lastToken = "";
+    this.onUpdate("");
   }
 }

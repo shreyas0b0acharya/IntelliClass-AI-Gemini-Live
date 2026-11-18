@@ -264,6 +264,7 @@ export default function ClassroomPage({
         sessionStatus={classroom.sessionStatus}
         onStopAndLeave={handleStopAndLeave}
         onContinueInBackground={handleContinueInBackground}
+        onSaveNotesAsMaterial={classroom.saveNotesAsMaterial}
       />
 
       {/* Google Meet Style Participants Modal */}
@@ -494,15 +495,26 @@ export default function ClassroomPage({
                 This broadcast has concluded. You can restart it from the beginning or return to the course page.
               </p>
             </div>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
               <Button
                 onClick={classroom.restartSession}
                 variant="default"
                 size="sm"
-                className=" h-10 inline-flex items-center"
+                className=" h-10 inline-flex items-center gap-1.5"
               >
                 <Play className="h-3.5 w-3.5" />
                 <span>Restart Broadcast</span>
+              </Button>
+              <Button
+                onClick={async () => {
+                  await classroom.saveNotesAsMaterial();
+                }}
+                variant="secondary"
+                size="sm"
+                className=" h-10 inline-flex items-center gap-1.5"
+              >
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>Save Notes as Material</span>
               </Button>
               <Button
                 onClick={() => router.push(`/course/${courseId}`)}

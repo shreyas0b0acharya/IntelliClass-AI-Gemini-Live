@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description } = body;
+    const { title, description, teaching_instructions } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       .insert({
         title: title.trim(),
         description: description?.trim() || null,
+        teaching_instructions: teaching_instructions?.trim() || null,
         created_by: user.id,
       })
       .select()

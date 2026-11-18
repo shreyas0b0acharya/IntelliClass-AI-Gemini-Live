@@ -39,7 +39,7 @@ export const DEFAULT_FEMALE_AVATAR_MODEL: AvatarModelId = "women-avatarsdk";
 
 /**
  * Supabase Storage CDN base for 3D assets
- * Dynamically resolves from NEXT_PUBLIC_SUPABASE_URL with fallback
+ * Kept for optional remote distribution; local public assets are primary for fast, resilient serving.
  */
 const SUPABASE_BASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ougxttjcgonjgstksham.supabase.co";
@@ -47,17 +47,17 @@ const SUPABASE_BASE_URL =
 export const SUPABASE_3D_ASSETS_CDN = `${SUPABASE_BASE_URL}/storage/v1/object/public/3d-assets`;
 
 /**
- * 3D Model file paths (Remote CDN primary, local fallback supported)
+ * 3D Model file paths (Local public bundle primary for 100% offline & LAN mobile reliability)
  */
 export const AVATAR_MODEL_PATHS: Record<AvatarModelId, string> = {
-  "men-avatarsdk": `${SUPABASE_3D_ASSETS_CDN}/models/men-avatarsdk.glb`,
-  "women-avatarsdk": `${SUPABASE_3D_ASSETS_CDN}/models/women-avatarsdk.glb`,
+  "men-avatarsdk": "/models/men-avatarsdk.glb",
+  "women-avatarsdk": "/models/women-avatarsdk.glb",
 };
 
-export const CLASSROOM_STAGE_MODEL_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/CLASSROOM.glb`;
-export const CLASSROOM_STAGE_MODEL_LOW_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/CLASSROOM-low.glb`;
-export const STANDING_CHALKBOARD_MODEL_PATH = `${SUPABASE_3D_ASSETS_CDN}/models/standing_chalkboard.glb`;
-export const STAGE_BACKDROP_TEXTURE_PATH = `${SUPABASE_3D_ASSETS_CDN}/textures/Blackboard-Stage-Wall.png`;
+export const CLASSROOM_STAGE_MODEL_PATH = "/models/CLASSROOM.glb";
+export const CLASSROOM_STAGE_MODEL_LOW_PATH = "/models/CLASSROOM-low.glb";
+export const STANDING_CHALKBOARD_MODEL_PATH = "/models/standing_chalkboard.glb";
+export const STAGE_BACKDROP_TEXTURE_PATH = "/textures/Blackboard-Stage-Wall.png";
 
 /**
  * Resolves classroom model path according to hardware/LOD tier

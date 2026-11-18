@@ -249,49 +249,47 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph GlobalNav["Global Navigation (IntelliClass AI)"]
-        TeacherWS["Teacher Workspace Home"]
+        TeacherWS["Teacher Workspace Home (/dashboard)"]
         SearchBox["Search Course Spaces (Ctrl + K)"]
         CreateCSBtn["Create Course Space"]
         CSList["Course Spaces List (Java, DBMS, DSA)"]
+        GlobalStudents["Global Students & Groups (/students)"]
         AllClassesList["All Classes & Records"]
-        StudentReqs["Student Join Requests"]
-        GlobalSettings["Global Settings"]
+        GlobalSettings["Global Settings & 3D Avatar Studio"]
     end
 
-    subgraph InsideCS["Inside Course Space (e.g., Java Programming)"]
+    subgraph InsideCS["Inside Course Space (Compact Header Bar)"]
         TabOverview["Course Space Overview"]
-        TabRoadmap["Roadmap Management"]
-        TabMaterials["Materials Library"]
+        TabRoadmap["Roadmap Management (Source-First Grounding)"]
+        TabMaterials["Materials Library (Add & Inspect)"]
         TabStudents["Students Roster"]
-        TabClasses["Classes & Sessions"]
+        TabClasses["Classes & Sessions (Direct Cohort Access)"]
     end
 
     CSList --> TabOverview
+    GlobalStudents -.->|"Grant Direct Access"| TabClasses
     TabOverview --> TabRoadmap
     TabOverview --> TabMaterials
     TabOverview --> TabStudents
     TabOverview --> TabClasses
 ```
 
-### Visual Workspace Wireframe
+### Visual Workspace Wireframe (Compact Modern Header)
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│  IntelliClass AI  │  Java Programming (CS-101)                 🔍 Search (Ctrl+K)   ⚙️  │
-├───────────────────┴────────────────────────────────────────────────────────────────────┤
-│  [ Course Space ]   [ Roadmap Management ]   [ Materials ]   [ Students ]   [ Classes ]│
+│  ← Back    📘 Java Programming Fundamentals [COURSE SPACE]      🔍 Search   [ ➕ New Class ]│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│  📘 Course Space: Java Programming Fundamentals                                       │
-│  Active • Lecturer Workspace • Manage course, review activity, and launch a class     │
+│  [ Overview ]   [ Roadmaps (1) ]   [ Materials (3) ]   [ Students (24) ]   [ Classes (8) ]│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │  📊 METRICS SNAPSHOT                                                                   │
 │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌───────────────────┐  │
-│  │ 12 Students      │ │ 8 Completed      │ │ 5 Roadmap Topics │ │ 14 Materials      │  │
-│  │ Active Enrolled  │ │ Classes          │ │ 14 Objectives    │ │ Indexed Sources   │  │
+│  │ 24 Students      │ │ 8 Completed      │ │ 5 Roadmap Topics │ │ 3 Grounded Sources│  │
+│  │ Direct Cohort    │ │ Classes          │ │ 14 Objectives    │ │ Indexed Vectors   │  │
 │  └──────────────────┘ └──────────────────┘ └──────────────────┘ └───────────────────┘  │
 │                                                                                        │
 │  ⚡ QUICK ACTIONS                                                                       │
-│  [ ▶️ Start a Class ]   [ ➕ Create Roadmap ]   [ 📤 Add Materials ]   [ 👥 Invite ]    │
+│  [ ▶️ Start a Class ]   [ 🗺️ Create Roadmap ]   [ 📤 Add Materials ]   [ 👥 Cohort Groups ]│
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -359,27 +357,27 @@ Active Roadmap: Java Programming — Fundamentals (Published)
 5. Exception Handling ────────── Concepts · 2 objectives · 3 sources
 ```
 
-### Roadmap Creation Flow
+### Roadmap Creation Flow (Source-First Grounding)
 
 ```mermaid
 flowchart TD
-    StartRM["Click 'Create Roadmap'"] --> FormDetails["Enter Title, Goals & Select Source Materials"]
-    FormDetails --> MethodChoice{"Creation Method?"}
+    StartRM["Click 'Create Roadmap'"] --> Step1["Step 1: Select Source Materials (Required)\n- Checkbox selector of RAG-indexed course materials\n- Requires >= 1 document before proceeding"]
+    Step1 --> Step2["Step 2: Roadmap Title & Scope\n- Curriculum Title, Proficiency Level, Expected Outcomes"]
+    Step2 --> MethodChoice{"Creation Method?"}
 
-    MethodChoice -->|"Create with AI"| GenAI["Generate Topic Structure from Sources & Goals"]
-    MethodChoice -->|"Create Manually"| Manual["Open Empty Roadmap Editor Canvas"]
+    MethodChoice -->|"Create with AI"| GenAI["Gemini RAG Generation (generate-roadmap flow)\n- Scans indexed vector chunks for selected materials\n- Extracts grounded topics & learning objectives\n- Tags sourceReferences for each topic\n- Saves linked sources array"]
+    MethodChoice -->|"Create Manually"| Manual["Author Topics & Objectives Manually\n- Explicitly link sources to topics"]
 
     GenAI --> Editor["Unified Roadmap Editor Canvas"]
     Manual --> Editor
 
-    Editor --> EditTopics["Add / Edit Topics & Reorder"]
-    EditTopics --> AssignObj["Assign Learning Objectives & Analogies"]
-    AssignObj --> LinkSources["Bind Materials & Extracted Diagrams to Topics"]
-    LinkSources --> PreviewRM["Preview Roadmap"]
+    Editor --> EditTopics["Add / Edit / Reorder Topics & Objectives"]
+    EditTopics --> TagSources["Confirm Source References on Topics"]
+    TagSources --> PreviewRM["Preview Roadmap (Displays Grounded In Sources Badge)"]
 
-    PreviewRM --> PublishChoice{"Publish Now?"}
-    PublishChoice -->|"Yes"| Published["Published Roadmap (Available for Class Selection)"]
-    PublishChoice -->|"No"| Draft["Save as Draft"]
+    PreviewRM --> PublishChoice{"Publish Roadmap?"}
+    PublishChoice -->|"Yes"| Published["Published Roadmap\n(Automatically supplies linked sources to classes)"]
+    PublishChoice -->|"No"| Draft["Save as Draft Roadmap"]
 ```
 
 ### Roadmap Editor Fields
@@ -419,90 +417,159 @@ Filters: [ All ]  [ Documents ]  [ PDFs ]  [ Links ]  [ Extracted Diagrams ]
 ```
 
 ### Add Materials & Details
-- **Add Dialog:** Supports drag-and-drop, multi-file upload, URL indexing, and raw text paste with progress indicators and automatic retry.
-- **Details Drawer:** Live preview, indexing/processing status, roadmap reference list, class history usage, rename, replace file, and delete.
+
+```mermaid
+flowchart LR
+    MatTab["Materials Tab"] --> ActionChoice{"Action"}
+    ActionChoice -->|"Add Materials"| UploadDlg["FileUploadDialog\n- Drag & Drop PDF\n- FastAPI Ingestion (:8000)\n- pgvector HNSW Embeddings\n- PyMuPDF Visual Extraction"]
+    ActionChoice -->|"Search & Filter"| SearchFilter["Live Search by Document Title"]
+    ActionChoice -->|"Preview Document"| PDFViewer["MaterialViewerModal\n- Inline PDF & Extracted Diagram Viewer"]
+    ActionChoice -->|"Remove Material"| DeleteDlg["Delete Confirmation (80vw x 80vh)\n- Cascades Chunks & Embeddings Deletion\n- Preserves Historical Class References"]
+```
+
+- **Add Materials Action:** Consistent, prominent `Add Materials` button in the action bar and empty state.
+- **Universal Dialogs:** Standardized `80vw × 80vh` dialogs avoiding inner scrollbars.
 - **Separation Rule:** Class notes are never mixed with original materials automatically. Teachers can explicitly click **"Save Notes as Material"** to promote class notes into a reusable study guide.
 
 ---
 
-## 12. Students Tab & Lifecycle
+## 12. Student Management & Cohort Direct Access
 
-```
-Students Roster                                         [ 👥 Invite Students ]
-┌──────────────────────────┐ ┌──────────────────────────┐ ┌──────────────────────────┐
-│ 24 Enrolled              │ │ 3 Pending Requests       │ │ 2 Invited                │
-└──────────────────────────┘ └──────────────────────────┘ └──────────────────────────┘
-Tabs: [ Enrolled ]   [ Requests (3) ]   [ Invitations (2) ]
-
-Pending Requests:
-• [AR] Arjun Rao ── Requested 2 hours ago ── [ Approve ]  [ Reject ]
-• [SK] Sara Khan ── Requested yesterday ──── [ Approve ]  [ Reject ]
-```
-
-### Student Lifecycle State Machine
+Student management operates globally at `/students` and integrates into courses and classes without manual waiting room approval.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> NotMember
-    NotMember --> Invited : Teacher sends invitation
-    NotMember --> Requested : Student requests to join
-    Invited --> Enrolled : Student accepts
-    Invited --> InvitationExpired : Expiration timeout
-    InvitationExpired --> Invited : Resend invitation
-    Requested --> Enrolled : Teacher approves
-    Requested --> Rejected : Teacher rejects
-    Rejected --> Requested : Student re-applies
-    Enrolled --> Suspended : Teacher suspends
-    Suspended --> Enrolled : Teacher restores
-    Enrolled --> Removed : Teacher removes
-    Removed --> [*]
+flowchart TD
+    subgraph GlobalGroups["1. Global Student Groups Management (/students)"]
+        CreateGrp["Teacher Creates Reusable Group (e.g. 'CS Morning Cohort')"]
+        TypeEmail["Teacher Types Student Email & Presses Enter"]
+        AutoAssociate["Instant Roster Addition\n- Links to profile if registered\n- Immediately ready for class access"]
+        CreateGrp --> TypeEmail --> AutoAssociate
+    end
+
+    subgraph ClassExecution["2. Class Creation & Direct Access Execution"]
+        SelectCohort["Teacher Selects Cohort Groups in Class Creation"]
+        ClassPersists["Session Persists assigned_group_ids"]
+        StudentJoins["Student Enters Class via Meeting Code / Link"]
+        CheckCohort{"Student's Email in Assigned Groups?"}
+        DirectAdmit["Direct Admission Granted!\n(status: 'admitted', admitted_at: now())\n- NO Waiting Room Queue\n- NO Teacher Manual Approval Required"]
+        WaitingRoom["Standard Waiting Room\n(Requires Manual Lecturer Admittance)"]
+
+        SelectCohort --> ClassPersists
+        StudentJoins --> CheckCohort
+        CheckCohort -->|"Yes (Cohort Member)"| DirectAdmit
+        CheckCohort -->|"No"| WaitingRoom
+    end
+
+    AutoAssociate -.->|"Reusable across all courses"| SelectCohort
 ```
 
 ### Student Management Rules
-- Invitations and join requests are scoped to the Course Space.
-- Enrolled students gain eligibility to enter live classes scheduled in this space.
-- Removing a student preserves past attendance, question logs, and quiz results in class history.
+- **Global Cohort Groups:** Teachers create groups once and reuse them across multiple courses and classes.
+- **Fast Email Addition:** Enter student email and press **Enter** to add instantly.
+- **Direct Class Access:** Students in selected groups receive instant admission (`status: "admitted"`) directly into the LiveKit broadcast without requiring join requests or teacher approval.
+- **Data Integrity:** Removing a student preserves past attendance, question logs, and quiz results in class history.
 
 ---
 
-## 13. Classes Tab & Filtering
+## 13. Classes Tab, Filtering & Post-Class Notes Access
 
-Classes are individual teaching sessions and their permanent records—not reusable templates.
+Classes are individual teaching sessions and their permanent records—not reusable templates. Whenever a class is **completed** or **paused**, its auto-saved lecture notes, speech checkpoints, and curriculum summaries are directly accessible within the classes list.
 
 ```
 Classes                                                 [ ➕ Create Class ]
-Filters: [ All ]  [ Drafts ]  [ Scheduled ]  [ Active ]  [ History ]
+Filters: [ All ]  [ Active ]  [ Scheduled ]  [ Drafts ]  [ History ]
 
 • Java — Control Flow ────── [ 🟢 In Progress ] Today · 10:00 AM · 18 Students · [ Open Class ]
-• Java — OOP Introduction ── [ 📅 Scheduled ]   Tomorrow · 11:00 AM · 24 Students · [ Edit ]
-• Java — Variables ───────── [ ✓ Completed ]   Yesterday · 45 mins · 21 Students · [ View History ] [ Repeat ]
+• Java — OOP Introduction ── [ ⏸️ Paused ]      Yesterday · 45 mins · [ Class Notes (4) ] · [ Resume ]
+  └─ 📝 Paused Class Notes Checkpoint: Defined class blueprints, objects, and encapsulation principles... [ View Full Notes → ]
+
+• Java — Variables ───────── [ ✓ Completed ]   Yesterday · 45 mins · [ Class Notes (6) ] · [ Repeat ]
+  └─ 📝 Completed Class Notes: Primitive vs reference types, stack vs heap allocation, immutable strings... [ View Full Notes → ]
 ```
+
+### Completed & Paused Class Notes Architecture
+
+```mermaid
+flowchart LR
+    LiveClass["Live / Paused Class Session"] -->|"Continuous Auto-Save Checkpoints"| DB["Supabase sessions.live_session_stats.notes"]
+    DB -->|"Classes List (Course Space & Dashboard)"| Card["SessionCard (Completed / Paused)"]
+    Card -->|"Inline Preview"| QuickView["Card Checkpoint Snippet & Note Count"]
+    Card -->|"Click 'Class Notes' or 'View Full Notes'"| NotesModal["ClassNotesModal (80vw × 80vh Dialog)"]
+    NotesModal -->|"Structured View"| CheckpointCards["Chronological Speech & Whiteboard Cards"]
+    NotesModal -->|"Markdown View"| MarkdownTab["Markdown Source & Summary"]
+    NotesModal -->|"Export Options"| Actions["Copy to Clipboard & .md Download"]
+    NotesModal -->|"Lecturer Promotion"| Promote["Promote Notes to Course Material Tab"]
+```
+
+- **Inline Notes Snippet:** Each completed and paused class card highlights an inline notes summary and checkpoint counter directly in the list, enabling immediate review without navigating away.
+- **Differentiated Paused vs. Completed Notes Content:**
+  - **Paused Classes:** Display the exact checkpoint topic where broadcasting paused (e.g., `⏸️ Paused at Topic 1 of 5: "Title". Checkpoint saved — ready to resume.`), identifying covered modules, active in-progress objectives, and pending modules remaining upon resumption.
+  - **Completed Classes:** Display full completion summary (e.g., `✓ Completed lecture across all 5 topics on Date. All core learning objectives delivered.`), detailing all delivered curriculum topics and mastered objectives.
+- **Dedicated Class Notes Modal (80vw × 80vh):** Standardized dialog sizing displaying full chronological checkpoint cards, curriculum syllabus coverage, and raw markdown source.
+- **One-Click Promotion:** Teachers can promote auto-saved lecture notes to permanent, reusable course materials with one click, automatically synchronizing them to the Materials tab.
+
+### Strict 3D Avatar & Voice Gender Consistency Rules
+
+To prevent immersion-breaking mismatches, the system strictly enforces gender alignment between 3D avatar personas and neural audio voices:
+
+- **Female 3D Avatar (`women-avatarsdk` / Dr. Clara):** Strictly paired with female neural audio voices (`Aoede`, `Kore`). Never allows male voice models.
+- **Male 3D Avatar (`men-avatarsdk` / Prof. Arthur):** Strictly paired with male neural audio voices (`Charon`, `Puck`, `Fenrir`). Default male voice is **`Charon`** (deep, authoritative baritone male academic voice).
+- **Vocal Tone Prompt Directives:** Ephemeral token generation (`POST /api/classroom/[sessionId]/live-token`) explicitly injects vocal directives into the Gemini Live `systemInstruction`:
+  - *Male:* `CRITICAL VOCAL DIRECTIVE: You are Professor Arthur, an adult male university professor. You MUST ALWAYS speak in a deep, resonant, clearly masculine, authoritative academic voice. Never use a high-pitched, child-like, or feminine tone.`
+  - *Female:* `CRITICAL VOCAL DIRECTIVE: You are Professor Clara, an articulate, engaging, adult female university lecturer. You MUST ALWAYS speak with a confident, natural, distinctly feminine academic voice.`
+- **System-Wide Enforcement:** Enforced across database insertions, session updates (`PATCH /api/classroom/[sessionId]`), Gemini Live token minting, `SessionPersonaModal`, and session creation flows.
+
+### Dual-Sentence Sliding Window Live Captioning & Spoken Notes Capture
+
+- **Live Caption Manager:** Implements a dual-sentence sliding-window buffer. When a sentence finishes, it remains visibly rendered on screen while the new incoming sentence builds underneath it, eliminating rapid sentence wiping and visual flicker.
+- **Extended Readability Hold Time & Non-Empty Void Preservation:** Subtitles hold on screen following speech pause and across turn-continuation prompts, gracefully preserving the last key concept spoken by the professor rather than abruptly vanishing to an empty void.
+- **Continuous Spoken Lecture Notes Capture & Live Equality Guarantee:** Live transcriptions stream into durable speech turns (`onTextReceived`), accumulating clean sentence blocks into `live_session_stats.notes`. In-flight speech is automatically flushed on pause or session end and merged with curriculum roadmap checkpoints without data loss. In both `SessionList` and `ClassNotesModal`, real spoken explanations are prominently badged as `Spoken Takeaways`.
+- **Ephemeral Token Voice Constraint Binding:** Ephemeral authentication tokens minted via `ai.authTokens.create` explicitly bind `liveConnectConstraints.config.speechConfig` and `responseModalities: [Modality.AUDIO]`. This prevents Google's backend `BidiGenerateContentConstrained` WebSocket service from falling back to the unconstrained server default voice (`Aoede` - female) when male avatars (`Prof. Arthur` / `men-avatarsdk` with `Charon`) are delivering live broadcasts.
+- **Automated Live-to-Notes Equality Verification:** Verified by Playwright test asserting that spoken speech turns generated during the live classroom broadcast match the notes displayed in the post-class notes modal.
 
 ---
 
 ## 14. Create Class Workflow & The Three Choices
 
-A single configuration modal handles all three execution paths:
+A unified configuration interface handles class creation across both dialogs and dedicated full-page studios:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Create Class                                                         ✕ │
+│ Create Class / Launch AI Broadcast Lecture                           ✕ │
 ├────────────────────────────────────────────────────────────────────────┤
 │ Class Title: [ Introduction to Object-Oriented Programming           ] │
 │                                                                        │
-│ Roadmap:     [ Java Programming — Fundamentals ▾ ] [ ➕ New Roadmap ]  │
+│ Curriculum Roadmap: (Auto-Links Grounded Sources)                      │
+│ [ Java Programming — Fundamentals ▾ ]                                  │
+│ ℹ️ 5 Topics • 2 Grounded Sources Auto-Linked (No manual re-selection)  │
+│ 📎 Inherited Sources: [OOP_Notes.pdf] [Java_Spec.pdf]                  │
 │                                                                        │
-│ Topics:      [✓] Intro to OOP   [✓] Classes & Objects   [ ] Inheritance│
+│ Grant Direct Access (Student Groups):                                  │
+│ [✓] CS Year 3 - Morning Section (32)   [✓] Honors Cohort (14)          │
+│ 🛡️ Cohort students gain instant admission without waiting approval     │
 │                                                                        │
-│ Materials:   [✓] OOP Notes.pdf  [✓] Java Spec.pdf  (2 selected)        │
-│                                                                        │
-│ Students:    [ All enrolled students (24) ▾ ]                          │
-│                                                                        │
-│ Teaching:    45 mins · Prof. Arthur (Male) · Conversational · LiveKit  │
+│ Instructor Persona:                                                    │
+│ 3D Avatar: Prof. Arthur (Male) • Voice: Fenrir (1.0x) • Gemini Live AI │
 ├────────────────────────────────────────────────────────────────────────┤
 │ Choose how to handle this class:                                       │
 │ [ 💾 Save Draft ]          [ 📅 Start Later ]           [ ▶️ Start Now ]│
 └────────────────────────────────────────────────────────────────────────┘
+```
+
+### Class Creation Architecture & Workflow
+
+```mermaid
+flowchart TD
+    OpenStudio["Open New Class (Studio / Modal)"] --> EnterTopic["Enter Lesson Topic"]
+    EnterTopic --> SelectRM["Select Curriculum Roadmap"]
+    SelectRM --> AutoBind["Auto-Link Roadmap Sources\n- Inherits vector chunks & files automatically\n- Teacher never asked to re-select materials"]
+    AutoBind --> SelectCohorts["Select Student Groups (Direct Access)\n- Pre-selects teacher's cohorts\n- Grants direct admission without queue"]
+    SelectCohorts --> ConfigAudio["Configure 3D Persona & Voice Speed"]
+    ConfigAudio --> ExecChoice{"Choose Path"}
+
+    ExecChoice -->|"Start Now"| LaunchNow["Create Session (assigned_group_ids + roadmap)\n- Initialises LiveKit SFU & Gemini Live\n- Instant Entry to Broadcast Stage"]
+    ExecChoice -->|"Start Later"| SchedNow["Pick Date & Time\n- Status: 'scheduled'\n- Switches to 'ready' at class time"]
+    ExecChoice -->|"Save Draft"| DraftNow["Status: 'draft'\n- Saved in Course Space Classes tab"]
 ```
 
 ### The Three Execution Flows
@@ -829,31 +896,32 @@ flowchart LR
     StuMgmt --> Ready
 ```
 
-### B. Roadmap Creation
+### B. Roadmap Creation (Source-First RAG Grounding)
 ```mermaid
 flowchart LR
-    RMTab["Roadmap Tab"] --> NewRM["Create Roadmap"]
-    NewRM --> GoalsSources["Enter Goals & Pick Materials"]
-    GoalsSources --> Route{"Method?"}
-    Route -->|"AI"| AutoGen["Generate Topics from Sources"]
+    RMTab["Roadmaps Tab"] --> NewRM["Create Roadmap"]
+    NewRM --> Step1["1. Select Materials (Required)"]
+    Step1 --> Step2["2. Title & Pedagogical Scope"]
+    Step2 --> Route{"Creation Route?"}
+    Route -->|"AI Grounding"| AutoGen["Generate Topics from Vector Chunks"]
     Route -->|"Manual"| ManualAdd["Add Topics Manually"]
     AutoGen --> CommonEditor["Unified Roadmap Editor"]
     ManualAdd --> CommonEditor
-    CommonEditor --> Review["Review Objectives & Linked Sources"]
-    Review --> SaveOpt["Save Draft or Publish"]
+    CommonEditor --> Review["Review Objectives & sourceReferences"]
+    Review --> SaveOpt["Publish (Carries Sources to Classes)"]
 ```
 
 ### C. Class Creation & Scheduling
 ```mermaid
 flowchart LR
     ClassesTab["Classes Tab"] --> NewClass["Create Class"]
-    NewClass --> PickRM["Select Roadmap & Topics"]
-    PickRM --> PickSources["Select Sources & Students"]
-    PickSources --> ConfigTeach["Set Duration & Voice"]
+    NewClass --> PickRM["Select Roadmap (Auto-Links Sources)"]
+    PickRM --> PickCohorts["Select Student Groups (Direct Access)"]
+    PickCohorts --> ConfigTeach["Set 3D Avatar & Voice"]
     ConfigTeach --> Decision{"Action?"}
-    Decision -->|"Start Now"| Confirm["Confirmation Modal"] --> Starting["Starting Live"]
-    Decision -->|"Start Later"| DatePick["Set Date/Time"] --> Sched["Scheduled"]
-    Decision -->|"Save Draft"| DraftSave["Saved to Drafts"]
+    Decision -->|"Start Now"| Launch["Confirm & Launch Live Broadcast"]
+    Decision -->|"Start Later"| DatePick["Set Schedule Date/Time"]
+    Decision -->|"Save Draft"| DraftSave["Save as Draft"]
 ```
 
 ### D. Live Teaching & Auto-Save
@@ -871,15 +939,14 @@ flowchart LR
     Event -->|"End Class"| Complete["Complete: Auto-Save All & Final Summary"]
 ```
 
-### E. Student Access & Management
+### E. Global Student Groups & Direct Access Flow
 ```mermaid
 flowchart LR
-    StudentsTab["Students Tab"] --> ChooseAction{"Action?"}
-    ChooseAction -->|"Invite"| SendInv["Enter Email & Send Invitation"] --> Await["Student Accepts"] --> Enrolled["Enrolled Roster"]
-    ChooseAction -->|"Join Request"| PendingReq["Student Requests to Join"] --> ReviewReq{"Teacher Decision"}
-    ReviewReq -->|"Approve"| Enrolled
-    ReviewReq -->|"Reject"| Rejected["Request Rejected"]
-    Enrolled --> ClassroomEligible["Eligible to Join Live Classes"]
+    GlobalPage["Global Students Page (/students)"] --> CreateGrp["Create Student Group"]
+    CreateGrp --> FastAdd["Type Email + Press Enter"]
+    FastAdd --> ReadyCohort["Cohort Roster Ready"]
+    ReadyCohort --> AssignClass["Select Cohort in Class Creation"]
+    AssignClass --> AutoAdmit["Direct Class Admission (No Waiting Room / No Approvals)"]
 ```
 
 ---
@@ -924,6 +991,10 @@ erDiagram
     COURSES ||--o{ MEDIA_ASSETS : "indexes"
     COURSES ||--o{ SESSIONS : "hosts"
 
+    STUDENT_GROUPS ||--o{ STUDENT_GROUP_MEMBERS : "contains"
+    SESSIONS }o--o{ STUDENT_GROUPS : "assigns_direct_access"
+    COURSES }o--o{ STUDENT_GROUPS : "assigns_default_groups"
+
     SESSIONS ||--o{ SESSION_PARTICIPANTS : "enrolls"
     SESSIONS ||--o{ MESSAGES : "records"
     SESSIONS ||--o{ ENGAGEMENT_ALERTS : "captures"
@@ -934,7 +1005,27 @@ erDiagram
         text title
         text description
         text cover_image
+        text teaching_instructions
+        jsonb assigned_group_ids "Cohort IDs for Direct Access"
         uuid created_by
+        timestamptz created_at
+    }
+
+    STUDENT_GROUPS {
+        uuid id PK
+        text name
+        text description
+        uuid created_by
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    STUDENT_GROUP_MEMBERS {
+        uuid id PK
+        uuid group_id FK
+        text student_email
+        uuid user_id FK "Optional Profile ID"
+        uuid added_by
         timestamptz created_at
     }
 
@@ -945,6 +1036,7 @@ erDiagram
         text file_path
         text file_type
         bigint file_size
+        text processing_status
         uuid uploaded_by
         timestamptz created_at
     }
@@ -974,16 +1066,17 @@ erDiagram
         uuid course_id FK
         text topic
         text script
-        text status "created | running | paused | ended | deleted"
+        text status "created | running | paused | ended | scheduled | draft | deleted"
         text voice_id
         text avatar_model
         text meeting_code
         text active_driver_tab_id "Conductor Lease Lock"
         timestamptz driver_lease_expires_at
         int state_version
-        jsonb roadmap "SessionRoadmap JSON"
+        jsonb roadmap "SessionRoadmap JSON with linked sources"
         text current_topic_id
         jsonb covered_topic_ids
+        jsonb assigned_group_ids "Cohort Groups for Instant Direct Admission"
         jsonb live_session_stats "Durable Checkpoint & Notes JSON"
         timestamptz created_at
     }

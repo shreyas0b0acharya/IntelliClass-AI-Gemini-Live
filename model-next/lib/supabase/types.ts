@@ -12,6 +12,9 @@ export interface Course {
   id: string;
   title: string;
   description: string | null;
+  teaching_instructions?: string | null;
+  assigned_group_ids?: string[];
+  cover_image?: string | null;
   created_by: string;
   created_at: string;
   profiles?: Profile;
@@ -28,6 +31,7 @@ export interface CourseFile {
   file_type: string | null;
   uploaded_by: string;
   created_at: string;
+  processing_status?: string;
 }
 
 export interface DocumentChunk {
@@ -42,10 +46,34 @@ export interface DocumentChunk {
   created_at: string;
 }
 
-export type SessionStatus = "created" | "running" | "paused" | "ended";
+export type SessionStatus = "created" | "running" | "paused" | "ended" | "scheduled" | "draft" | "deleted" | "ready";
 
 export type AdmissionStatus = "waiting" | "admitted" | "denied" | "left";
 export type ConnectionStatus = "online" | "reconnecting" | "offline";
+
+export interface CourseStudent {
+  id: string;
+  userId: string;
+  userName: string;
+  role: "student" | "lecturer";
+  status: AdmissionStatus;
+  joinedAt: string;
+  admittedAt?: string | null;
+  attendedSessionsCount?: number;
+  lastActiveSessionTitle?: string;
+}
+
+export interface CourseRoadmapItem {
+  id: string;
+  title: string;
+  sessionId?: string;
+  status: "published" | "draft";
+  topicsCount: number;
+  objectivesCount: number;
+  estimatedMinutes: number;
+  roadmap: any;
+  createdAt: string;
+}
 
 export interface SessionParticipantRecord {
   id: string;
@@ -85,7 +113,32 @@ export interface ClassroomSession {
   stopped_reason?: string;
   roadmap?: any;
   current_topic_id?: string | null;
+  covered_topic_ids?: string[];
+  live_resumption_handle?: string | null;
+  live_session_stats?: any;
+  assigned_group_ids?: string[];
   course?: Course;
+}
+
+export interface StudentGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  members_count?: number;
+  members?: StudentGroupMember[];
+}
+
+export interface StudentGroupMember {
+  id: string;
+  group_id: string;
+  student_email: string;
+  user_id?: string | null;
+  added_by: string;
+  created_at: string;
+  user_name?: string;
 }
 
 export interface ChatMessage {

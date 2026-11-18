@@ -119,7 +119,7 @@ export function LectureScriptModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[82vw] max-w-5xl max-h-[90vh] h-[85vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl"
+        className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl"
       >
         {/* Header */}
         <DialogHeader className="shrink-0 p-5 sm:p-6 pb-4 border-b border-border/50 bg-card/40 backdrop-blur-md">

@@ -83,7 +83,10 @@ function getInitialStaticTier(): DeviceTier {
   try {
     // 1. Check if user explicitly set low-tier or mobile preference in sessionStorage
     const storedTier = window.sessionStorage.getItem("intelliclass_device_tier") as DeviceTier | null;
-    if (storedTier && TIER_CONFIGS[storedTier]) {
+    if (storedTier === "fallback-2d") {
+      // Never allow temporary fallback-2d to persist across reloads
+      window.sessionStorage.removeItem("intelliclass_device_tier");
+    } else if (storedTier && TIER_CONFIGS[storedTier]) {
       return storedTier;
     }
 
@@ -179,7 +182,12 @@ export function useDeviceTier() {
     setTier((current) => {
       if (current === newTier) return current;
       if (typeof window !== "undefined") {
-        window.sessionStorage.setItem("intelliclass_device_tier", newTier);
+        if (newTier === "fallback-2d") {
+          // Never persist temporary fallback-2d to storage
+          window.sessionStorage.removeItem("intelliclass_device_tier");
+        } else {
+          window.sessionStorage.setItem("intelliclass_device_tier", newTier);
+        }
       }
       lastTierChangeTimeRef.current = Date.now();
       return newTier;
@@ -200,7 +208,8 @@ export function useDeviceTier() {
       const delta = now - lastFrameTimeRef.current;
       lastFrameTimeRef.current = now;
 
-      // Ignore unreasonable deltas (e.g. background tab return)
+      // Ignore unreasonable deltas or when document is hidden (background tab throttling)
+      if (typeof document !== "undefined" && document.hidden) return;
       if (delta > 200 || delta < 2) return;
 
       frameCountRef.current += 1;
@@ -248,16 +257,17 @@ export function useDeviceTier() {
         slowFrameCountRef.current += 1;
         fastFrameCountRef.current = 0;
 
-        // Downgrade immediately if struggling for ~3 consecutive seconds (75 slow frames)
+        // Downgrade quality if struggling for ~3 consecutive seconds (75 slow frames)
         if (slowFrameCountRef.current > 75) {
           slowFrameCountRef.current = 0;
           if (tier === "high") {
             updateTier("medium");
           } else if (tier === "medium") {
             updateTier("low");
-          } else if (tier === "low") {
-            updateTier("fallback-2d");
           }
+          // NOTE: Never demote "low" to "fallback-2d" based on frame drops.
+          // "low" uses a 2D backdrop plane while keeping the 3D avatar.
+          // "fallback-2d" is reserved exclusively for missing WebGL support or unrecoverable context loss.
         }
       } else if (delta <= 18.0) {
         // Solid 60 FPS: increment fast frame counter
@@ -272,7 +282,9 @@ export function useDeviceTier() {
           !isSpeakingRef.current
         ) {
           fastFrameCountRef.current = 0;
-          if (tier === "low" && window.innerWidth > 640) {
+          if (tier === "fallback-2d") {
+            updateTier("low");
+          } else if (tier === "low" && window.innerWidth > 640) {
             updateTier("medium");
           } else if (tier === "medium" && window.innerWidth > 1024) {
             updateTier("high");
@@ -300,6 +312,21 @@ export function useDeviceTier() {
       cancelAnimationFrame(animId);
     };
   }, [recordFrame]);
+
+  // Reactive upgrade when core 3D assets finish downloading in background
+  useEffect(() => {
+    const handleAssetsReady = () => {
+      if (tier === "fallback-2d") {
+        console.info("[useDeviceTier] Core assets ready in background! Upgrading from 2D fallback to 3D.");
+        const initial = getInitialStaticTier();
+        updateTier(initial === "fallback-2d" ? "low" : initial);
+      }
+    };
+    window.addEventListener("intelliclass:assets-ready", handleAssetsReady);
+    return () => {
+      window.removeEventListener("intelliclass:assets-ready", handleAssetsReady);
+    };
+  }, [tier, updateTier]);
 
   const capabilities: DeviceCapabilities = {
     tier,

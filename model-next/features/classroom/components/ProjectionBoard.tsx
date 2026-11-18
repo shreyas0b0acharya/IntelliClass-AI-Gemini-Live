@@ -178,7 +178,7 @@ export function ProjectionBoard({
         <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
           <DialogContent
             showCloseButton={false}
-            className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[80vw] max-w-[96vw] sm:max-w-[92vw] md:max-w-[88vw] lg:max-w-[80vw] max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover shadow-2xl"
+            className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover shadow-2xl"
           >
             <div className="p-4 px-6 border-b border-border/50 bg-card/40 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
               <DialogTitle className="text-sm font-semibold flex items-center gap-2 min-w-0 flex-1">
@@ -218,14 +218,14 @@ export function ProjectionBoard({
                   src={resolvedUrl}
                   autoPlay
                   controls
-                  className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-2xl"
+                  className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={resolvedUrl}
                   alt={media.label || "Projected Diagram"}
-                  className="max-w-full max-h-[74vh] object-contain rounded-2xl shadow-2xl"
+                  className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
                 />
               )}
             </div>

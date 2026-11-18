@@ -252,6 +252,83 @@ export async function POST(
         });
       }
 
+      // Check Direct Student Group Access (cohort membership)
+      let hasDirectGroupAccess = false;
+      const assignedGroupIds: string[] = [
+        ...(Array.isArray(session.assigned_group_ids) ? session.assigned_group_ids : []),
+      ];
+
+      if (session.course_id) {
+        try {
+          const { data: courseData } = await admin
+            .from("courses")
+            .select("assigned_group_ids")
+            .eq("id", session.course_id)
+            .single();
+          if (courseData && Array.isArray(courseData.assigned_group_ids)) {
+            assignedGroupIds.push(...courseData.assigned_group_ids);
+          }
+        } catch {
+          // ignore course lookup error
+        }
+      }
+
+      if (assignedGroupIds.length > 0 && user.email) {
+        try {
+          const { data: matchedMember } = await admin
+            .from("student_group_members")
+            .select("id")
+            .in("group_id", assignedGroupIds)
+            .ilike("student_email", user.email.toLowerCase())
+            .limit(1)
+            .maybeSingle();
+
+          if (matchedMember) {
+            hasDirectGroupAccess = true;
+          }
+        } catch (groupCheckErr) {
+          console.warn("[participants] Group direct access check warning:", groupCheckErr);
+        }
+      }
+
+      // If student belongs to an assigned group, admit directly!
+      if (hasDirectGroupAccess) {
+        const nowIso = new Date().toISOString();
+        setCachedParticipant(sessionId, {
+          user_id: user.id,
+          user_name: resolvedUserName,
+          role: "student",
+          status: "admitted",
+          joined_at: nowIso,
+          admitted_at: nowIso,
+        });
+
+        try {
+          await admin.from("session_participants").upsert(
+            {
+              session_id: sessionId,
+              user_id: user.id,
+              user_name: resolvedUserName,
+              role: "student",
+              status: "admitted",
+              joined_at: nowIso,
+              admitted_at: nowIso,
+              updated_at: nowIso,
+            },
+            { onConflict: "session_id,user_id" }
+          );
+        } catch (dbUpsertErr) {
+          console.warn("[participants] Direct admission upsert error:", dbUpsertErr);
+        }
+
+        return NextResponse.json({
+          status: "admitted" as AdmissionStatus,
+          role: "student",
+          directAccess: true,
+          stateVersion: Number(session.state_version) || 0,
+        });
+      }
+
       // Check existing student record in PostgreSQL
       try {
         const { data: existing } = await admin

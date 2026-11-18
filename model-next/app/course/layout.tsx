@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar, ThemeToggle, NavUser } from "@/components/shared";
+import { AppSidebar, ThemeToggle, NavUser, GlobalSearchDialog } from "@/components/shared";
 import { useAuth } from "@/features/auth";
 import { useIsMounted } from "@/hooks/useIsMounted";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +57,7 @@ export default function CourseLayout({
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3">
+              <GlobalSearchDialog />
               <ThemeToggle />
               <NavUser />
             </div>

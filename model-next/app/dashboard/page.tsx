@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Course, ClassroomSession } from "@/lib/supabase/types";
 import { CreateCourseDialog } from "@/features/courses";
 import { LectureScriptModal } from "@/features/classroom";
+import { ClassNotesModal } from "@/features/sessions";
 import { SessionCodeInput, StatusBadge, CopyCodeBadge, ScriptBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +36,7 @@ import {
   FileText,
   Trash2,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +54,7 @@ export default function DashboardPage() {
   >([]);
   const [loadingData, setLoadingData] = useState(true);
   const [scriptTarget, setScriptTarget] = useState<ClassroomSession | null>(null);
+  const [notesTarget, setNotesTarget] = useState<ClassroomSession | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClassroomSession | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -117,7 +120,7 @@ export default function DashboardPage() {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      // Filter: Live/Paused at the Top, recents below (excluding deleted)
+      // Filter: All ongoing/live/paused at the top; only the last 3 previous sessions below
       const liveOrPaused = allSessions.filter(
         (s) => (s.status as string) === "running" || (s.status as string) === "paused"
       );
@@ -129,7 +132,8 @@ export default function DashboardPage() {
       );
 
       setActiveSessions(liveOrPaused);
-      setRecentSessions(others.slice(0, 12));
+      // Strictly show last 3 completed/previous sessions on home screen
+      setRecentSessions(others.slice(0, 3));
     } catch (err: unknown) {
       if ((err as { status?: number })?.status !== 401) {
         console.error("Dashboard data load error:", err);
@@ -156,34 +160,51 @@ export default function DashboardPage() {
     }
 
     // Subscribe to database realtime changes for courses & sessions
-    const coursesChannel = supabase
-      .channel("dashboard:courses")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "courses" },
-        () => {
-          loadData();
-        }
-      )
-      .subscribe();
+    let coursesChannel: any = null;
+    let sessionsChannel: any = null;
 
-    const sessionsChannel = supabase
-      .channel("dashboard:sessions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sessions" },
-        () => {
-          loadData();
-        }
-      )
-      .subscribe();
+    if (supabase?.channel) {
+      try {
+        coursesChannel = supabase
+          .channel("dashboard:courses")
+          ?.on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "courses" },
+            () => {
+              loadData();
+            }
+          )
+          ?.subscribe();
+
+        sessionsChannel = supabase
+          .channel("dashboard:sessions")
+          ?.on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "sessions" },
+            () => {
+              loadData();
+            }
+          )
+          ?.subscribe();
+      } catch (err) {
+        console.warn("Failed to subscribe in Dashboard:", err);
+      }
+    }
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("intelliclass:courses-changed", handleCoursesChanged);
       }
-      supabase.removeChannel(coursesChannel);
-      supabase.removeChannel(sessionsChannel);
+      if (coursesChannel && supabase?.removeChannel) {
+        try {
+          supabase.removeChannel(coursesChannel);
+        } catch {}
+      }
+      if (sessionsChannel && supabase?.removeChannel) {
+        try {
+          supabase.removeChannel(sessionsChannel);
+        } catch {}
+      }
     };
   }, [loadData, isAuthLoading, user]);
 
@@ -314,6 +335,19 @@ export default function DashboardPage() {
                       </Link>
                     </Button>
 
+                    {(session.status === "paused" || session.status === "ended") && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setNotesTarget(session)}
+                        className="h-10 w-10 shrink-0 rounded-xl border-black/10 dark:border-white/10 text-primary hover:text-primary/80"
+                        title="View Class Notes"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    )}
+
                     {isLecturer && (
                       <Button
                         type="button"
@@ -433,11 +467,11 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Presentation className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-bold tracking-tight text-foreground dark:text-foreground">
-              Recent Sessions
+              Recent Sessions (Last {recentSessions.length})
             </h2>
           </div>
           <span className="text-xs text-muted-foreground font-medium">
-            {recentSessions.length} total
+            Showing last {recentSessions.length} completed
           </span>
         </div>
 
@@ -518,6 +552,19 @@ export default function DashboardPage() {
                     </Link>
                   </Button>
 
+                  {(session.status === "ended" || session.status === "paused") && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setNotesTarget(session)}
+                      className="h-10 w-10 shrink-0 rounded-xl border-black/10 dark:border-white/10 text-primary hover:text-primary/80"
+                      title="View Class Notes"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  )}
+
                   {isLecturer && (
                     <>
                       <Button
@@ -549,6 +596,16 @@ export default function DashboardPage() {
         )}
       </section>
 
+      {/* Class Notes Modal */}
+      {notesTarget && (
+        <ClassNotesModal
+          open={Boolean(notesTarget)}
+          onOpenChange={(open) => !open && setNotesTarget(null)}
+          session={notesTarget}
+          isLecturer={isLecturer}
+        />
+      )}
+
       {/* Unified Lecture Script & Curriculum Modal */}
       {scriptTarget && (
         <LectureScriptModal
@@ -566,39 +623,69 @@ export default function DashboardPage() {
 
       {/* Delete Session Confirmation Dialog */}
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="overflow-hidden max-w-sm rounded-2xl">
-          <div className="p-6 border-b border-black/5 dark:border-white/10">
-            <AlertDialogHeader>
-              <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-3">
-                <Trash2 className="h-5 w-5 text-destructive" />
+        <AlertDialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col justify-between p-8 sm:p-10 rounded-3xl overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 items-center">
+            <div className="space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive">
+                <Trash2 className="h-7 w-7" />
               </div>
-              <AlertDialogTitle>Delete Session?</AlertDialogTitle>
-              <AlertDialogDescription className="mt-1">
-                <span className="font-semibold text-foreground">&ldquo;{deleteTarget?.topic}&rdquo;</span> will be permanently deleted along with all its messages and data.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-2xl font-bold tracking-tight">
+                  Permanently Delete Session?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  You are about to delete <span className="font-semibold text-foreground">&ldquo;{deleteTarget?.topic}&rdquo;</span>.
+                  This action is irreversible. All lecture transcripts, generated checkpoints, audio notes, and student attendance logs associated with this session will be permanently erased.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-muted/30 border border-border/60 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session Summary</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between py-1 border-b border-border/40">
+                  <span className="text-muted-foreground">Topic:</span>
+                  <span className="font-semibold text-foreground truncate max-w-[200px]">{deleteTarget?.topic}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/40">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="font-semibold capitalize text-foreground">{deleteTarget?.status}</span>
+                </div>
+                {deleteTarget?.meeting_code && (
+                  <div className="flex justify-between py-1 border-b border-border/40">
+                    <span className="text-muted-foreground">Meeting Code:</span>
+                    <span className="font-mono font-semibold text-primary">{deleteTarget?.meeting_code}</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>This session will be unrecoverable from the database.</span>
+              </div>
+            </div>
           </div>
-          <AlertDialogFooter className="flex-col sm:flex-col gap-2 p-4">
+
+          <AlertDialogFooter className="flex-row justify-end gap-3 pt-6 border-t border-border/50 shrink-0">
+            <AlertDialogCancel disabled={deleting} className="rounded-xl px-5 h-11 text-sm font-semibold">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSession}
               disabled={deleting}
-              className="w-full h-10 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="rounded-xl px-6 h-11 text-sm font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   <span>Deleting...</span>
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-4 w-4 mr-1.5" />
-                  <span>Yes, Delete Session</span>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>Permanently Delete</span>
                 </>
               )}
             </AlertDialogAction>
-            <AlertDialogCancel disabled={deleting} className="w-full h-10 mt-0">
-              Cancel
-            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

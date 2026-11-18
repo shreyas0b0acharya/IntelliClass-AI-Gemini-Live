@@ -143,13 +143,15 @@ function RegisterFormContent() {
         window.location.href = finalRedirect;
       }
     } catch (err: unknown) {
-      console.error("Registration error:", err);
-      let msg = "Failed to create account. Please check your information.";
-      if (err instanceof Error && err.message) {
-        msg = err.message;
+      const errStr = err instanceof Error ? err.message : String(err);
+      if (errStr.toLowerCase().includes("already registered")) {
+        setErrorMessage("An account with this email address already exists. Please sign in or reset your password.");
+        toast.error("Account already registered");
+      } else {
+        console.error("Registration error:", err);
+        setErrorMessage(errStr || "Failed to create account. Please check your information.");
+        toast.error(errStr || "Registration failed");
       }
-      setErrorMessage(msg);
-      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,7 @@
 {
-  "version": "2.1.0",
-  "updatedAt": "2026-10-08T00:10:00Z",
-  "cdnBase": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets",
+  "version": "2.2.0",
+  "updatedAt": "2026-11-19T00:00:00Z",
+  "cdnBase": "",
   "assets": [
     {
       "assetKey": "avatar-men",
@@ -11,19 +11,19 @@
       "priority": "P0",
       "variants": {
         "high": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "url": "/models/men-avatarsdk.glb",
           "size": 15838288,
-          "sha256": "men_meshopt_high_v2_1"
+          "sha256": "men_meshopt_high_v2_2"
         },
         "medium": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "url": "/models/men-avatarsdk.glb",
           "size": 15838288,
-          "sha256": "men_meshopt_med_v2_1"
+          "sha256": "men_meshopt_med_v2_2"
         },
         "low": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/men-avatarsdk.glb",
+          "url": "/models/men-avatarsdk.glb",
           "size": 15838288,
-          "sha256": "men_meshopt_low_v2_1"
+          "sha256": "men_meshopt_low_v2_2"
         }
       }
     },
@@ -35,19 +35,19 @@
       "priority": "P0",
       "variants": {
         "high": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "url": "/models/women-avatarsdk.glb",
           "size": 14810288,
-          "sha256": "women_meshopt_high_v2_1"
+          "sha256": "women_meshopt_high_v2_2"
         },
         "medium": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "url": "/models/women-avatarsdk.glb",
           "size": 14810288,
-          "sha256": "women_meshopt_med_v2_1"
+          "sha256": "women_meshopt_med_v2_2"
         },
         "low": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/women-avatarsdk.glb",
+          "url": "/models/women-avatarsdk.glb",
           "size": 14810288,
-          "sha256": "women_meshopt_low_v2_1"
+          "sha256": "women_meshopt_low_v2_2"
         }
       }
     },
@@ -58,9 +58,9 @@
       "priority": "P0",
       "variants": {
         "all": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/standing_chalkboard.glb",
+          "url": "/models/standing_chalkboard.glb",
           "size": 138508,
-          "sha256": "chalkboard_meshopt_v2_1"
+          "sha256": "chalkboard_meshopt_v2_2"
         }
       }
     },
@@ -71,9 +71,9 @@
       "priority": "P0",
       "variants": {
         "all": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/textures/Blackboard-Stage-Wall.png",
+          "url": "/textures/Blackboard-Stage-Wall.png",
           "size": 2233472,
-          "sha256": "stage_wall_v2_1"
+          "sha256": "stage_wall_v2_2"
         }
       }
     },
@@ -84,14 +84,14 @@
       "priority": "P0",
       "variants": {
         "men": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/animations/men-avatarsdk/weight%20shift.fbx",
+          "url": "/animations/men-avatarsdk/weight%20shift.fbx",
           "size": 1814337,
-          "sha256": "anim_men_ws_v2_1"
+          "sha256": "anim_men_ws_v2_2"
         },
         "women": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/animations/women-avatarsdk/weight%20shift.fbx",
+          "url": "/animations/women-avatarsdk/weight%20shift.fbx",
           "size": 1814337,
-          "sha256": "anim_women_ws_v2_1"
+          "sha256": "anim_women_ws_v2_2"
         }
       }
     },
@@ -102,19 +102,19 @@
       "priority": "P1",
       "variants": {
         "high": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM.glb",
+          "url": "/models/CLASSROOM.glb",
           "size": 5109020,
-          "sha256": "classroom_meshopt_high_v2_1"
+          "sha256": "classroom_meshopt_high_v2_2"
         },
         "medium": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM.glb",
+          "url": "/models/CLASSROOM.glb",
           "size": 5109020,
-          "sha256": "classroom_meshopt_med_v2_1"
+          "sha256": "classroom_meshopt_med_v2_2"
         },
         "low": {
-          "url": "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets/models/CLASSROOM-low.glb",
+          "url": "/models/CLASSROOM-low.glb",
           "size": 1791200,
-          "sha256": "classroom_meshopt_low_v2_1"
+          "sha256": "classroom_meshopt_low_v2_2"
         }
       }
     },

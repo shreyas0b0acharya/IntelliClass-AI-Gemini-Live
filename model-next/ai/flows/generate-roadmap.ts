@@ -45,6 +45,7 @@ export const RoadmapTopicSchema = z.object({
     })
   ).optional().default([]),
   estimatedDurationMinutes: z.number().describe("Estimated minutes (typically 4 to 8 mins)"),
+  sourceReferences: z.array(z.string()).optional().describe("Names of the selected source material files that this topic is grounded in"),
 });
 
 export const SessionRoadmapOutputSchema = z.object({
@@ -53,6 +54,7 @@ export const SessionRoadmapOutputSchema = z.object({
   sessionId: z.string(),
   lectureTopic: z.string(),
   totalEstimatedMinutes: z.number(),
+  sources: z.array(SourceSelectionSchema).optional(),
   topics: z.array(RoadmapTopicSchema),
 });
 
@@ -79,13 +81,17 @@ const generateRoadmapPrompt = ai.definePrompt({
   },
   system: `You are an expert curriculum designer and college professor.
 Your goal is to transform lecture materials into a structured, lightweight 4-to-8 topic roadmap for a real-time conversational AI lecture.
+Grounded in Sources:
+- You MUST rigorously ground topics and learning objectives in the provided source material chunks.
+- For every topic, populate the "sourceReferences" string array with the specific source document name(s) it is derived from (e.g. ["syllabus.pdf"]).
 Each topic must have:
 - A clear, engaging title and sequential order.
-- Specific, measurable learning objectives.
+- Specific, measurable learning objectives directly drawn from the source content.
 - Subtopics breaking down the core concepts.
 - 1-2 intuitive everyday analogies (e.g. railway booking queues, restaurant kitchens, plumbing, traffic signals).
 - Appropriate visual asset selections matching available visual assets.
 - Realistic duration estimates totaling approximately the target duration.
+- sourceReferences identifying the linked source material file names.
 Always output valid JSON conforming exactly to the output schema with version "2.0".
 
 You MUST name the array key "topics" in your JSON output (NOT "roadmap", NOT "modules"):
@@ -149,22 +155,56 @@ export const generateRoadmapFlow = ai.defineFlow(
       caption: a.caption || "",
     }));
 
-    // 2. Fetch relevant context from document chunks
+    // 2. Fetch relevant context from document chunks & course info
     let contextText = "Standard comprehensive college syllabus curriculum.";
     try {
-      let query = supabase
-        .from("document_chunks")
-        .select("content, chunk_index, file_name")
-        .eq("course_id", input.courseId);
+      // Also get course title & description for domain awareness
+      const { data: courseData } = await supabase
+        .from("courses")
+        .select("title, description, teaching_instructions")
+        .eq("id", input.courseId)
+        .maybeSingle();
 
-      if (input.sources && input.sources.length > 0) {
-        const fileNames = input.sources.map((s) => s.fileName);
-        query = query.in("file_name", fileNames);
+      const courseContextPrefix = courseData
+        ? `Course Title: "${courseData.title}"\nDescription: ${courseData.description || "N/A"}\nInstructions: ${courseData.teaching_instructions || "N/A"}\n\n`
+        : "";
+
+      // Select valid columns from document_chunks (content, metadata)
+      const { data: chunks, error: chunkQueryErr } = await supabase
+        .from("document_chunks")
+        .select("id, content, metadata")
+        .eq("course_id", input.courseId)
+        .limit(100);
+
+      if (chunkQueryErr) {
+        console.warn("document_chunks query error in roadmap generator:", chunkQueryErr);
       }
 
-      const { data: chunks } = await query.order("chunk_index", { ascending: true }).limit(50);
       if (chunks && chunks.length > 0) {
-        contextText = chunks.map((c) => `[Source: ${c.file_name} #${c.chunk_index}]\n${c.content}`).join("\n\n---\n\n");
+        let filtered = chunks;
+        if (input.sources && input.sources.length > 0) {
+          const selectedFileNames = new Set(input.sources.map((s) => s.fileName.toLowerCase()));
+          const matched = chunks.filter((c) => {
+            const m = c.metadata as { file_name?: string; source?: string } | null;
+            const fName = (m?.file_name || m?.source || "").toLowerCase();
+            return fName && selectedFileNames.has(fName);
+          });
+          if (matched.length > 0) {
+            filtered = matched;
+          }
+        }
+
+        const chunkSnippets = filtered.slice(0, 60).map((c, idx) => {
+          const meta = c.metadata as { file_name?: string; source?: string; page?: number } | null;
+          const src = meta?.file_name || meta?.source || "Uploaded Document";
+          const page = meta?.page ? ` p.${meta.page}` : "";
+          return `[Source: ${src}${page} #${idx + 1}]\n${c.content}`;
+        });
+
+        contextText = courseContextPrefix + chunkSnippets.join("\n\n---\n\n");
+        console.log(`📚 [generateRoadmap] Injected ${filtered.length} document chunks (${contextText.length} chars) into roadmap generation context.`);
+      } else if (courseContextPrefix) {
+        contextText = courseContextPrefix;
       }
     } catch (chunkErr) {
       console.warn("Could not retrieve document chunks for roadmap:", chunkErr);
@@ -234,6 +274,12 @@ export const generateRoadmapFlow = ai.defineFlow(
         Number(t.duration) ||
         6;
 
+      const sourceReferences = Array.isArray(t.sourceReferences)
+        ? t.sourceReferences.map(String)
+        : Array.isArray(t.sources)
+        ? t.sources.map(String)
+        : input.sources?.map((s) => s.fileName) || [];
+
       return {
         id: String(t.id || `topic-${order}`),
         order,
@@ -244,8 +290,11 @@ export const generateRoadmapFlow = ai.defineFlow(
         suggestedAnalogies,
         suggestedVisualAssets: Array.isArray(t.suggestedVisualAssets) ? (t.suggestedVisualAssets as any) : [],
         estimatedDurationMinutes,
+        sourceReferences,
       };
     });
+
+    const defaultSources = input.sources?.map((s) => s.fileName) || [];
 
     // Resilient Fallback: If model returned 0 topics, generate a dynamic 4-topic curriculum based on the topic
     if (parsedTopics.length === 0) {
@@ -261,6 +310,7 @@ export const generateRoadmapFlow = ai.defineFlow(
           suggestedAnalogies: ["Building foundation & blueprint analogy"],
           suggestedVisualAssets: [],
           estimatedDurationMinutes: 7,
+          sourceReferences: defaultSources,
         },
         {
           id: "topic-2",
@@ -272,6 +322,7 @@ export const generateRoadmapFlow = ai.defineFlow(
           suggestedAnalogies: ["Assembly line & traffic dispatch analogy"],
           suggestedVisualAssets: [],
           estimatedDurationMinutes: 8,
+          sourceReferences: defaultSources,
         },
         {
           id: "topic-3",
@@ -283,6 +334,7 @@ export const generateRoadmapFlow = ai.defineFlow(
           suggestedAnalogies: ["Airport runway scheduling & fault tolerance"],
           suggestedVisualAssets: [],
           estimatedDurationMinutes: 8,
+          sourceReferences: defaultSources,
         },
         {
           id: "topic-4",
@@ -294,19 +346,21 @@ export const generateRoadmapFlow = ai.defineFlow(
           suggestedAnalogies: ["Complete orchestra harmony analogy"],
           suggestedVisualAssets: [],
           estimatedDurationMinutes: 7,
+          sourceReferences: defaultSources,
         },
       ];
     }
 
     const totalEstimatedMinutes = parsedTopics.reduce((acc, t) => acc + t.estimatedDurationMinutes, 0);
 
-    // 5. Ensure version, courseId, and sessionId match input
+    // 5. Ensure version, courseId, sessionId, and sources match input
     const finalRoadmap: GenerateRoadmapOutput = {
       version: "2.0",
       courseId: input.courseId,
       sessionId: input.sessionId,
       lectureTopic: input.lectureTopic,
       totalEstimatedMinutes: totalEstimatedMinutes || input.targetDurationMinutes || 30,
+      sources: input.sources || [],
       topics: parsedTopics,
     };
 

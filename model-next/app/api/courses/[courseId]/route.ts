@@ -38,6 +38,69 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ courseId: string }> }
+) {
+  try {
+    const { courseId } = await params;
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: course, error: fetchErr } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("id", courseId)
+      .eq("created_by", user.id)
+      .single();
+
+    if (fetchErr || !course) {
+      return NextResponse.json({ error: "Course not found or unauthorized" }, { status: 404 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    const updatePayload: Record<string, unknown> = {};
+
+    if (typeof body.title === "string" && body.title.trim()) {
+      updatePayload.title = body.title.trim();
+    }
+    if (typeof body.description === "string") {
+      updatePayload.description = body.description.trim();
+    }
+    if (typeof body.teaching_instructions === "string") {
+      updatePayload.teaching_instructions = body.teaching_instructions.trim();
+    }
+    if (typeof body.cover_image === "string") {
+      updatePayload.cover_image = body.cover_image;
+    }
+
+    const { data: updatedCourse, error: updateErr } = await supabase
+      .from("courses")
+      .update(updatePayload)
+      .eq("id", courseId)
+      .select()
+      .single();
+
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ course: updatedCourse });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Internal server error";
+    console.error("API PATCH /api/courses/[courseId] error:", err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ courseId: string }> }

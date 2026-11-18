@@ -45,7 +45,7 @@ export function VoiceSpeedControls({
 }: VoiceSpeedControlsProps) {
   // Map any legacy IDs to Gemini Live voices
   let normalizedVoiceId = voiceId;
-  if (voiceId === "am_fenrir" || !voiceId) normalizedVoiceId = gender === "male" ? "Fenrir" : "Aoede";
+  if (voiceId === "am_fenrir" || !voiceId) normalizedVoiceId = gender === "male" ? "Charon" : "Aoede";
   if (voiceId === "af_bella") normalizedVoiceId = "Aoede";
 
   const filteredVoices = GEMINI_LIVE_VOICES.filter((v) => v.gender === gender);
@@ -100,11 +100,10 @@ export function VoiceSpeedControls({
                 type="button"
                 disabled={disabled}
                 onClick={() => onSpeedChange(preset.value)}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer text-center ${
-                  isSelected
-                    ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
-                    : "text-muted-foreground hover:text-foreground dark:hover:text-white"
-                } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all cursor-pointer text-center ${isSelected
+                  ? "bg-white dark:bg-muted text-foreground dark:text-white shadow-xs"
+                  : "text-muted-foreground hover:text-foreground dark:hover:text-white"
+                  } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {preset.label}
               </button>

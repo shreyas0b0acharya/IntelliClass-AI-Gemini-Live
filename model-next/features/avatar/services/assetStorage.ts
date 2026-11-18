@@ -426,6 +426,7 @@ class AssetStorageService {
 
       // 4. Execute prioritized download queue
       let accumulatedBytes = 0;
+      const completedAssetKeys = new Set<string>();
       const startTime = Date.now();
 
       for (const item of queue) {
@@ -452,7 +453,9 @@ class AssetStorageService {
             const currentItemPct = Math.min(100, Math.round((currentItemBytes / item.variant.size) * 100));
 
             const totalDownloaded = accumulatedBytes + chunkBytes;
-            const overallPct = Math.min(100, Math.round((totalDownloaded / totalBytesToDownload) * 100));
+            // Guarantee monotonic progress bar: percentage NEVER moves backwards
+            const rawPct = Math.min(100, Math.round((totalDownloaded / totalBytesToDownload) * 100));
+            const overallPct = Math.max(this.progress.overallPercentage, rawPct);
 
             const elapsedSec = (Date.now() - startTime) / 1000;
             const speed = elapsedSec > 0 ? totalDownloaded / elapsedSec : 0;
@@ -472,14 +475,23 @@ class AssetStorageService {
 
         if (success) {
           accumulatedBytes += item.variant.size;
+          completedAssetKeys.add(item.assetKey);
 
           // Check if all P0 items have completed
-          const remainingP0 = queue
-            .filter((q) => q.priority === "P0")
-            .some((q) => q.assetKey === item.assetKey);
+          const p0Items = queue.filter((q) => q.priority === "P0");
+          const allP0Done = p0Items.length === 0 || p0Items.every((q) => completedAssetKeys.has(q.assetKey));
 
-          if (!remainingP0) {
+          if (allP0Done && !this.progress.isP0Ready) {
             this.updateProgress({ isP0Ready: true });
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("intelliclass:assets-ready"));
+            }
+          }
+
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("intelliclass:asset-synced", { detail: { assetKey: item.assetKey } })
+            );
           }
         }
       }
@@ -490,6 +502,10 @@ class AssetStorageService {
         isComplete: true,
         overallPercentage: 100,
       });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("intelliclass:assets-ready"));
+      }
     } catch (err: unknown) {
       console.error("[AssetStorage] Sync error:", err);
       this.updateProgress({
@@ -508,7 +524,27 @@ class AssetStorageService {
     onChunk: (bytesLoaded: number) => void
   ): Promise<boolean> {
     try {
-      const response = await fetch(variant.url);
+      // Resolve local relative path if variant.url is remote CDN
+      let primaryUrl = variant.url;
+      let fallbackUrl = variant.url;
+      if (variant.url.startsWith("http")) {
+        const localMatch = variant.url.match(/\/(models|textures|animations|environment)\/.+$/);
+        if (localMatch) {
+          primaryUrl = localMatch[0];
+          fallbackUrl = variant.url;
+        }
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(primaryUrl);
+        if (!response.ok && primaryUrl !== fallbackUrl) {
+          response = await fetch(fallbackUrl);
+        }
+      } catch {
+        response = await fetch(fallbackUrl);
+      }
+
       if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
       const reader = response.body?.getReader();
@@ -517,7 +553,10 @@ class AssetStorageService {
         const blob = await response.blob();
         const cache = await this.getCache();
         if (cache) {
-          await cache.put(variant.url, new Response(blob));
+          await cache.put(variant.url, new Response(blob.slice(0)));
+          if (primaryUrl !== variant.url) {
+            await cache.put(primaryUrl, new Response(blob.slice(0)));
+          }
         }
         await this.recordInIDB(assetKey, variant);
         onChunk(variant.size);
@@ -546,10 +585,18 @@ class AssetStorageService {
       if (cache) {
         await cache.put(
           variant.url,
-          new Response(completeBlob, {
+          new Response(completeBlob.slice(0), {
             headers: { "Content-Type": "application/octet-stream" },
           })
         );
+        if (primaryUrl !== variant.url) {
+          await cache.put(
+            primaryUrl,
+            new Response(completeBlob.slice(0), {
+              headers: { "Content-Type": "application/octet-stream" },
+            })
+          );
+        }
       }
 
       await this.recordInIDB(assetKey, variant);

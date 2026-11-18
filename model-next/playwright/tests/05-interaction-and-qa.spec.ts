@@ -60,7 +60,11 @@ test.describe("05. Live Classroom Interaction, Q&A & Media Projection", () => {
       .catch(() => {});
 
     // 5. Student asks question via QuestionInput
-    const questionInput = studentPage.locator('input[placeholder*="Ask a doubt"], input[placeholder*="Professor"]').first();
+    const questionInput = studentPage
+      .locator(
+        'input[placeholder*="Ask a doubt"], input[placeholder*="Professor"], input[placeholder*="Speak or type"], input[placeholder*="message to everyone"]'
+      )
+      .first();
     await expect(questionInput).toBeVisible({ timeout: 25000 });
     await expect(questionInput).toBeEnabled({ timeout: 25000 });
 

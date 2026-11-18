@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   devIndicators: false,
   reactStrictMode: false,
-  allowedDevOrigins: ['10.106.208.26'],
+  allowedDevOrigins: ['10.106.208.26', '10.232.88.26'],
   transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
   experimental: {
     optimizePackageImports: [

@@ -15,7 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DEFAULT_MALE_VOICE_ID, DEFAULT_FEMALE_VOICE_ID } from "@/config";
+import {
+  DEFAULT_MALE_VOICE_ID,
+  DEFAULT_FEMALE_VOICE_ID,
+  DEFAULT_MALE_AVATAR_MODEL,
+  DEFAULT_FEMALE_AVATAR_MODEL,
+} from "@/config";
+import { getVoiceGender } from "@/features/avatar";
 import { Pencil, Save, Loader2, FileText, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,7 +52,7 @@ export function EditSessionDialog({
 }: EditSessionDialogProps) {
   const [topic, setTopic] = useState(session.topic);
   const [voiceGender, setVoiceGender] = useState(
-    VOICE_MAP[session.voice_id || DEFAULT_MALE_VOICE_ID] ?? "male"
+    () => getVoiceGender(session.voice_id || DEFAULT_MALE_VOICE_ID)
   );
   const [saving, setSaving] = useState(false);
 
@@ -58,11 +64,14 @@ export function EditSessionDialog({
     }
 
     const newVoiceId = GENDER_TO_VOICE[voiceGender];
+    const newAvatarModel =
+      voiceGender === "female" ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_MALE_AVATAR_MODEL;
     setSaving(true);
     try {
       const { session: updated } = await api.updateSessionMeta(session.id, {
         topic: topic.trim(),
         voice_id: newVoiceId,
+        avatar_model: newAvatarModel,
       });
       toast.success("Session updated successfully.");
       onUpdated(updated);
@@ -77,9 +86,9 @@ export function EditSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[94vw] sm:w-[90vw] md:w-[84vw] lg:w-[80vw] max-w-[95vw] sm:max-w-[92vw] md:max-w-[86vw] lg:max-w-[80vw] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col overflow-hidden p-0">
         {/* Header */}
-        <div className="bg-gradient-to-b from-muted/60 to-background p-6 border-b">
+        <div className="bg-gradient-to-b from-muted/60 to-background p-6 border-b border-black/5 dark:border-white/10 shrink-0">
           <DialogHeader>
             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-2">
               <Pencil className="h-5 w-5" />
@@ -92,100 +101,106 @@ export function EditSessionDialog({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSave} className="p-6 space-y-5">
-          <div className="space-y-2">
-            <Label>Lecture Topic</Label>
-            <Input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Introduction to Neural Networks"
-              className="h-11"
-              disabled={saving}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>AI Lecturer Gender</Label>
-            <RadioGroup
-              value={voiceGender}
-              onValueChange={setVoiceGender}
-              className="grid grid-cols-2"
-              disabled={saving}
-            >
-              <label
-                htmlFor="edit-male"
-                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "male"
-                    ? "border-primary bg-primary/10"
-                    : "border-border/60 hover:border-border bg-card/40"
-                  }`}
-              >
-                <RadioGroupItem value="male" id="edit-male" />
-                <div>
-                  <div className="text-xs font-bold">Male</div>
-                  <div className="text-xs text-muted-foreground">Prof. Sharma</div>
-                </div>
-              </label>
-              <label
-                htmlFor="edit-female"
-                className={`flex items-center gap-2.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "female"
-                    ? "border-primary bg-primary/10"
-                    : "border-border/60 hover:border-border bg-card/40"
-                  }`}
-              >
-                <RadioGroupItem value="female" id="edit-female" />
-                <div>
-                  <div className="text-xs font-bold">Female</div>
-                  <div className="text-xs text-muted-foreground">Prof. Bella</div>
-                </div>
-              </label>
-            </RadioGroup>
-          </div>
-
-          {/* Lecture Script Link to Unified Modal */}
-          <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
-            <Label>Lecture Curriculum Script</Label>
-            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-black/5 dark:border-white/10 bg-muted/30">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-foreground">Curriculum Script</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {session.script
-                      ? `${session.script.split(/\s+/).filter(Boolean).length} words ready for broadcast`
-                      : "No script generated yet"}
-                  </div>
-                </div>
+        <form onSubmit={handleSave} className="flex-1 min-h-0 flex flex-col justify-between p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 min-h-0 items-start">
+            {/* Left Column: Topic & Script */}
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">Lecture Topic</Label>
+                <Input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g. Introduction to Neural Networks"
+                  className="h-11"
+                  disabled={saving}
+                  required
+                />
               </div>
 
-              {onOpenScript && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onOpenChange(false);
-                    onOpenScript(session);
-                  }}
-                  className="h-8.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shrink-0 cursor-pointer"
+              {/* Lecture Script Link to Unified Modal */}
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">Lecture Curriculum Script</Label>
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-black/5 dark:border-white/10 bg-muted/30">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-foreground">Curriculum Script</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {session.script
+                          ? `${session.script.split(/\s+/).filter(Boolean).length} words ready for broadcast`
+                          : "No script generated yet"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {onOpenScript && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onOpenChange(false);
+                        onOpenScript(session);
+                      }}
+                      className="h-8.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 rounded-xl border-border/70 hover:bg-muted transition-all shrink-0 cursor-pointer"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      <span>Inspect Script</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Persona & Gender */}
+            <div className="space-y-4">
+              <Label className="text-sm font-bold">AI Lecturer Persona &amp; Voice</Label>
+              <RadioGroup
+                value={voiceGender}
+                onValueChange={(val) => setVoiceGender(val as "male" | "female")}
+                className="grid grid-cols-2 gap-4"
+                disabled={saving}
+              >
+                <label
+                  htmlFor="edit-male"
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "male"
+                    ? "border-primary bg-primary/10"
+                    : "border-border/60 hover:border-border bg-card/40"
+                    }`}
                 >
-                  <FileText className="h-3.5 w-3.5 text-primary" />
-                  <span>Open Script Inspector</span>
-                  <ArrowRight className="h-3 w-3" />
-                </Button>
-              )}
+                  <RadioGroupItem value="male" id="edit-male" />
+                  <div>
+                    <div className="text-sm font-bold">Male</div>
+                    <div className="text-xs text-muted-foreground">Prof. Arthur (Charon)</div>
+                  </div>
+                </label>
+                <label
+                  htmlFor="edit-female"
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${voiceGender === "female"
+                    ? "border-primary bg-primary/10"
+                    : "border-border/60 hover:border-border bg-card/40"
+                    }`}
+                >
+                  <RadioGroupItem value="female" id="edit-female" />
+                  <div>
+                    <div className="text-sm font-bold">Female</div>
+                    <div className="text-xs text-muted-foreground">Dr. Clara (Aoede)</div>
+                  </div>
+                </label>
+              </RadioGroup>
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="shrink-0 pt-4 border-t border-black/5 dark:border-white/5 flex gap-3 sm:justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={saving}
- className="flex-1 "
+              className="h-10 px-6"
             >
               <span>Cancel</span>
             </Button>
@@ -193,16 +208,16 @@ export function EditSessionDialog({
               type="submit"
               disabled={saving || !topic.trim()}
               variant="default"
- className="flex-1 inline-flex items-center justify-center "
+              className="h-10 px-6 inline-flex items-center justify-center"
             >
               {saving ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0 mr-1.5" />
                   <span>Saving...</span>
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4" />
+                  <Save className="h-4 w-4 mr-1.5" />
                   <span>Save Changes</span>
                 </>
               )}

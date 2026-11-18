@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -11,8 +11,7 @@ import {
   GenderSelector,
   VoiceSpeedControls,
 } from "@/features/settings";
-import type { Course, CourseFile, MediaAsset } from "@/lib/supabase/types";
-import { MaterialImageCarousel, MaterialViewerModal } from "@/features/materials";
+import type { Course, CourseRoadmapItem, StudentGroup, MediaAsset } from "@/lib/supabase/types";
 import { ThemeToggle } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +23,12 @@ import {
   Sparkles,
   Loader2,
   FileText,
-  Upload,
   ShieldCheck,
-  Eye,
   Radio,
+  MapPin,
+  Users,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LectureScriptModal } from "@/features/classroom";
@@ -48,12 +49,6 @@ const AvatarPreview = dynamic(
   }
 );
 
-interface SelectedFileConfig {
-  selected: boolean;
-  startPage?: number;
-  endPage?: number;
-}
-
 export default function NewSessionPage({
   params,
 }: {
@@ -62,13 +57,15 @@ export default function NewSessionPage({
   const { courseId } = use(params);
   const router = useRouter();
 
-  // Course & Files State
+  // Course, Roadmaps & Student Groups State
   const hasMounted = useIsMounted();
   const [course, setCourse] = useState<Course | null>(null);
-  const [courseFiles, setCourseFiles] = useState<CourseFile[]>([]);
+  const [roadmaps, setRoadmaps] = useState<CourseRoadmapItem[]>([]);
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string>("");
+  const [studentGroups, setStudentGroups] = useState<StudentGroup[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [selectedViewFile, setSelectedViewFile] = useState<CourseFile | null>(null);
 
   // Form Fields
   const [topic, setTopic] = useState("");
@@ -76,31 +73,46 @@ export default function NewSessionPage({
   const [voiceId, setVoiceId] = useState("Fenrir");
   const [speed, setSpeed] = useState(1.0);
   const [customPrompt, setCustomPrompt] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, SelectedFileConfig>>({});
 
-  // Direct Inline File Upload State
-  const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Scheduling State
+  const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
 
-  // Submission State
+  // Submission & Script Modal State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
+  const [generatedRoadmap, setGeneratedRoadmap] = useState<SessionRoadmap | null>(null);
+  const [showScriptModal, setShowScriptModal] = useState(false);
 
-  // Load Course & Files & Default Preferences
+  // Load Course, Roadmaps, Student Groups & Model Preferences
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
       try {
-        const [courseRes, filesRes, mediaRes] = await Promise.all([
+        const [courseRes, rmRes, groupRes, mediaRes] = await Promise.all([
           api.getCourse(courseId),
-          api.getCourseFiles(courseId),
+          api.getCourseRoadmaps(courseId).catch(() => ({ roadmaps: [] })),
+          api.getStudentGroups().catch(() => ({ groups: [] })),
           api.getMediaAssets(courseId).catch(() => ({ assets: [] })),
         ]);
 
         if (!isMounted) return;
         setCourse(courseRes.course);
-        setCourseFiles(filesRes.files || []);
+
+        const fetchedRoadmaps = rmRes?.roadmaps || [];
+        setRoadmaps(fetchedRoadmaps);
+        if (fetchedRoadmaps.length > 0) {
+          const first = fetchedRoadmaps[0];
+          setSelectedRoadmapId(first.id);
+          setTopic(first.title);
+        }
+
+        const fetchedGroups = groupRes?.groups || [];
+        setStudentGroups(fetchedGroups);
+        // Pre-select all groups for immediate direct access by default
+        setSelectedGroupIds(fetchedGroups.map((g) => g.id));
+
         if (mediaRes?.assets) setMediaAssets(mediaRes.assets);
 
         // Load stored avatar & voice preferences
@@ -109,13 +121,6 @@ export default function NewSessionPage({
         setGender(initialGender);
         setVoiceId(initialGender === "female" ? prefs.defaultFemaleVoice : prefs.defaultMaleVoice);
         setSpeed(prefs.speechSpeed || 1.0);
-
-        // Pre-select all available course files by default
-        const initialSelected: Record<string, SelectedFileConfig> = {};
-        filesRes.files.forEach((f) => {
-          initialSelected[f.file_name] = { selected: true };
-        });
-        setSelectedFiles(initialSelected);
       } catch (err) {
         console.error("Failed to load initial data for new session:", err);
         toast.error("Failed to load course details.");
@@ -139,131 +144,36 @@ export default function NewSessionPage({
     }
   };
 
-  // Handle direct file upload inside new session page
-  const handleDirectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    const file = e.target.files[0];
+  const activeRoadmap = roadmaps.find((r) => r.id === selectedRoadmapId) || null;
+  const linkedSources: string[] = activeRoadmap?.roadmap?.sources?.map((s: any) => s.fileName) || [];
 
-    setIsUploadingMaterial(true);
-    setUploadProgressText(`Uploading ${file.name}...`);
-
-    try {
-      const uploadRes = await api.uploadCourseFile(courseId, file);
-      const uploadedFile = uploadRes.file;
-
-      // Only invoke standalone process if upload route did not already initiate vector processing
-      if (!uploadRes.isProcessingInBackground && uploadRes.totalChunks === undefined) {
-        setUploadProgressText("Indexing document content with vector embeddings...");
-        try {
-          await api.processCourseFile({
-            fileUrl: uploadRes.fileUrl,
-            fileName: uploadedFile.file_name,
-            courseId,
-          });
-        } catch (procErr) {
-          console.warn("Vector processing warning:", procErr);
-        }
+  const handleRoadmapSelect = (rmId: string) => {
+    setSelectedRoadmapId(rmId);
+    if (rmId === "custom") {
+      setTopic("");
+    } else {
+      const rm = roadmaps.find((r) => r.id === rmId);
+      if (rm) {
+        setTopic(rm.title);
       }
-
-      // Add to files list and select it immediately
-      setCourseFiles((prev) => [uploadedFile, ...prev]);
-      setSelectedFiles((prev) => ({
-        ...prev,
-        [uploadedFile.file_name]: { selected: true },
-      }));
-
-      // Refresh media assets so extracted images and diagrams appear
-      try {
-        const mediaRes = await api.getMediaAssets(courseId);
-        if (mediaRes?.assets) {
-          setMediaAssets(mediaRes.assets);
-        }
-      } catch (mediaErr) {
-        console.warn("Failed to refresh media assets after direct upload:", mediaErr);
-      }
-
-      // Follow-up refresh in background after diagrams are extracted
-      setTimeout(async () => {
-        try {
-          const mediaRes = await api.getMediaAssets(courseId);
-          if (mediaRes?.assets) {
-            setMediaAssets(mediaRes.assets);
-          }
-        } catch {
-          // ignore background refresh error
-        }
-      }, 5000);
-
-      toast.success(`"${file.name}" uploaded and added to lecture sources!`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err: unknown) {
-      console.error("Upload error:", err);
-      const msg = err instanceof Error ? err.message : "Failed to upload document.";
-      toast.error(msg);
-    } finally {
-      setIsUploadingMaterial(false);
-      setUploadProgressText("");
     }
   };
 
-  // Toggle file selection
-  const toggleFileSelection = (fileName: string) => {
-    setSelectedFiles((prev) => {
-      const current = prev[fileName] || { selected: false };
-      return {
-        ...prev,
-        [fileName]: {
-          ...current,
-          selected: !current.selected,
-        },
-      };
-    });
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedGroupIds((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    );
   };
 
-  const selectAllFiles = () => {
-    const updated: Record<string, SelectedFileConfig> = {};
-    courseFiles.forEach((f) => {
-      updated[f.file_name] = {
-        ...(selectedFiles[f.file_name] || {}),
-        selected: true,
-      };
-    });
-    setSelectedFiles(updated);
+  const selectAllGroups = () => {
+    setSelectedGroupIds(studentGroups.map((g) => g.id));
   };
 
-  const deselectAllFiles = () => {
-    const updated: Record<string, SelectedFileConfig> = {};
-    courseFiles.forEach((f) => {
-      updated[f.file_name] = {
-        ...(selectedFiles[f.file_name] || {}),
-        selected: false,
-      };
-    });
-    setSelectedFiles(updated);
+  const deselectAllGroups = () => {
+    setSelectedGroupIds([]);
   };
 
-  // Update file page range
-  const updatePageRange = (
-    fileName: string,
-    field: "startPage" | "endPage",
-    val: string
-  ) => {
-    const num = val === "" ? undefined : parseInt(val, 10);
-    setSelectedFiles((prev) => ({
-      ...prev,
-      [fileName]: {
-        ...prev[fileName],
-        [field]: isNaN(num as number) ? undefined : num,
-      },
-    }));
-  };
-
-  // Delivery Mode & Review State
-  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-  const [generatedRoadmap, setGeneratedRoadmap] = useState<SessionRoadmap | null>(null);
-  const [showScriptModal, setShowScriptModal] = useState(false);
-
-  // Submission handler: Create Session + Generate AI Lecture Roadmap
+  // Submission handler: Create Session + Load/Generate AI Lecture Roadmap
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!topic.trim()) {
@@ -272,7 +182,7 @@ export default function NewSessionPage({
     }
 
     setIsSubmitting(true);
-    setStatusMessage("Creating Gemini Live classroom & generating AI topic roadmap...");
+    setStatusMessage("Creating Gemini Live classroom session...");
 
     try {
       console.log("📝 [New Session] Creating Gemini Live session for topic:", topic);
@@ -282,35 +192,36 @@ export default function NewSessionPage({
         voice_id: voiceId,
         avatar_model: avatarModel,
         speech_speed: speed,
+        assigned_group_ids: selectedGroupIds,
+        roadmap: activeRoadmap?.roadmap || undefined,
       });
-
-      // Format selected sources
-      const sources = Object.entries(selectedFiles)
-        .filter(([_, config]) => config.selected)
-        .map(([fileName, config]) => ({
-          fileName,
-          startPage: config.startPage,
-          endPage: config.endPage,
-        }));
 
       setCreatedSessionId(session.id);
 
-      // Generate 4-8 topic roadmap
-      setStatusMessage("AI Professor is generating 4-to-8 interactive roadmap topics via Gemini AI...");
-      console.log(`🤖 [New Session] Calling generateRoadmap for session ${session.id}...`);
-      const roadmapRes = await api.generateRoadmap(session.id, {
-        lectureTopic: topic.trim(),
-        targetDurationMinutes: 30,
-        sources: sources.length > 0 ? sources : undefined,
-        customPrompt: customPrompt.trim() || undefined,
-      });
+      // If roadmap was already selected, use it directly (already grounded in materials)
+      if (activeRoadmap?.roadmap) {
+        setGeneratedRoadmap(activeRoadmap.roadmap);
+        setIsSubmitting(false);
+        setStatusMessage("");
+        setShowScriptModal(true);
+        toast.success("AI Topic Roadmap prepared from selected curriculum! Click 'Start Live Broadcast' to launch.");
+      } else {
+        // Dynamic standalone lecture topic without existing roadmap
+        setStatusMessage("AI Professor is generating 4-to-8 interactive roadmap topics via Gemini AI...");
+        console.log(`🤖 [New Session] Calling generateRoadmap for session ${session.id}...`);
+        const roadmapRes = await api.generateRoadmap(session.id, {
+          lectureTopic: topic.trim(),
+          targetDurationMinutes: 30,
+          customPrompt: customPrompt.trim() || undefined,
+        });
 
-      console.log(`✅ [New Session] Generated roadmap (${roadmapRes.roadmap?.topics?.length} topics) for session ${session.id}`);
-      setGeneratedRoadmap(roadmapRes.roadmap);
-      setIsSubmitting(false);
-      setStatusMessage("");
-      setShowScriptModal(true);
-      toast.success("AI Topic Roadmap prepared! Click 'Start Live Broadcast' to launch the classroom.");
+        console.log(`✅ [New Session] Generated dynamic roadmap for session ${session.id}`);
+        setGeneratedRoadmap(roadmapRes.roadmap);
+        setIsSubmitting(false);
+        setStatusMessage("");
+        setShowScriptModal(true);
+        toast.success("AI Topic Roadmap prepared! Click 'Start Live Broadcast' to launch the classroom.");
+      }
     } catch (err: unknown) {
       console.error("❌ [New Session] Create session error:", err);
       let msg = err instanceof Error ? err.message : "Failed to create session";
@@ -334,6 +245,65 @@ export default function NewSessionPage({
     router.push(`/classroom/${createdSessionId}`);
   };
 
+  const handleSaveDraft = async () => {
+    if (!topic.trim()) {
+      toast.error("Please enter a lecture topic.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
+      await api.createCourseSession(courseId, {
+        topic: topic.trim(),
+        voice_id: voiceId,
+        avatar_model: avatarModel,
+        speech_speed: speed,
+        status: "draft",
+        assigned_group_ids: selectedGroupIds,
+        roadmap: activeRoadmap?.roadmap || undefined,
+      });
+      toast.success("Session saved as draft!");
+      router.push(`/course/${courseId}?tab=classes`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save draft.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleScheduleSession = async () => {
+    if (!topic.trim()) {
+      toast.error("Please enter a lecture topic.");
+      return;
+    }
+    if (!scheduleDateTime) {
+      setIsSchedulingOpen(true);
+      toast.info("Please pick a scheduled date and time.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const avatarModel = gender === "female" ? "women-avatarsdk" : "men-avatarsdk";
+      const targetEpochMs = new Date(scheduleDateTime).getTime();
+      await api.createCourseSession(courseId, {
+        topic: topic.trim(),
+        voice_id: voiceId,
+        avatar_model: avatarModel,
+        speech_speed: speed,
+        status: "scheduled",
+        target_epoch_ms: targetEpochMs,
+        assigned_group_ids: selectedGroupIds,
+        roadmap: activeRoadmap?.roadmap || undefined,
+      });
+      toast.success(`Session scheduled for ${new Date(scheduleDateTime).toLocaleString()}`);
+      router.push(`/course/${courseId}?tab=classes`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to schedule session.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!hasMounted || loadingInitial) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
@@ -347,8 +317,6 @@ export default function NewSessionPage({
     );
   }
 
-  const selectedCount = Object.values(selectedFiles).filter((f) => f.selected).length;
-
   return (
     <div className="min-h-screen bg-muted dark:bg-background text-foreground dark:text-foreground flex flex-col">
       {/* ── Sticky Action Bar (Frosted Glass Header) ───────────────────────── */}
@@ -358,7 +326,7 @@ export default function NewSessionPage({
             asChild
             variant="ghost"
             size="sm"
- className=" h-9 "
+            className="h-9"
           >
             <Link href={`/course/${courseId}`} className="inline-flex items-center justify-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -378,37 +346,70 @@ export default function NewSessionPage({
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        {/* Action Controls - 3 Choices */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             onClick={() => router.push(`/course/${courseId}`)}
             disabled={isSubmitting}
- className=""
+            className="text-xs"
           >
             <span>Cancel</span>
           </Button>
 
-          {/* Primary CTA: Apple System Blue Pill */}
+          {/* Choice 1: Save Draft */}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleSaveDraft}
+            disabled={isSubmitting || !topic.trim()}
+            className="h-9 text-xs font-semibold"
+          >
+            <span>💾 Save Draft</span>
+          </Button>
+
+          {/* Choice 2: Start Later */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!isSchedulingOpen) {
+                setIsSchedulingOpen(true);
+              } else if (scheduleDateTime) {
+                handleScheduleSession();
+              } else {
+                toast.info("Please pick a scheduled date and time.");
+              }
+            }}
+            disabled={isSubmitting || !topic.trim()}
+            className="h-9 text-xs font-semibold"
+          >
+            <span>📅 {isSchedulingOpen && scheduleDateTime ? "Confirm Schedule" : "Start Later"}</span>
+          </Button>
+
+          {/* Choice 3: Start Now (Live Broadcast) */}
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || !topic.trim()}
             variant="default"
-            className="bg-primary hover:bg-primary/90"
+            aria-label="Create Live Gemini Classroom - Start Now"
+            className="bg-primary hover:bg-primary/90 h-9 font-semibold text-xs"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 mr-1.5" />
-                <span>Generating Topic Roadmap...</span>
+                <span>Preparing...</span>
               </>
             ) : (
               <>
                 <Radio className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
-                <span>Create Live Gemini Classroom</span>
+                <span>▶️ Start Now</span>
               </>
             )}
           </Button>
+
+          <div className="h-4 w-px bg-black/10 dark:bg-white/15 hidden sm:block" />
 
           <ThemeToggle />
         </div>
@@ -421,7 +422,7 @@ export default function NewSessionPage({
           <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
             <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
             <div>
-              <p className="text-xs font-bold text-primary">Generating Lecture Materials</p>
+              <p className="text-xs font-bold text-primary">Preparing Live Classroom</p>
               <p className="text-xs text-muted-foreground">{statusMessage}</p>
             </div>
           </div>
@@ -429,7 +430,7 @@ export default function NewSessionPage({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* ═════════════════════════════════════════════════════════════════
-              LEFT COLUMN: LECTURE DEFINITION & SOURCE MATERIALS (7 Cols)
+              LEFT COLUMN: LECTURE DEFINITION, ROADMAP & COHORTS (7 Cols)
              ═════════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-7 space-y-6">
             {/* Delivery Engine Mode Selector */}
@@ -476,7 +477,7 @@ export default function NewSessionPage({
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Dynamic 4–8 topic roadmap generated in 3s. Supports live 2-way student voice Q&amp;A, conversational pacing, and LiveKit WebRTC audio.
+                    Dynamic 4–8 topic roadmap grounded in your course materials. Supports live 2-way student voice Q&amp;A, conversational pacing, and LiveKit WebRTC audio.
                   </p>
 
                   <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-[10px] text-muted-foreground font-medium">
@@ -487,7 +488,7 @@ export default function NewSessionPage({
                       🎙️ Live Q&amp;A
                     </span>
                     <span className="bg-black/[0.03] dark:bg-white/[0.05] px-2 py-0.5 rounded-md">
-                      🗺️ Topic Roadmap
+                      🗺️ Grounded Topics
                     </span>
                   </div>
                 </div>
@@ -502,7 +503,7 @@ export default function NewSessionPage({
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
- <Label htmlFor="topic" className="">
+                  <Label htmlFor="topic">
                     Lesson Topic <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -510,7 +511,7 @@ export default function NewSessionPage({
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="e.g. Concurrency &amp; Multithreading in Java"
- className="h-11 "
+                    className="h-11"
                   />
                 </div>
 
@@ -521,67 +522,185 @@ export default function NewSessionPage({
                     A unique, cryptographically secure student access code (<span className="font-mono text-primary font-semibold">cls-xxxx-xxxx</span>) will be automatically assigned upon creation.
                   </p>
                 </div>
+
+                {/* Scheduling Date/Time Field */}
+                {isSchedulingOpen && (
+                  <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/5 space-y-2 animate-in fade-in">
+                    <Label htmlFor="schedule-time" className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+                      Scheduled Broadcast Date &amp; Time *
+                    </Label>
+                    <Input
+                      id="schedule-time"
+                      type="datetime-local"
+                      value={scheduleDateTime}
+                      onChange={(e) => setScheduleDateTime(e.target.value)}
+                      disabled={isSubmitting}
+                      className="h-10 text-xs bg-white dark:bg-card"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Inset Card 2: Reference Materials & Syllabus Documents */}
+            {/* Inset Card 2: Curriculum Roadmap (Carries Associated Grounded Sources) */}
             <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-                <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  Reference Materials &amp; Syllabus Documents
-                </h2>
-                <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-                  {selectedCount} Source{selectedCount !== 1 ? "s" : ""} Selected
-                </span>
-              </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Choose existing syllabus materials or upload new textbook chapters. The AI Professor
-                uses these documents as grounded knowledge to generate structured slides and explanations.
-              </p>
-
-              {/* Direct Drag & Drop Upload Zone */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/60 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-center group"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleDirectFileUpload}
-                  accept=".pdf,application/pdf"
-                  className="hidden"
-                  disabled={isUploadingMaterial}
-                />
-                <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 group-hover:bg-primary/10 flex items-center justify-center text-primary mb-2 transition-colors">
-                  {isUploadingMaterial ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Upload className="h-5 w-5" />
-                  )}
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-chart-4/10 flex items-center justify-center text-chart-4">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Curriculum Roadmap
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground">
+                      Sources and learning objectives are inherited directly from your roadmap
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs font-semibold text-foreground dark:text-foreground">
-                  {isUploadingMaterial ? uploadProgressText : "Drop new PDF document here or click to browse"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  PDF format up to 25MB • Automatically indexed for AI teaching
-                </p>
+
+                {linkedSources.length > 0 && (
+                  <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded-full">
+                    {linkedSources.length} Grounded Source{linkedSources.length !== 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
 
-              {/* Refined Materials List with interactive rows */}
-              {courseFiles.length > 0 ? (
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="block">
-                      Available Course Materials ({selectedCount}/{courseFiles.length} selected)
-                    </Label>
-                    <div className="flex items-center gap-2">
+              {roadmaps.length > 0 ? (
+                <div className="space-y-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {roadmaps.map((rm) => {
+                      const isSelected = selectedRoadmapId === rm.id;
+                      const sourcesCount = rm.roadmap?.sources?.length || 0;
+                      return (
+                        <button
+                          type="button"
+                          key={rm.id}
+                          onClick={() => handleRoadmapSelect(rm.id)}
+                          className={cn(
+                            "p-3.5 rounded-xl border text-left transition-all cursor-pointer",
+                            isSelected
+                              ? "border-primary bg-primary/10 ring-1 ring-primary/30 text-foreground"
+                              : "border-border/60 bg-muted/20 hover:bg-muted/40 text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold truncate text-foreground">{rm.title}</span>
+                            {isSelected && <Check className="h-4 w-4 text-primary shrink-0 ml-1" />}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
+                            <span>{rm.topicsCount} Topics</span>
+                            <span>&bull;</span>
+                            <span className="text-sky-600 dark:text-sky-400 font-medium">
+                              {sourcesCount} Source{sourcesCount !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {/* Custom Standalone Lecture Option */}
+                    <button
+                      type="button"
+                      onClick={() => handleRoadmapSelect("custom")}
+                      className={cn(
+                        "p-3.5 rounded-xl border text-left transition-all cursor-pointer",
+                        selectedRoadmapId === "custom" || (!selectedRoadmapId && roadmaps.length > 0)
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/30 text-foreground"
+                          : "border-dashed border-border/60 bg-muted/10 hover:bg-muted/30 text-muted-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">Custom Ad-hoc Topic</span>
+                        {(selectedRoadmapId === "custom" || !selectedRoadmapId) && (
+                          <Check className="h-4 w-4 text-primary shrink-0 ml-1" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Generate topics dynamically without a roadmap
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Grounded Sources Display */}
+                  {linkedSources.length > 0 ? (
+                    <div className="p-3 rounded-xl bg-sky-500/5 border border-sky-500/20 text-xs space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-sky-600 dark:text-sky-400 text-xs">
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>Inherited Reference Sources:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {linkedSources.map((src, i) => (
+                          <span
+                            key={i}
+                            className="px-2.5 py-1 rounded-lg bg-card border border-border/60 text-[11px] font-medium text-foreground flex items-center gap-1.5 shadow-2xs"
+                          >
+                            <FileText className="h-3 w-3 text-sky-500" />
+                            {src}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground pt-1">
+                        The AI Professor will automatically ground lecture explanations, quiz questions, and slides in these indexed materials.
+                      </p>
+                    </div>
+                  ) : selectedRoadmapId && selectedRoadmapId !== "custom" ? (
+                    <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-xs text-muted-foreground">
+                      This roadmap has no linked source files. Topics will use general AI knowledge.
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-end pt-1">
+                    <Link
+                      href={`/course/${courseId}?tab=roadmaps`}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Manage Roadmaps in Course Space</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 space-y-2 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    No roadmaps published in this Course Space yet. You can enter a topic above, or create a roadmap in the Roadmaps tab to ground your classes in uploaded materials.
+                  </p>
+                  <Button asChild variant="outline" size="xs" className="mt-1">
+                    <Link href={`/course/${courseId}?tab=roadmaps`}>
+                      <MapPin className="h-3.5 w-3.5 mr-1 text-chart-4" />
+                      <span>Create Grounded Roadmap</span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Inset Card 3: Student Groups Direct Access */}
+            <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      Grant Direct Access (Student Groups)
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground">
+                      Enrolled students enter directly without waiting room approval
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {studentGroups.length > 0 && (
+                    <>
                       <Button
                         type="button"
                         variant="ghost"
                         size="xs"
-                        onClick={selectAllFiles}
-                        className="h-6 text-[11px] px-2 text-primary hover:text-primary/80 cursor-pointer"
+                        onClick={selectAllGroups}
+                        className="h-6 text-[11px] px-2 text-primary"
                       >
                         Select All
                       </Button>
@@ -590,118 +709,80 @@ export default function NewSessionPage({
                         type="button"
                         variant="ghost"
                         size="xs"
-                        onClick={deselectAllFiles}
-                        className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        onClick={deselectAllGroups}
+                        className="h-6 text-[11px] px-2 text-muted-foreground"
                       >
                         Deselect All
                       </Button>
-                    </div>
-                  </div>
+                    </>
+                  )}
+                  <Link
+                    href="/students"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1 ml-1"
+                  >
+                    <span>Manage Groups</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
 
-                  <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-                    {courseFiles.map((file) => {
-                      const isSelected = selectedFiles[file.file_name]?.selected || false;
-                      return (
-                        <div
-                          key={file.id}
-                          onClick={() => toggleFileSelection(file.file_name)}
-                          className={`hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors p-2.5 flex flex-col gap-2 border cursor-pointer select-none ${isSelected
-                              ? "bg-primary/5 border-primary/30"
-                              : "border-black/5 dark:border-white/5 opacity-80 hover:opacity-100"
-                            }`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <Checkbox
-                                id={`file-${file.id}`}
-                                checked={isSelected}
-                                onCheckedChange={() => toggleFileSelection(file.file_name)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="cursor-pointer"
-                              />
-                              <FileText className="h-4 w-4 text-primary shrink-0" />
-                              <span
-                                className="text-xs font-semibold text-foreground dark:text-foreground truncate"
-                              >
-                                {file.file_name}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
-                                {file.file_size ? `${(file.file_size / (1024 * 1024)).toFixed(1)} MB` : "Document"}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedViewFile(file);
-                                }}
- className="h-7 w-7 "
-                                title="View PDF Document"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Pill-shaped page range inputs */}
-                          {isSelected && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center gap-3 text-xs pl-7"
-                            >
-                              <span className="text-xs text-muted-foreground font-medium shrink-0">
-                                Page Range:
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  placeholder="Start"
-                                  min={1}
-                                  value={selectedFiles[file.file_name]?.startPage ?? ""}
-                                  onChange={(e) =>
-                                    updatePageRange(file.file_name, "startPage", e.target.value)
-                                  }
- className=" w-20 text-center h-7 "
-                                />
-                                <span className="text-muted-foreground">-</span>
-                                <Input
-                                  type="number"
-                                  placeholder="End"
-                                  min={1}
-                                  value={selectedFiles[file.file_name]?.endPage ?? ""}
-                                  onChange={(e) =>
-                                    updatePageRange(file.file_name, "endPage", e.target.value)
-                                  }
- className=" w-20 text-center h-7 "
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground">(Leave blank for full book)</span>
-                            </div>
-                          )}
-
-                          {/* Extracted Visuals Carousel */}
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <MaterialImageCarousel fileName={file.file_name} assets={mediaAssets} />
+              {studentGroups.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {studentGroups.map((group) => {
+                    const isChecked = selectedGroupIds.includes(group.id);
+                    const memberCount = group.members_count ?? (group.members?.length || 0);
+                    return (
+                      <div
+                        key={group.id}
+                        onClick={() => toggleGroupSelection(group.id)}
+                        className={cn(
+                          "p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer select-none transition-all",
+                          isChecked
+                            ? "bg-emerald-500/5 border-emerald-500/30 text-foreground"
+                            : "border-border/60 bg-muted/20 opacity-80 hover:opacity-100"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Checkbox
+                            id={`group-${group.id}`}
+                            checked={isChecked}
+                            onCheckedChange={() => toggleGroupSelection(group.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="cursor-pointer"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{group.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {memberCount} Student{memberCount !== 1 ? "s" : ""}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {group.description && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border/40 shrink-0">
+                            {group.description}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 text-center">
+                <div className="p-4 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 space-y-2 text-center">
                   <p className="text-xs text-muted-foreground">
-                    No course documents found yet. Upload a syllabus or textbook chapter above to enhance AI teaching precision.
+                    No student groups created yet. You can create reusable student groups in the Students Management page.
                   </p>
+                  <Button asChild variant="outline" size="xs">
+                    <Link href="/students">
+                      <Users className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                      <span>Create Student Groups</span>
+                    </Link>
+                  </Button>
                 </div>
               )}
             </div>
 
-            {/* Inset Card 3: Teaching Directives & Focus Area */}
+            {/* Inset Card 4: Teaching Directives & Focus Area */}
             <div className="bg-white dark:bg-card rounded-2xl border border-black/5 dark:border-white/5 p-6 mb-6 shadow-xs space-y-4">
               <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">
                 Teaching Directives &amp; Focus Area (Optional)
@@ -712,7 +793,7 @@ export default function NewSessionPage({
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder="e.g. Emphasize synchronized blocks and deadlock avoidance. Include a real-world banking transaction example. Keep tone engaging and encouraging for undergraduates."
                 rows={3}
- className=" resize-none "
+                className="resize-none"
               />
             </div>
           </div>
@@ -778,15 +859,6 @@ export default function NewSessionPage({
         </div>
       </main>
 
-      {/* Material PDF Document Viewer Modal */}
-      <MaterialViewerModal
-        courseId={courseId}
-        file={selectedViewFile}
-        open={Boolean(selectedViewFile)}
-        onOpenChange={(open) => !open && setSelectedViewFile(null)}
-        mediaAssets={mediaAssets}
-      />
-
       {/* Pre-Flight Gemini Live Lecture Roadmap Review */}
       {createdSessionId && (
         <LectureScriptModal
@@ -801,16 +873,8 @@ export default function NewSessionPage({
           initialViewMode="roadmap"
           onGenerateRoadmap={async () => {
             if (!createdSessionId) return;
-            const sources = Object.entries(selectedFiles)
-              .filter(([_, config]) => config.selected)
-              .map(([fileName, config]) => ({
-                fileName,
-                startPage: config.startPage,
-                endPage: config.endPage,
-              }));
             const res = await api.generateRoadmap(createdSessionId, {
               lectureTopic: topic.trim(),
-              sources: sources.length > 0 ? sources : undefined,
               customPrompt: customPrompt.trim() || undefined,
             });
             if (res?.roadmap) {

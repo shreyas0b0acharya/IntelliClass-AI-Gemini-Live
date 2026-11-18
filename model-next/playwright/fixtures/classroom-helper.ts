@@ -7,12 +7,25 @@ export interface TestSessionData {
   topic: string;
 }
 
+let cachedTestCourseId: string | null = null;
+
 /**
  * Finds an existing course or creates a new one for testing.
  */
 export async function getOrCreateTestCourse(teacherPage: Page): Promise<string> {
+  if (cachedTestCourseId) {
+    return cachedTestCourseId;
+  }
+
   await teacherPage.goto("/dashboard");
   await teacherPage.waitForLoadState("domcontentloaded");
+
+  // Wait briefly for course cards/links to load and attach
+  await teacherPage
+    .locator('a[href^="/course/"]')
+    .first()
+    .waitFor({ state: "attached", timeout: 8000 })
+    .catch(() => {});
 
   // Check if course already exists attached to DOM (sidebar or dashboard cards)
   const courseLinks = teacherPage.locator('a[href^="/course/"]');
@@ -22,7 +35,10 @@ export async function getOrCreateTestCourse(teacherPage: Page): Promise<string> 
       const href = await courseLinks.nth(i).getAttribute("href");
       if (href && href.startsWith("/course/") && !href.includes("/new")) {
         const id = href.split("/course/")[1].split("/")[0].split("?")[0];
-        if (id && id.length > 5) return id;
+        if (id && id.length > 5) {
+          cachedTestCourseId = id;
+          return id;
+        }
       }
     }
   }
@@ -35,22 +51,33 @@ export async function getOrCreateTestCourse(teacherPage: Page): Promise<string> 
   await teacherPage.getByRole("button", { name: /Create Course/i }).click();
 
   // Wait for new card or navigation
-  await teacherPage.waitForURL(/\/course\/[a-f0-9-]+/, { timeout: 15000 }).catch(() => {});
+  try {
+    await teacherPage.waitForURL(/\/course\/[a-f0-9-]+/, { timeout: 25000 });
+  } catch {}
+
   if (teacherPage.url().includes("/course/")) {
-    return teacherPage.url().split("/course/")[1].split("/")[0].split("?")[0];
+    const id = teacherPage.url().split("/course/")[1].split("/")[0].split("?")[0];
+    if (id && id.length > 5) {
+      cachedTestCourseId = id;
+      return id;
+    }
   }
 
   const newCard = teacherPage.locator('a[href^="/course/"]').first();
   await newCard.waitFor({ state: "attached", timeout: 25000 });
   const href = await newCard.getAttribute("href");
-  return href!.split("/course/")[1].split("/")[0].split("?")[0];
+  const finalId = href!.split("/course/")[1].split("/")[0].split("?")[0];
+  cachedTestCourseId = finalId;
+  return finalId;
 }
 
 /**
  * Dismisses the AudioUnlockModal if and when it mounts.
  */
 export async function ensureAudioUnlocked(page: Page) {
-  const audioUnlockBtn = page.getByRole("button", { name: /Enter Classroom & Enable Audio/i });
+  const audioUnlockBtn = page.getByRole("button", {
+    name: /Enter Classroom & Enable Audio|Start Teaching Audio/i,
+  });
   try {
     await audioUnlockBtn.waitFor({ state: "visible", timeout: 15000 });
     await audioUnlockBtn.click();

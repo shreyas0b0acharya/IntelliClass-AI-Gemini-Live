@@ -89,7 +89,7 @@ export function MaterialViewerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[80vw] max-w-[96vw] sm:max-w-[92vw] md:max-w-[88vw] lg:max-w-[80vw] h-[90vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl sm:rounded-3xl border border-border/60 bg-popover shadow-2xl"
+        className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover shadow-2xl"
       >
         {/* Header */}
         <DialogHeader className="shrink-0 p-4 sm:p-5 px-6 border-b border-border/50 bg-card/40 backdrop-blur-md">

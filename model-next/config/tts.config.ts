@@ -8,7 +8,7 @@ import type { TTSProviderId, VoiceOption, TTSModelOption } from "@/features/clas
  * Provider & Voice Defaults for Gemini Live
  */
 export const DEFAULT_TTS_PROVIDER: TTSProviderId = "gemini_live";
-export const DEFAULT_MALE_VOICE_ID = "Fenrir";
+export const DEFAULT_MALE_VOICE_ID = "Charon";
 export const DEFAULT_FEMALE_VOICE_ID = "Aoede";
 
 export const DEFAULT_SPEECH_SPEED = 1.0;
@@ -29,11 +29,19 @@ export const PROVIDER_BASELINE_SPEED = DEFAULT_CALIBRATED_SPEED;
  */
 export const GEMINI_LIVE_VOICES: VoiceOption[] = [
   {
+    id: "Charon",
+    name: "Charon",
+    provider: "gemini_live",
+    gender: "male",
+    description: "Deep, authoritative and distinctly masculine professor voice",
+    category: "system",
+  },
+  {
     id: "Puck",
     name: "Puck",
     provider: "gemini_live",
     gender: "male",
-    description: "Clear, engaging and authoritative professor voice",
+    description: "Clear, engaging and energetic academic professor voice",
     category: "system",
   },
   {
@@ -41,15 +49,7 @@ export const GEMINI_LIVE_VOICES: VoiceOption[] = [
     name: "Fenrir",
     provider: "gemini_live",
     gender: "male",
-    description: "Deep, articulate academic lecture voice",
-    category: "system",
-  },
-  {
-    id: "Charon",
-    name: "Charon",
-    provider: "gemini_live",
-    gender: "male",
-    description: "Calm, thoughtful and intellectual dialogue voice",
+    description: "Articulate academic lecture voice",
     category: "system",
   },
   {

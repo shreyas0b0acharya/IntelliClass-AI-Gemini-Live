@@ -34,6 +34,7 @@ export class BoundedLiveAudioPlayer {
   private volume: number = 1.0;
   public startClickTime: number | null = null;
   public onFirstSentencePlayback?: () => void;
+  public onChunkScheduled?: (startTimeSec: number, currentTimeSec: number, durationSec: number) => void;
   private hasReportedFirstSentence: boolean = false;
 
   private readonly HIGH_WATER_MARK_SEC = 0.5; // 500ms max buffer ahead
@@ -177,6 +178,7 @@ export class BoundedLiveAudioPlayer {
 
     source.start(startTime);
     this.scheduledTime = startTime + buffer.duration;
+    this.onChunkScheduled?.(startTime, now, buffer.duration);
 
     this.activeSources.add(source);
     source.onended = () => {

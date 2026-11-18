@@ -65,8 +65,42 @@ export const projectMediaDeclaration: FunctionDeclaration = {
   },
 };
 
+export const recordLearningInsightDeclaration: FunctionDeclaration = {
+  name: "record_learning_insight",
+  description: "Record a pedagogical learning insight: key concept definition, student misconception, or revision point.",
+  behavior: Behavior.NON_BLOCKING,
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      topicId: {
+        type: Type.STRING,
+        description: "Topic ID being discussed.",
+      },
+      insightType: {
+        type: Type.STRING,
+        enum: ["concept_definition", "student_misconception", "exam_application", "revision_point"],
+        description: "Type of learning insight.",
+      },
+      title: {
+        type: Type.STRING,
+        description: "Short concept or insight title.",
+      },
+      content: {
+        type: Type.STRING,
+        description: "Detailed academic explanation or misconception correction.",
+      },
+      demonstratedUnderstanding: {
+        type: Type.BOOLEAN,
+        description: "Whether the student/class has demonstrated understanding through discussion or questions.",
+      },
+    },
+    required: ["insightType", "title", "content"],
+  },
+};
+
 export const classroomLiveTools = [
   advanceTopicDeclaration,
   searchCourseMaterialsDeclaration,
   projectMediaDeclaration,
+  recordLearningInsightDeclaration,
 ];

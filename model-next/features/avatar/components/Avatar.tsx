@@ -340,17 +340,14 @@ export function Avatar(props: AvatarProps) {
   const canonicalUrl = AVATAR_MODEL_PATHS[modelName] || `/models/${modelName}.glb`;
   const { url: cachedUrl, isLoading, error } = useCachedAsset(canonicalUrl);
 
-  // While resolving from CacheStorage or fetching into CacheStorage, do NOT run useGLTF prematurely
-  if (isLoading || !cachedUrl) {
+  // If caching fails or throws, fallback directly to local public model path so avatar always renders
+  const finalModelUrl = (!error && cachedUrl) ? cachedUrl : (canonicalUrl || `/models/${modelName}.glb`);
+
+  if (isLoading && !finalModelUrl) {
     return null;
   }
 
-  if (error) {
-    console.warn(`[Avatar] Failed to load cached model ${canonicalUrl}:`, error);
-    return null;
-  }
-
-  return <AvatarInner key={cachedUrl} modelUrl={cachedUrl} {...props} />;
+  return <AvatarInner key={finalModelUrl} modelUrl={finalModelUrl} {...props} />;
 }
 
 export default Avatar;

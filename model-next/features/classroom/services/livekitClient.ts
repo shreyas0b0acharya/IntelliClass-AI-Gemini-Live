@@ -109,5 +109,10 @@ export async function setStudentMicrophone(
   enabled: boolean
 ): Promise<void> {
   console.log(`🎤 [LiveKit Client] Setting student microphone enabled: ${enabled}`);
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error(
+      "Microphone access requires a secure HTTPS connection or localhost. Please connect via HTTPS or localhost to use the microphone."
+    );
+  }
   await room.localParticipant.setMicrophoneEnabled(enabled);
 }

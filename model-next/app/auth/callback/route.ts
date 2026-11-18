@@ -7,8 +7,14 @@ export async function GET(request: NextRequest) {
   const errorCode = searchParams.get("error_code");
   const errorDescription = searchParams.get("error_description");
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const authType = searchParams.get("type");
+
   // Supports both "next" and "redirectTo" query parameters
-  let next = searchParams.get("next") || searchParams.get("redirectTo") || "/dashboard";
+  let next = searchParams.get("next") || searchParams.get("redirectTo") || (authType === "recovery" ? "/reset-password" : "/dashboard");
+  if (authType === "recovery") {
+    next = "/reset-password";
+  }
 
   // Handle incoming error redirects from Supabase (e.g. expired recovery tokens)
   if (error || errorCode) {
@@ -30,6 +36,17 @@ export async function GET(request: NextRequest) {
     next = "/dashboard";
   }
 
+  if (tokenHash) {
+    const supabase = await createClient();
+    const { error: tokenErr } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: (authType as any) || "recovery",
+    });
+    if (!tokenErr) {
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+  }
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -38,7 +55,7 @@ export async function GET(request: NextRequest) {
       let destination = next;
 
       // Fast-track password reset recovery callback directly to /reset-password
-      if (destination === "/reset-password") {
+      if (destination === "/reset-password" || authType === "recovery") {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
 

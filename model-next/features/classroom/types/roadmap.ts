@@ -21,6 +21,7 @@ export interface RoadmapTopic {
   suggestedAnalogies: string[];
   suggestedVisualAssets: VisualAssetRef[];
   estimatedDurationMinutes: number;
+  sourceReferences?: string[];
 }
 
 export interface SessionRoadmap {
@@ -29,6 +30,7 @@ export interface SessionRoadmap {
   sessionId: string;
   lectureTopic: string;
   totalEstimatedMinutes: number;
+  sources?: Array<{ fileName: string; fileId?: string }>;
   topics: RoadmapTopic[];
 }
 

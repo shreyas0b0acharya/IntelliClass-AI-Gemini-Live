@@ -7,14 +7,33 @@
  * - Anti-aliasing 2nd-order Butterworth low-pass filter (cutoff ~7.2 kHz) to prevent fold-back distortion.
  * - Fractional phase accumulator across processing blocks to avoid phase clicks.
  * - Linear interpolation for fractional sample retrieval.
- * - Emits ArrayBuffers of Int16Array little-endian PCM.
+ * - Google Cloud Gemini Live recommendation: 20-40ms chunking (default 40ms = 640 samples = 1,280 bytes).
+ * - 25 packets per second, optimizing interruption responsiveness and latency.
+ * - Emits ArrayBuffers of Int16Array little-endian PCM with calculated RMS.
  */
 
 class PCMResamplerProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
     this.targetRate = 16000;
     this.phase = 0;
+
+    // Google Cloud Gemini Live recommended audio duration: 20-40ms (default 40ms)
+    // 40ms at 16,000 Hz = 640 samples = 1,280 bytes (25 packets/sec)
+    const chunkMs = (options && options.processorOptions && options.processorOptions.chunkMs) || 40;
+    this.chunkSize = Math.round((this.targetRate * chunkMs) / 1000); // 640 samples for 40ms
+    this.buffer = new Int16Array(this.chunkSize);
+    this.bufferIndex = 0;
+
+    // Listen for dynamic reconfiguration (e.g. switch between 20ms, 40ms, 60ms)
+    this.port.onmessage = (e) => {
+      if (e.data && e.data.chunkMs) {
+        const newMs = Math.max(20, Math.min(100, Number(e.data.chunkMs)));
+        this.chunkSize = Math.round((this.targetRate * newMs) / 1000);
+        this.buffer = new Int16Array(this.chunkSize);
+        this.bufferIndex = 0;
+      }
+    };
 
     // Design a 2nd-order Butterworth low-pass filter at 7.2 kHz (Nyquist for 16 kHz is 8 kHz)
     const cutoff = 7200;
@@ -64,28 +83,38 @@ class PCMResamplerProcessor extends AudioWorkletProcessor {
     }
 
     // 2. Fractional resampling with phase tracking across blocks
-    const outputSamples = [];
     while (this.phase < inLen) {
       const idx = Math.floor(this.phase);
       const frac = this.phase - idx;
       const s0 = filtered[idx];
       const s1 = idx + 1 < inLen ? filtered[idx + 1] : s0;
       const interpolated = s0 + frac * (s1 - s0);
-      outputSamples.push(interpolated);
+
+      // Quantize to 16-bit signed PCM
+      const clamped = Math.max(-1, Math.min(1, interpolated));
+      const pcmSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+      this.buffer[this.bufferIndex++] = pcmSample;
+
+      // When 40ms chunk (640 samples) is full, emit clean chunk with RMS
+      if (this.bufferIndex >= this.chunkSize) {
+        const out = new Int16Array(this.buffer);
+
+        // Compute RMS for voice activity detection
+        let sumSquares = 0;
+        for (let i = 0; i < out.length; i++) {
+          const norm = out[i] / 32768;
+          sumSquares += norm * norm;
+        }
+        const rms = Math.sqrt(sumSquares / out.length);
+
+        this.port.postMessage({ buffer: out.buffer, rms: rms }, [out.buffer]);
+        this.bufferIndex = 0;
+      }
+
       this.phase += ratio;
     }
     this.phase -= inLen;
 
-    if (outputSamples.length === 0) return true;
-
-    // 3. Convert to 16-bit Little-Endian signed PCM
-    const pcm16 = new Int16Array(outputSamples.length);
-    for (let i = 0; i < outputSamples.length; i++) {
-      const s = Math.max(-1, Math.min(1, outputSamples[i]));
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
-
-    this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
     return true;
   }
 }

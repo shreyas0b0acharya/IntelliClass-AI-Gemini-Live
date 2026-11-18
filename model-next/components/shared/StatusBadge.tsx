@@ -34,7 +34,29 @@ export function StatusBadge({ status, stoppedReason, className = "" }: StatusBad
     );
   }
 
-  if (status === "created") {
+  if (status === "scheduled") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-500 dark:text-sky-400 border border-sky-500/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+        SCHEDULED
+      </span>
+    );
+  }
+
+  if (status === "draft") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+        DRAFT
+      </span>
+    );
+  }
+
+  if (status === "created" || status === "ready") {
     return (
       <span
         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary border border-primary/20 ${className}`}

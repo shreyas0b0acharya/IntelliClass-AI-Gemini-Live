@@ -14,6 +14,8 @@ import {
   AVATAR_MODELS,
   getAvatarMetadata,
   validatePersonaPairing,
+  enforcePersonaConsistency,
+  getVoiceGender,
   type AvatarModelId,
 } from "@/features/avatar";
 import {
@@ -22,8 +24,8 @@ import {
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
   DEFAULT_TTS_PROVIDER,
+  GEMINI_LIVE_VOICES,
 } from "@/config";
-import { GEMINI_LIVE_VOICES } from "@/features/settings/components/VoiceSpeedControls";
 import { api } from "@/lib/api";
 import {
   User,
@@ -72,11 +74,13 @@ export function SessionPersonaModal({
 }: SessionPersonaModalProps) {
   const isLocked = sessionStatus === "running" || !isLecturer;
 
-  // Form state
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarModelId>(
-    currentAvatarModel === DEFAULT_FEMALE_AVATAR_MODEL ? DEFAULT_FEMALE_AVATAR_MODEL : DEFAULT_AVATAR_MODEL
+  // Form state initialized with strict persona alignment
+  const initialPersona = useMemo(
+    () => enforcePersonaConsistency(currentAvatarModel, currentVoiceId),
+    [currentAvatarModel, currentVoiceId]
   );
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(currentVoiceId || DEFAULT_MALE_VOICE_ID);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarModelId>(initialPersona.avatarModel);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(initialPersona.voiceId);
   const [speechSpeed, setSpeechSpeed] = useState<number>(currentSpeechSpeed);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -87,13 +91,29 @@ export function SessionPersonaModal({
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
-      setSelectedAvatar(
-        currentAvatarModel === "women-avatarsdk" ? "women-avatarsdk" : "men-avatarsdk"
-      );
-      setSelectedVoiceId(currentVoiceId || "Fenrir");
+      const persona = enforcePersonaConsistency(currentAvatarModel, currentVoiceId);
+      setSelectedAvatar(persona.avatarModel);
+      setSelectedVoiceId(persona.voiceId);
       setSpeechSpeed(typeof currentSpeechSpeed === "number" ? currentSpeechSpeed : 1.0);
     }
   }
+
+  // Filter voices strictly by selected avatar gender:
+  // NEVER allow male voices with female avatar or female voices with male avatar
+  const availableVoices = useMemo(() => {
+    const isFemale = selectedAvatar === "women-avatarsdk";
+    return GEMINI_LIVE_VOICES.filter((voice) =>
+      isFemale ? voice.gender === "female" : voice.gender === "male"
+    );
+  }, [selectedAvatar]);
+
+  // Handle avatar switch with auto-voice alignment
+  const handleAvatarSelect = (avatarId: AvatarModelId) => {
+    if (isLocked) return;
+    const persona = enforcePersonaConsistency(avatarId, selectedVoiceId);
+    setSelectedAvatar(persona.avatarModel);
+    setSelectedVoiceId(persona.voiceId);
+  };
 
   // Pacing category descriptor
   const speedLabel = useMemo(() => {
@@ -107,9 +127,10 @@ export function SessionPersonaModal({
     if (isLocked) return;
     setIsSaving(true);
     try {
+      const persona = enforcePersonaConsistency(selectedAvatar, selectedVoiceId);
       await onSaveConfig({
-        avatar_model: selectedAvatar,
-        voice_id: selectedVoiceId,
+        avatar_model: persona.avatarModel,
+        voice_id: persona.voiceId,
         speech_speed: speechSpeed,
         tts_provider: "gemini_live",
       });
@@ -123,25 +144,25 @@ export function SessionPersonaModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 border border-border/40 bg-card/95 backdrop-blur-2xl shadow-2xl space-y-6">
-        <DialogHeader>
+      <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col p-0 overflow-hidden rounded-3xl border border-border/40 bg-card/95 backdrop-blur-2xl shadow-2xl">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0 bg-muted/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 <User className="h-5 w-5" />
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold">
-                  Classroom Persona & Voice Configuration
+                  Classroom Persona &amp; Voice Configuration
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                   Align your 3D lecturer identity, vocal timbre, and speech pacing before class.
                 </DialogDescription>
               </div>
             </div>
 
             {isLocked && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0">
                 <Lock className="h-3.5 w-3.5" />
                 <span>Locked (Live Broadcast)</span>
               </div>
@@ -149,143 +170,158 @@ export function SessionPersonaModal({
           </div>
         </DialogHeader>
 
-        {isLocked && (
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
-            <Lock className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              <strong>Live Broadcast in Progress:</strong> 3D avatar persona, speech voice, and pacing cannot be modified while the lecture is actively playing. Please pause the lecture to adjust configuration.
-            </p>
-          </div>
-        )}
+        {/* 2-Column Body Form */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 sm:p-8 flex-1 min-h-0 overflow-y-auto">
+          {/* Left Column: 3D Avatar Selection */}
+          <div className="space-y-4 flex flex-col">
+            {isLocked && (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2.5">
+                <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Live Broadcast in Progress:</strong> 3D avatar persona, speech voice, and pacing cannot be modified while the lecture is actively playing. Please pause the lecture to adjust configuration.
+                </p>
+              </div>
+            )}
 
-        {/* ── Section 1: 3D Avatar Selection ── */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              1. 3D Lecturer Persona
-            </label>
-            <span className="text-[11px] text-muted-foreground">
-              {AVATAR_MODELS.length} Production Avatars
-            </span>
-          </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                1. 3D Lecturer Persona
+              </label>
+              <span className="text-[11px] text-muted-foreground">
+                {AVATAR_MODELS.length} Production Avatars
+              </span>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {AVATAR_MODELS.map((avatar) => {
-              const isSelected = selectedAvatar === avatar.id;
-              return (
-                <button
-                  key={avatar.id}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => setSelectedAvatar(avatar.id as AvatarModelId)}
-                  className={cn(
-                    "relative flex flex-col items-start p-4 rounded-2xl border text-left transition-all",
-                    isSelected
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
-                      : "border-border/60 hover:border-border hover:bg-muted/30",
-                    isLocked && "opacity-80 cursor-not-allowed"
-                  )}
-                >
-                  <div className="flex items-center justify-between w-full mb-2">
-                    <span className="font-bold text-sm text-foreground">{avatar.name}</span>
-                    <span
-                      className={cn(
-                        "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold",
-                        avatar.gender === "female"
-                          ? "bg-rose-500/10 text-rose-500"
-                          : "bg-blue-500/10 text-blue-500"
-                      )}
-                    >
-                      {avatar.gender}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                    {avatar.description}
-                  </p>
-
-                  {isSelected && (
-                    <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                      <Check className="h-3 w-3 stroke-[3]" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 flex-1">
+              {AVATAR_MODELS.map((avatar) => {
+                const isSelected = selectedAvatar === avatar.id;
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => handleAvatarSelect(avatar.id as AvatarModelId)}
+                    className={cn(
+                      "relative flex flex-col justify-between p-4 rounded-2xl border text-left transition-all",
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
+                        : "border-border/60 hover:border-border hover:bg-muted/30",
+                      isLocked && "opacity-80 cursor-not-allowed"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between w-full mb-2">
+                        <span className="font-bold text-sm text-foreground">{avatar.name}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold",
+                            avatar.gender === "female"
+                              ? "bg-rose-500/10 text-rose-500"
+                              : "bg-blue-500/10 text-blue-500"
+                          )}
+                        >
+                          {avatar.gender}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                        {avatar.description}
+                      </p>
                     </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* ── Section 2: Speech Voice Selection ── */}
-        <div className="space-y-3">
-          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Volume2 className="h-3.5 w-3.5 text-primary" />
-            2. Gemini Live Neural Voice
-          </label>
-
-          {/* Voice Dropdown list */}
-          <div className="relative">
-            <select
-              value={selectedVoiceId}
-              disabled={isLocked}
-              onChange={(e) => setSelectedVoiceId(e.target.value)}
-              className={cn(
-                "w-full h-11 px-3.5 rounded-2xl border border-border/60 bg-background text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20",
-                isLocked && "opacity-80 cursor-not-allowed"
-              )}
-            >
-              {GEMINI_LIVE_VOICES.map((voice) => (
-                <option key={voice.id} value={voice.id}>
-                  {voice.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* ── Section 3: Speech Pacing / Speed Normalizer ── */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Gauge className="h-3.5 w-3.5 text-primary" />
-              3. Speaking Pacing Preference
-            </label>
-            <span className="text-xs font-mono font-bold text-foreground">
-              {speechSpeed.toFixed(2)}x ({speedLabel})
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <input
-              type="range"
-              min="0.75"
-              max="1.25"
-              step="0.05"
-              value={speechSpeed}
-              disabled={isLocked}
-              onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
-              className={cn(
-                "w-full h-2 rounded-lg bg-muted appearance-none cursor-pointer accent-primary",
-                isLocked && "cursor-not-allowed opacity-70"
-              )}
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-              <span>0.75x (Deliberate)</span>
-              <span>1.00x (Natural)</span>
-              <span>1.25x (Brisk)</span>
+                    {isSelected && (
+                      <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                        <span>Selected Persona</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Calibrated for real-time conversational lecturing via Google Gemini Live AI audio.
-          </p>
+          {/* Right Column: Voice & Speech Pacing */}
+          <div className="space-y-6 flex flex-col justify-between">
+            {/* Section 2: Speech Voice Selection */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Volume2 className="h-3.5 w-3.5 text-primary" />
+                2. Gemini Live Neural Voice
+              </label>
+
+              <div className="relative">
+                <select
+                  value={selectedVoiceId}
+                  disabled={isLocked}
+                  onChange={(e) => setSelectedVoiceId(e.target.value)}
+                  className={cn(
+                    "w-full h-11 px-3.5 rounded-2xl border border-border/60 bg-background text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20",
+                    isLocked && "opacity-80 cursor-not-allowed"
+                  )}
+                >
+                  {availableVoices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.name} ({voice.gender === "female" ? "Female" : "Male"} • {voice.description})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Available voices strictly matched to {selectedAvatar === "women-avatarsdk" ? "female (Dr. Clara)" : "male (Prof. Arthur)"} avatar.
+                </p>
+              </div>
+            </div>
+
+            {/* Section 3: Speech Pacing / Speed Normalizer */}
+            <div className="space-y-3.5 p-4 rounded-2xl bg-muted/20 border border-border/50">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Gauge className="h-3.5 w-3.5 text-primary" />
+                  3. Speaking Pacing Preference
+                </label>
+                <span className="text-xs font-mono font-bold text-foreground">
+                  {speechSpeed.toFixed(2)}x ({speedLabel})
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="0.75"
+                  max="1.25"
+                  step="0.05"
+                  value={speechSpeed}
+                  disabled={isLocked}
+                  onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
+                  className={cn(
+                    "w-full h-2 rounded-lg bg-muted appearance-none cursor-pointer accent-primary",
+                    isLocked && "cursor-not-allowed opacity-70"
+                  )}
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                  <span>0.75x (Deliberate)</span>
+                  <span>1.00x (Natural)</span>
+                  <span>1.25x (Brisk)</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Calibrated for real-time conversational lecturing via Google Gemini Live AI audio.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-card border border-border/60 text-xs text-muted-foreground">
+              💡 <strong>Tip:</strong> Selecting male/female avatars pairs naturally with corresponding vocal timbres for optimal student lip-sync and immersion.
+            </div>
+          </div>
         </div>
 
-        <DialogFooter className="flex items-center justify-between gap-3 pt-2">
+        <DialogFooter className="p-4 sm:p-6 border-t bg-muted/20 shrink-0 flex items-center justify-between gap-3">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="px-4 text-xs font-semibold"
+            className="rounded-xl px-4 text-xs font-semibold"
           >
             {isLocked ? "Close" : "Cancel"}
           </Button>
@@ -296,7 +332,7 @@ export function SessionPersonaModal({
               variant="default"
               onClick={handleSave}
               disabled={isSaving}
-              className="px-5 text-xs font-semibold gap-2 shadow-xs"
+              className="rounded-xl px-5 text-xs font-semibold gap-2 shadow-xs"
             >
               {isSaving ? (
                 <>

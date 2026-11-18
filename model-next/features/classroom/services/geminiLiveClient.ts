@@ -3,6 +3,7 @@ import {
   advanceTopicDeclaration,
   searchCourseMaterialsDeclaration,
   projectMediaDeclaration,
+  recordLearningInsightDeclaration,
 } from "./liveTools";
 import { BoundedLiveAudioPlayer, getTimeTag } from "./liveAudioPlayer";
 import { LiveCaptionManager } from "./liveCaptionManager";
@@ -30,6 +31,13 @@ export interface GeminiLiveClientOptions {
     transitionReason?: string;
   }) => Promise<void> | void;
   onProjectMedia?: (assetId: string, caption?: string) => Promise<void> | void;
+  onRecordLearningInsight?: (args: {
+    topicId?: string;
+    insightType: string;
+    title: string;
+    content: string;
+    demonstratedUnderstanding?: boolean;
+  }) => Promise<void> | void;
 }
 
 export class GeminiLiveClient {
@@ -48,10 +56,15 @@ export class GeminiLiveClient {
         this.options.onSubtitleReceived?.(caption);
       },
     });
+
+    // Wire audio player chunk scheduling directly into caption manager for sample-accurate audio sync
+    this.options.player.onChunkScheduled = (startTimeSec, currentTimeSec, durationSec) => {
+      this.captionManager.notifyAudioChunkStart(startTimeSec, currentTimeSec, durationSec);
+    };
   }
 
   public async connect(): Promise<void> {
-    const { token, model, voiceName = "Puck", systemInstruction } = this.options;
+    const { token, model, voiceName = "Charon", systemInstruction } = this.options;
 
     console.log(
       `${getTimeTag()} 🔌 [Gemini Live Client] Connecting to Gemini Live WebSocket... (model="${model}", voice="${voiceName}")`
@@ -62,15 +75,17 @@ export class GeminiLiveClient {
       httpOptions: { apiVersion: "v1alpha" },
     });
 
-    const liveConfig = {
-      responseModalities: ["AUDIO"],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName,
-          },
+    const speechConfig = {
+      voiceConfig: {
+        prebuiltVoiceConfig: {
+          voiceName,
         },
       },
+    };
+
+    const liveConfig = {
+      responseModalities: ["AUDIO"],
+      speechConfig,
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       systemInstruction: systemInstruction
@@ -82,6 +97,7 @@ export class GeminiLiveClient {
             advanceTopicDeclaration,
             searchCourseMaterialsDeclaration,
             projectMediaDeclaration,
+            recordLearningInsightDeclaration,
           ],
         },
       ],
@@ -247,14 +263,22 @@ export class GeminiLiveClient {
         });
       } else if (name === "search_course_materials") {
         const query = (args.query as string) || "";
-        let materials: unknown[] = [];
+        let materialsText = "";
         try {
           const res = await fetch(
-            `/api/classroom/${this.options.sessionId}/materials/search?q=${encodeURIComponent(query)}`
+            `/api/classroom/${this.options.sessionId}/search-materials`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ query, topK: 4 }),
+            }
           );
           if (res.ok) {
             const data = await res.json();
-            materials = data.materials || [];
+            materialsText = data.materials || (Array.isArray(data.matches) ? data.matches.map((m: any) => m.content).join("\n\n---\n\n") : "");
+            console.log(`${getTimeTag()} 📚 [Gemini Live Tool Response] Retrieved ${materialsText.length} chars of course material for query "${query}"`);
+          } else {
+            console.warn(`${getTimeTag()} ⚠️ [Gemini Live Tool Response] search-materials returned ${res.status}`);
           }
         } catch (searchErr) {
           console.warn(`${getTimeTag()} Course material search error:`, searchErr);
@@ -267,7 +291,8 @@ export class GeminiLiveClient {
               name,
               response: {
                 output: {
-                  materials,
+                  found: Boolean(materialsText),
+                  context: materialsText || "No additional specific textbook excerpts found for this query.",
                 },
               },
             },
@@ -288,6 +313,29 @@ export class GeminiLiveClient {
                 output: {
                   status: "displayed",
                   assetId,
+                },
+              },
+            },
+          ],
+        });
+      } else if (name === "record_learning_insight") {
+        await this.options.onRecordLearningInsight?.(args as {
+          topicId?: string;
+          insightType: string;
+          title: string;
+          content: string;
+          demonstratedUnderstanding?: boolean;
+        });
+
+        this.session.sendToolResponse({
+          functionResponses: [
+            {
+              id,
+              name,
+              response: {
+                output: {
+                  status: "recorded",
+                  title: args.title,
                 },
               },
             },
@@ -319,12 +367,32 @@ export class GeminiLiveClient {
     }
     const base64 = btoa(binary);
 
+    // Populate both `audio` and `media` so the SDK maps to both `audio` and `mediaChunks`
     this.session.sendRealtimeInput({
       audio: {
         data: base64,
         mimeType: "audio/pcm;rate=16000",
       },
-    });
+      media: {
+        data: base64,
+        mimeType: "audio/pcm;rate=16000",
+      },
+    } as any);
+  }
+
+  /**
+   * Send explicit interruption signal to stop professor speech immediately.
+   */
+  public sendInterruptionSignal() {
+    if (!this.session || !this.isConnected) return;
+    console.log(`${getTimeTag()} 🛑 [Gemini Live Client] Sending explicit activityStart to interrupt professor`);
+    try {
+      this.session.sendRealtimeInput({
+        activityStart: {},
+      } as any);
+    } catch (e) {
+      console.warn(`${getTimeTag()} Could not dispatch activityStart:`, e);
+    }
   }
 
   /**

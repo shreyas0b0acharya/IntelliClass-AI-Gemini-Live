@@ -25,12 +25,14 @@ import {
   getSynchronizedEpochMs,
   preloadAudioBuffer,
   stopAllAudio,
+  enforcePersonaConsistency,
   type HeadTTSData,
 } from "@/features/avatar";
 import type { TTSProviderId } from "../types/speech";
 import {
   CLASSROOM_TIMINGS,
   LEAD_TIME_MS,
+  DEFAULT_MALE_VOICE_ID,
   DEFAULT_FEMALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
 } from "@/config";
@@ -47,7 +49,7 @@ export function resolveVoiceAndProvider(rawVoiceId?: string): {
   modelId: string;
 } {
   return {
-    voiceId: rawVoiceId || "Fenrir",
+    voiceId: rawVoiceId || DEFAULT_MALE_VOICE_ID,
     provider: "gemini_live",
     modelId: "gemini-3.8-live",
   };
@@ -95,6 +97,10 @@ export function useClassroom(sessionId: string) {
   const emptyRoomTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Resume checkpoint tracking refs
+  const hasStartedOnceRef = useRef<boolean>(false);
+  const lastPausedSubtitleRef = useRef<string | null>(null);
 
   const broadcastEventRef = useRef<((event: ClassroomEvent) => void) | null>(null);
   const executeLectureItemRef = useRef<((item: LectureItem) => void) | null>(null);
@@ -420,11 +426,14 @@ export function useClassroom(sessionId: string) {
   }, [sessionId, advanceCurrentItem]);
 
   // ── 4.5. Gemini 3.8 Live & Topic Roadmap Handlers ──────────────────
-  const isLecturer = profile?.role === "lecturer";
+  const isLecturer =
+    profile?.role === "lecturer" ||
+    (Boolean(user?.id) && (session?.created_by === user?.id || (session as unknown as { instructor_id?: string })?.instructor_id === user?.id));
 
   const selectTopic = useCallback(
     (topicId: string) => {
       syncStore().setCurrentTopicId(topicId);
+      setSession((prev) => (prev ? { ...prev, current_topic_id: topicId } : prev));
       api.updateClassroomSession(sessionId, { current_topic_id: topicId }).catch(() => {});
       sequenceRef.current++;
       broadcastEventRef.current?.({
@@ -467,6 +476,7 @@ export function useClassroom(sessionId: string) {
     participantName: profile?.name || user?.email?.split("@")[0] || "Participant",
     initialRoadmap: session?.roadmap || syncStore().roadmap || null,
     initialTopicId: session?.current_topic_id || syncStore().currentTopicId || null,
+    initialNotes: session?.live_session_stats?.notes || null,
     onAdvanceTopic: (nextTopicId: string) => {
       selectTopic(nextTopicId);
     },
@@ -993,6 +1003,15 @@ export function useClassroom(sessionId: string) {
         if (sessionData && isMounted) {
           setSession(sessionData);
 
+          const isOwner = Boolean(authUser?.id) && (
+            sessionData.created_by === authUser?.id ||
+            (sessionData as unknown as { instructor_id?: string })?.instructor_id === authUser?.id ||
+            ((sessionData as unknown as { courses?: { created_by?: string } })?.courses?.created_by === authUser?.id)
+          );
+          const canControl = profileData?.role === "lecturer" || isOwner;
+          isLecturerRef.current = canControl;
+          syncStore().setIsLecturer(canControl);
+
           const rawScript = sessionData.script || "";
           console.log(`🏫 [Classroom] Loaded session ${sessionId} (Topic: "${sessionData.topic}", Script: ${rawScript.length} chars, Status: ${sessionData.status})`);
 
@@ -1141,8 +1160,9 @@ export function useClassroom(sessionId: string) {
         .catch((e) => console.warn("Failed to persist user question:", e));
 
       const curItem = itemsRef.current[currentIndexRef.current];
-      const modelPersona = session.voice_id?.startsWith("af_") ? "Dr. Clara" : "Prof. Arthur";
-      const vInfo = resolveVoiceAndProvider(session.voice_id);
+      const persona = enforcePersonaConsistency(session?.avatar_model, session?.voice_id);
+      const modelPersona = persona.gender === "female" ? "Dr. Clara" : "Prof. Arthur";
+      const vInfo = resolveVoiceAndProvider(persona.voiceId);
 
       // Fast unified Q&A with server-side synthesis (single roundtrip)
       const askRes = await api.askQuestion(sessionId, {
@@ -1158,7 +1178,19 @@ export function useClassroom(sessionId: string) {
         speed: session.speech_speed,
       });
 
-      const answer = askRes.answer;
+      let answer = askRes.answer;
+      const firstName = studentDisplayName.trim().split(/\s+/)[0];
+      if (!answer.toLowerCase().includes(firstName.toLowerCase())) {
+        answer = `Great question, ${studentDisplayName}! ${answer}`;
+      }
+
+      // If Gemini Live WebSocket is actively connected, stream student question prompt to live AI professor
+      if (geminiLive && geminiLive.connectionStatus === "connected") {
+        geminiLive.sendUserPrompt(
+          `[Question from ${studentDisplayName}]: "${question}"\n\nCRITICAL INSTRUCTION: You MUST begin your spoken reply by warmly addressing ${studentDisplayName} by name (e.g. "Great question, ${studentDisplayName}!"). Provide a clear, insightful 2–4 sentence pedagogical explanation grounded in the course documents, then resume teaching.`,
+          studentDisplayName
+        );
+      }
 
       api
         .sendMessage(sessionId, { role: "ai", message: answer })
@@ -1225,7 +1257,18 @@ export function useClassroom(sessionId: string) {
   const startSession = async () => {
     if (!isLecturerRef.current) return;
 
-    console.log(`${getTimeTag()} 🚀 [START/RESUME CLICK] Start/Resume broadcast clicked by lecturer`);
+    const isResume =
+      hasStartedOnceRef.current ||
+      sessionStatusRef.current === "paused" ||
+      session?.status === "paused" ||
+      Boolean(lastPausedSubtitleRef.current);
+
+    hasStartedOnceRef.current = true;
+    const lastSpoken = lastPausedSubtitleRef.current || currentSubtitle || undefined;
+
+    console.log(
+      `${getTimeTag()} 🚀 [START/RESUME CLICK] Start/Resume broadcast clicked by lecturer (isResume=${isResume}, lastSpoken="${lastSpoken?.slice(0, 40) || ''}")`
+    );
 
     // Synchronously unlock Web Audio context inside the click gesture
     geminiLive.resumeAudio().catch(() => {});
@@ -1247,8 +1290,8 @@ export function useClassroom(sessionId: string) {
       driverTabId: myTabIdRef.current,
     });
 
-    await geminiLive.connectConductor();
-    geminiLive.startLecture();
+    await geminiLive.connectConductor({ isResume, lastSpokenSentence: lastSpoken });
+    geminiLive.startLecture({ isResume, lastSpokenSentence: lastSpoken });
 
     dbUpdatePromise.catch((e) => console.warn("DB update warning:", e));
   };
@@ -1256,6 +1299,14 @@ export function useClassroom(sessionId: string) {
   const pauseSession = async () => {
     if (!isLecturerRef.current) return;
     console.log(`${getTimeTag()} ⏸️ [PAUSE CLICK] Lecture pause clicked by lecturer`);
+    setSessionStatus("paused");
+    sessionStatusRef.current = "paused";
+    syncStore().setStatus("paused");
+    lastPausedSubtitleRef.current = currentSubtitle || null;
+    sequenceRef.current++;
+    executingItemIdRef.current = null;
+    speech.stop();
+
     if (geminiLive.connectionStatus === "connected") {
       geminiLive.disconnect();
     }
@@ -1263,18 +1314,74 @@ export function useClassroom(sessionId: string) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
     }
-    sequenceRef.current++;
-    setSessionStatus("paused");
-    sessionStatusRef.current = "paused";
-    syncStore().setStatus("paused");
-    executingItemIdRef.current = null;
-    speech.stop();
 
-    await api.updateClassroomSession(sessionId, {
+    geminiLive.flushNotesAndSaveCheckpoint().catch(console.warn);
+    const liveNotes = geminiLive.getNotes();
+
+    const currentRoadmap = (session?.roadmap || syncStore().roadmap) as SessionRoadmap | null;
+    const roadmapTopics: any[] = currentRoadmap?.topics || [];
+    const activeTopicId = syncStore().currentTopicId || session?.current_topic_id;
+    const activeTopic = roadmapTopics.find((t) => t.id === activeTopicId) || roadmapTopics[0];
+    const topicIdx = roadmapTopics.findIndex((t) => t.id === activeTopic?.id);
+    const topicTitle = activeTopic?.title || session?.topic || "Active Topic";
+
+    const existingStats = session?.live_session_stats || {};
+    const existingNotes = Array.isArray(existingStats.notes) ? existingStats.notes : [];
+
+    // Merge captured live notes and existing notes, avoiding duplicate notes
+    const mergedNotes = [...existingNotes];
+    for (const n of liveNotes) {
+      if (!mergedNotes.some((m: any) => (m.id && m.id === n.id) || (m.text && m.text === n.text))) {
+        mergedNotes.push(n);
+      }
+    }
+
+    // Capture active spoken subtitle if it hasn't been saved into notes yet
+    if (currentSubtitle && currentSubtitle.trim().length > 5) {
+      const activeSubtitleText = currentSubtitle.trim();
+      if (!mergedNotes.some((m: any) => m.text && m.text.includes(activeSubtitleText))) {
+        mergedNotes.push({
+          id: `spoken_${Date.now()}`,
+          topicId: syncStore().currentTopicId || session?.current_topic_id,
+          text: activeSubtitleText,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const pauseCheckpointNote = {
+      id: `pause_${Date.now()}`,
+      topicId: activeTopic?.id,
+      text: `Lecture paused at Topic ${topicIdx >= 0 ? topicIdx + 1 : 1}: "${topicTitle}". Checkpoint saved.`,
+      timestamp: new Date().toISOString(),
+    };
+    mergedNotes.push(pauseCheckpointNote);
+
+    const updatedStats = {
+      ...existingStats,
+      classId: sessionId,
       status: "paused",
-      sequence: sequenceRef.current,
-      releaseLease: true,
-    });
+      currentTopicId: activeTopic?.id,
+      pausedAtTopicTitle: topicTitle,
+      checkpointAt: new Date().toISOString(),
+      notes: mergedNotes,
+    };
+
+    setSession((prev) =>
+      prev ? { ...prev, current_topic_id: activeTopicId, live_session_stats: updatedStats } : null
+    );
+
+    try {
+      await api.updateClassroomSession(sessionId, {
+        status: "paused",
+        sequence: sequenceRef.current,
+        releaseLease: true,
+        current_topic_id: activeTopic?.id,
+        live_session_stats: updatedStats,
+      });
+    } catch (err) {
+      console.warn("Pause session DB update warning:", err);
+    }
 
     broadcastEvent({
       type: "PAUSE",
@@ -1286,6 +1393,9 @@ export function useClassroom(sessionId: string) {
   const endSession = async () => {
     if (!isLecturerRef.current) return;
     console.log(`${getTimeTag()} 🛑 [END CLICK] Lecture end broadcast clicked by lecturer`);
+    await geminiLive.flushNotesAndSaveCheckpoint().catch(console.warn);
+    const liveNotes = geminiLive.getNotes();
+
     if (geminiLive.connectionStatus === "connected") {
       geminiLive.disconnect();
     }
@@ -1302,11 +1412,59 @@ export function useClassroom(sessionId: string) {
     executingItemIdRef.current = null;
     speech.stop();
 
+    const existingStats = session?.live_session_stats || {};
+    const existingNotes = Array.isArray(existingStats.notes) ? existingStats.notes : [];
+    const currentRoadmap = (session?.roadmap || syncStore().roadmap) as SessionRoadmap | null;
+    const totalTopics = currentRoadmap?.topics?.length || 1;
+
+    // Merge captured live notes and existing notes, avoiding duplicate notes
+    const mergedNotes = [...existingNotes];
+    for (const n of liveNotes) {
+      if (!mergedNotes.some((m: any) => (m.id && m.id === n.id) || (m.text && m.text === n.text))) {
+        mergedNotes.push(n);
+      }
+    }
+
+    // Capture active spoken subtitle if it hasn't been saved into notes yet
+    if (currentSubtitle && currentSubtitle.trim().length > 5) {
+      const activeSubtitleText = currentSubtitle.trim();
+      if (!mergedNotes.some((m: any) => m.text && m.text.includes(activeSubtitleText))) {
+        mergedNotes.push({
+          id: `spoken_${Date.now()}`,
+          topicId: syncStore().currentTopicId || session?.current_topic_id,
+          text: activeSubtitleText,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const endSummaryNote = {
+      id: `end_${Date.now()}`,
+      text: `Lecture session successfully completed across all ${totalTopics} curriculum topics. Final review concluded.`,
+      timestamp: new Date().toISOString(),
+    };
+    mergedNotes.push(endSummaryNote);
+
+    const updatedStats = {
+      ...existingStats,
+      classId: sessionId,
+      status: "ended",
+      completedAt: new Date().toISOString(),
+      checkpointAt: new Date().toISOString(),
+      notes: mergedNotes,
+    };
+
+    const activeTopicId = syncStore().currentTopicId || session?.current_topic_id;
+    setSession((prev) =>
+      prev ? { ...prev, current_topic_id: activeTopicId, live_session_stats: updatedStats } : null
+    );
+
     await api.updateClassroomSession(sessionId, {
       status: "ended",
       sequence: sequenceRef.current,
       stopped_reason: "manual_lecturer_end",
       releaseLease: true,
+      live_session_stats: updatedStats,
     });
 
     broadcastEvent({
@@ -1320,6 +1478,8 @@ export function useClassroom(sessionId: string) {
   const restartSession = async () => {
     if (!isLecturerRef.current) return;
     console.log(`${getTimeTag()} 🔄 [RESTART CLICK] Lecture restart clicked by lecturer`);
+    hasStartedOnceRef.current = false;
+    lastPausedSubtitleRef.current = null;
     if (advanceTimerRef.current) {
       clearTimeout(advanceTimerRef.current);
       advanceTimerRef.current = null;
@@ -1471,13 +1631,33 @@ export function useClassroom(sessionId: string) {
     [updatePersonaConfig]
   );
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__INTELLICLASS_CLASSROOM__ = {
+        setCurrentSubtitle: (text: string) => {
+          setCurrentSubtitle(text);
+          syncStore().setCurrentSubtitle(text);
+        },
+        getCurrentSubtitle: () => currentSubtitle,
+        pauseSession,
+        endSession,
+        getNotes: () => geminiLive.getNotes(),
+      };
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).__INTELLICLASS_CLASSROOM__;
+      }
+    };
+  }, [currentSubtitle, pauseSession, endSession, syncStore, geminiLive]);
+
   return {
     user,
     profile,
     session,
     sessionStatus,
     stoppedReason,
-    isLecturer: profile?.role === "lecturer",
+    isLecturer,
     activeStudentCount,
     activeLecturerCount,
     participants,
@@ -1512,5 +1692,16 @@ export function useClassroom(sessionId: string) {
     kickParticipant,
     admitAllParticipants,
     requestRejoin,
+    saveNotesAsMaterial: async (title?: string) => {
+      try {
+        await geminiLive.flushNotesAndSaveCheckpoint();
+        const res = await api.saveNotesAsCourseMaterial(sessionId, { title });
+        toast.success(res.message);
+        return res.file;
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to save notes as course material.");
+        throw err;
+      }
+    },
   };
 }

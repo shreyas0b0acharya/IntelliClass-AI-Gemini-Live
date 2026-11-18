@@ -147,9 +147,6 @@ export function StageOverlay({
               question={userQuestion}
               isThinking={isThinking}
               disabled={sessionStatus !== "running"}
-              canSpeak={canSpeak}
-              isMicActive={isMicActive}
-              onToggleMic={onToggleMic}
               onQuestionChange={onQuestionChange}
               onSubmit={onQuestionSubmit}
             />

@@ -2,36 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles, Mic, Volume2 } from "lucide-react";
-import { SubtitleBar } from "./SubtitleBar";
-import { ProjectionBoard } from "./ProjectionBoard";
-import { QuestionInput } from "./QuestionInput";
-import type { MediaItemDisplay } from "../hooks/useClassroom";
 import { DEFAULT_AVATAR_MODEL, DEFAULT_FEMALE_AVATAR_MODEL } from "@/config";
 
 interface Lecturer2DFallbackProps {
   model?: string;
   isSpeaking: boolean;
   subtitle?: string;
-  activeMedia?: MediaItemDisplay | null;
-  userQuestion?: string;
   isThinking?: boolean;
   sessionStatus?: string;
-  onCloseMedia?: () => void;
-  onQuestionChange?: (q: string) => void;
-  onQuestionSubmit?: (e?: React.FormEvent) => void;
 }
 
 export function Lecturer2DFallback({
   model = DEFAULT_AVATAR_MODEL,
   isSpeaking,
-  subtitle,
-  activeMedia,
-  userQuestion = "",
-  isThinking = false,
-  sessionStatus = "running",
-  onCloseMedia,
-  onQuestionChange,
-  onQuestionSubmit,
 }: Lecturer2DFallbackProps) {
   const isFemale = model === DEFAULT_FEMALE_AVATAR_MODEL;
   const avatarName = isFemale ? "Professor Elena" : "Professor Sharma";
@@ -136,26 +119,6 @@ export function Lecturer2DFallback({
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Projection Media Board */}
-      <ProjectionBoard media={activeMedia ?? null} onClose={onCloseMedia} />
-
-      {/* Bottom Subtitle & Interactive Input */}
-      <div className="relative z-10 w-full space-y-3 flex flex-col items-center">
-        {subtitle && <SubtitleBar subtitle={subtitle} />}
-
-        {onQuestionChange && onQuestionSubmit && (
-          <div className="w-full max-w-xl">
-            <QuestionInput
-              question={userQuestion}
-              isThinking={isThinking}
-              disabled={sessionStatus !== "running"}
-              onQuestionChange={onQuestionChange}
-              onSubmit={onQuestionSubmit}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

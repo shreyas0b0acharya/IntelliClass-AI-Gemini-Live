@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, getAuthenticatedUser } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveAvatarModel } from "@/features/avatar";
+import { resolveAvatarModel, enforcePersonaConsistency } from "@/features/avatar";
 import {
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
@@ -29,10 +29,11 @@ export async function GET(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
+    const persona = enforcePersonaConsistency(session.avatar_model, session.voice_id);
     const normalizedSession = {
       ...session,
-      voice_id: session.voice_id || DEFAULT_MALE_VOICE_ID,
-      avatar_model: resolveAvatarModel(session.avatar_model, session.voice_id),
+      voice_id: persona.voiceId,
+      avatar_model: persona.avatarModel,
       speech_speed: typeof session.speech_speed === "number" ? session.speech_speed : DEFAULT_SPEECH_SPEED,
       meeting_code: session.meeting_code || session.id?.slice(0, 8),
     };
@@ -140,6 +141,19 @@ export async function PATCH(
         } else {
           updatePayload[field] = val;
         }
+      }
+    }
+
+    // Enforce strict gender persona consistency on avatar/voice updates
+    if (body.avatar_model !== undefined || body.voice_id !== undefined) {
+      const incomingAvatar = (body.avatar_model ?? existingSession.avatar_model) as string | undefined;
+      const incomingVoice = (body.voice_id ?? existingSession.voice_id) as string | undefined;
+      const persona = enforcePersonaConsistency(incomingAvatar, incomingVoice);
+      if (!knownMissingColumns.has("avatar_model")) {
+        updatePayload.avatar_model = persona.avatarModel;
+      }
+      if (!knownMissingColumns.has("voice_id")) {
+        updatePayload.voice_id = persona.voiceId;
       }
     }
 

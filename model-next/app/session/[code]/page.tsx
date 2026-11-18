@@ -7,6 +7,7 @@ import { useIsMounted } from "@/hooks/useIsMounted";
 import { supabase } from "@/lib/supabase/client";
 import { api, ApiError } from "@/lib/api";
 import type { ClassroomSession, Profile } from "@/lib/supabase/types";
+import { enforcePersonaConsistency } from "@/features/avatar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared";
 import {
@@ -39,6 +40,7 @@ export default function SessionPreJoinPage({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [audioTested, setAudioTested] = useState(false);
   const [isTestingAudio, setIsTestingAudio] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -149,7 +151,8 @@ export default function SessionPreJoinPage({
   };
 
   const handleJoinClassroom = () => {
-    if (!session) return;
+    if (!session || isJoining) return;
+    setIsJoining(true);
     router.push(`/classroom/${session.id}`);
   };
 
@@ -198,9 +201,9 @@ export default function SessionPreJoinPage({
   }
 
   const isLive = session.status === "running";
-  const personaName =
-    session.voice_id === "af_bella" ? "Professor Bella" : "Professor Sharma";
-  const personaGender = session.voice_id === "af_bella" ? "Female" : "Male";
+  const persona = enforcePersonaConsistency(session.avatar_model, session.voice_id);
+  const personaName = persona.gender === "female" ? "Professor Clara" : "Professor Arthur";
+  const personaGender = persona.gender === "female" ? "Female" : "Male";
 
   return (
     <div className="min-h-screen w-screen flex flex-col bg-gradient-to-b from-background via-background/95 to-muted/20">
@@ -232,7 +235,7 @@ export default function SessionPreJoinPage({
 
             <div className="relative z-10 flex flex-col items-center text-center space-y-4">
               <div className="w-24 h-24 rounded-3xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-4xl shadow-lg relative">
-                {session.voice_id === "af_bella" ? "👩‍🏫" : "👨‍🏫"}
+                {persona.gender === "female" ? "👩‍🏫" : "👨‍🏫"}
                 {isLive && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
@@ -338,15 +341,23 @@ export default function SessionPreJoinPage({
             <div className="space-y-3 pt-2">
               <Button
                 onClick={handleJoinClassroom}
+                disabled={isJoining}
                 variant="default"
                 size="lg"
- className={`w-full h-12 ${
- isLive ? " " : ""
-                }`}
+                className="w-full h-12"
               >
-                <Play className="h-5 w-5 fill-current" />
-                <span>{isLive ? "Join Live Session" : "Join Session Room"}</span>
-                <ArrowRight className="h-4 w-4" />
+                {isJoining ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+                    <span>Connecting to Classroom...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-5 w-5 fill-current" />
+                    <span>{isLive ? "Join Live Session" : "Join Session Room"}</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
 
               <p className="text-xs text-center text-muted-foreground font-medium">

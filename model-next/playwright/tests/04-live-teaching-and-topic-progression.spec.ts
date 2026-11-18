@@ -118,4 +118,85 @@ test.describe("04. Live Teaching, Conductor Broadcast & Topic Progression", () =
       await expect(teacherPage.locator("text=/Live/i").first()).toBeVisible({ timeout: 15000 });
     }
   });
+
+  test("spoken speech turns during live class match notes displayed in post-class notes modal", async ({
+    teacherPage,
+  }) => {
+    // 1. Teacher creates course and launches Gemini Live classroom
+    const courseId = await getOrCreateTestCourse(teacherPage);
+    const uniqueTopic = `Consensus Protocols & Fault Tolerance ${Date.now()}`;
+    const sessionData = await createAndLaunchLiveClassroom(
+      teacherPage,
+      courseId,
+      uniqueTopic
+    );
+
+    // Ensure audio unlocked
+    await ensureAudioUnlocked(teacherPage);
+
+    // 2. Start broadcast if button is visible
+    const startLectureBtn = teacherPage.getByRole("button", { name: /Start Lecture|Start Broadcast/i });
+    if (await startLectureBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await startLectureBtn.click();
+    }
+
+    // Verify Teacher sees active broadcast indicators (Pause Lecture or Live badge)
+    const teacherLiveOrPause = teacherPage
+      .locator("text=/Live|Pause Lecture|Pause Class/i")
+      .first();
+    await expect(teacherLiveOrPause).toBeVisible({ timeout: 20000 });
+
+    // 3. Spoken speech turns during live broadcast:
+    // What the AI professor speaks in the live classroom (via live subtitle bar)
+    const testSpokenSentence = "Byzantine nodes may behave maliciously by transmitting contradictory votes to partition quorum clusters.";
+
+    // Deliver spoken speech text in the live classroom
+    await teacherPage.evaluate((sentence) => {
+      if ((window as any).__INTELLICLASS_CLASSROOM__) {
+        (window as any).__INTELLICLASS_CLASSROOM__.setCurrentSubtitle(sentence);
+      }
+    }, testSpokenSentence);
+
+    // Verify subtitle bar renders the spoken speech during class
+    await expect(teacherPage.locator(`text=${testSpokenSentence}`)).toBeVisible({ timeout: 10000 });
+
+    // 4. Conductor pauses the class to checkpoint lecture state & notes
+    await teacherPage.evaluate(async () => {
+      if ((window as any).__INTELLICLASS_CLASSROOM__) {
+        await (window as any).__INTELLICLASS_CLASSROOM__.pauseSession();
+      }
+    });
+
+    // Verify Paused state and Resume button in classroom header
+    await expect(
+      teacherPage.getByRole("button", { name: /Resume Class|Resume Lecture/i })
+    ).toBeVisible({ timeout: 20000 });
+
+    // 5. Navigate to Course Space Classes tab
+    await teacherPage.goto(`/course/${courseId}?tab=classes`);
+    await teacherPage.waitForLoadState("domcontentloaded");
+
+    // Wait for the class item to appear
+    const classRow = teacherPage.locator(`div:has-text("${sessionData.meetingCode}")`).first();
+    await expect(classRow).toBeVisible({ timeout: 20000 });
+
+    // Click "Class Notes" or "View Full Notes" button for this specific class
+    const notesBtn = classRow.locator('button:has-text("Class Notes"), button:has-text("View Full Notes")').first();
+    await expect(notesBtn).toBeVisible({ timeout: 15000 });
+    await notesBtn.click();
+
+    // 6. Verify Class Notes modal opens
+    const dialog = teacherPage.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 15000 });
+    await expect(dialog.getByText(/Total Checkpoints|Detailed Class Notes/i).first()).toBeVisible();
+
+    // 7. ASSERTION: What AI spoke during class == same in the notes after the class!
+    await expect(dialog.getByText(testSpokenSentence)).toBeVisible({ timeout: 10000 });
+
+    // Close modal
+    const closeBtn = dialog.locator('button:has(svg.lucide-x), button:has-text("Close")').first();
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click();
+    }
+  });
 });

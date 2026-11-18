@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     description TEXT,
+    teaching_instructions TEXT,
     cover_image TEXT,
     created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT now()
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.sessions (
     course_id UUID REFERENCES public.courses(id) ON DELETE CASCADE,
     topic TEXT NOT NULL,
     script TEXT,
-    status TEXT DEFAULT 'created' CHECK (status IN ('created', 'running', 'paused', 'ended', 'deleted')),
+    status TEXT DEFAULT 'created' CHECK (status IN ('created', 'running', 'paused', 'ended', 'scheduled', 'draft', 'ready', 'deleted')),
     current_sentence_index INT DEFAULT 0,
     created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT now(),

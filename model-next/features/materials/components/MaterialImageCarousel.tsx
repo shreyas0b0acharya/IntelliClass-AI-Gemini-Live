@@ -123,11 +123,11 @@ export function MaterialImageCarousel({
 
       {/* Fullscreen Lightbox Modal */}
       <Dialog open={Boolean(selectedAsset)} onOpenChange={(open) => !open && setSelectedAsset(null)}>
- <DialogContent className="max-w-3xl overflow-hidden ">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between gap-3">
+        <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] overflow-hidden flex flex-col p-0 gap-0 rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-2xl">
+          <div className="p-4 sm:p-5 px-6 border-b border-border/50 bg-card/40 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="h-4 w-4 text-primary shrink-0" />
- <DialogTitle className="">
+              <DialogTitle className="text-base font-bold truncate">
                 {selectedAsset?.label || "Visual Diagram Asset"}
               </DialogTitle>
             </div>
@@ -143,7 +143,7 @@ export function MaterialImageCarousel({
                   });
                   setSelectedAsset(null);
                 }}
- className="h-8 shrink-0 inline-flex items-center "
+                className="h-8 shrink-0 inline-flex items-center gap-1.5 rounded-xl font-semibold"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>Project to Stage</span>
@@ -151,18 +151,18 @@ export function MaterialImageCarousel({
             )}
           </div>
 
-          <div className="p-6 flex items-center justify-center max-h-[70vh] overflow-hidden bg-black/50">
+          <div className="p-6 flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-black/90">
             {selectedAsset && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={resolveMediaUrl(selectedAsset.file_url)}
                 alt={selectedAsset.label || "Diagram"}
-                className="max-w-full max-h-[60vh] object-contain rounded-2xl shadow-2xl"
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
               />
             )}
           </div>
 
-          <div className="p-4 border-t border-white/10 bg-black/40 flex items-center justify-between text-xs text-white/70">
+          <div className="p-4 px-6 border-t border-border/50 bg-card/40 flex items-center justify-between text-xs text-muted-foreground shrink-0">
             <span>Extracted from {fileName}</span>
             <span className="text-xs font-mono text-primary font-bold">RAG Visual Anchor</span>
           </div>

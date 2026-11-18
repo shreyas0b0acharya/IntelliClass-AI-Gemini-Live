@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SessionCodeInputProps {
@@ -24,6 +24,7 @@ export function SessionCodeInput({
   const router = useRouter();
   const { user } = useAuth();
   const [sessionCode, setSessionCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasCode = sessionCode.trim().length > 0;
   const isLarge = size === "large";
@@ -31,8 +32,9 @@ export function SessionCodeInput({
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = sessionCode.trim();
-    if (!clean) return;
+    if (!clean || isSubmitting) return;
 
+    setIsSubmitting(true);
     const targetSessionUrl = `/session/${encodeURIComponent(clean)}`;
 
     if (!user) {
@@ -49,22 +51,33 @@ export function SessionCodeInput({
     >
       <input
         type="text"
+        disabled={isSubmitting}
         autoFocus={autoFocus}
         placeholder={placeholder}
         value={sessionCode}
         onChange={(e) => setSessionCode(e.target.value)}
-        className={`bg-transparent font-medium px-3.5 outline-none text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-xs sm:text-sm w-36 sm:w-48 ${isLarge ? "w-48 sm:w-64" : ""
-          }`}
+        className={`bg-transparent font-medium px-3.5 outline-none text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground text-xs sm:text-sm w-36 sm:w-48 ${
+          isLarge ? "w-48 sm:w-64" : ""
+        }`}
       />
       <Button
         type="submit"
-        disabled={!hasCode}
+        disabled={!hasCode || isSubmitting}
         variant={hasCode ? "default" : "secondary"}
         size="xs"
- className="h-8 "
+        className="h-8"
       >
-        <span>{buttonText}</span>
-        {hasCode && <ArrowRight className="h-3 w-3" />}
+        {isSubmitting ? (
+          <>
+            <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+            <span>Joining...</span>
+          </>
+        ) : (
+          <>
+            <span>{buttonText}</span>
+            {hasCode && <ArrowRight className="h-3 w-3" />}
+          </>
+        )}
       </Button>
     </form>
   );

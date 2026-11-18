@@ -58,3 +58,9 @@ export type {
 } from "./types/speech";
 export type { ClassroomCapabilities } from "./types/capabilities";
 export { getCapabilities } from "./types/capabilities";
+export type {
+  ClassroomInteractionRecord,
+  PostClassLearningRecord,
+  InteractionSpeaker,
+  InteractionType,
+} from "./types/interaction";

@@ -144,9 +144,23 @@ export const api = {
     return fetchApi<{ course: Course }>(`/api/courses/${courseId}`);
   },
 
-  createCourse: async (data: { title: string; description?: string }) => {
+  createCourse: async (data: { title: string; description?: string; teaching_instructions?: string }) => {
     const res = await fetchApi<{ course: Course }>("/api/courses", {
       method: "POST",
+      body: JSON.stringify(data),
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("intelliclass:courses-changed", { detail: res.course }));
+    }
+    return res;
+  },
+
+  updateCourse: async (
+    courseId: string,
+    data: { title?: string; description?: string; teaching_instructions?: string; cover_image?: string }
+  ) => {
+    const res = await fetchApi<{ course: Course }>(`/api/courses/${courseId}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     });
     if (typeof window !== "undefined") {
@@ -224,9 +238,129 @@ export const api = {
       speech_speed?: number;
       tts_provider?: string;
       meeting_code?: string;
+      status?: string;
+      target_epoch_ms?: number;
+      roadmap?: any;
+      assigned_group_ids?: string[];
+      live_session_stats?: any;
     }
   ) => {
     return fetchApi<{ session: ClassroomSession }>(`/api/courses/${courseId}/sessions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  repeatClass: async (sessionId: string) => {
+    return fetchApi<{ success: boolean; session: ClassroomSession; message: string }>(
+      `/api/classroom/${sessionId}/repeat`,
+      { method: "POST" }
+    );
+  },
+
+  saveNotesAsCourseMaterial: async (
+    sessionId: string,
+    data?: { title?: string; content?: string }
+  ) => {
+    return fetchApi<{ success: boolean; file: CourseFile; message: string }>(
+      `/api/classroom/${sessionId}/save-notes-as-material`,
+      {
+        method: "POST",
+        body: JSON.stringify(data || {}),
+      }
+    );
+  },
+
+  // ─── Students & Course Membership ─────────────────────────────────────────
+  getCourseStudents: async (courseId: string) => {
+    return fetchApi<{
+      students: import("@/lib/supabase/types").CourseStudent[];
+      requests: import("@/lib/supabase/types").CourseStudent[];
+      invitations: Array<{ email: string; invitedAt: string; status: string }>;
+      courseTitle: string;
+    }>(`/api/courses/${courseId}/students`);
+  },
+
+  manageStudentRequest: async (
+    courseId: string,
+    data: {
+      action: "approve" | "reject" | "invite" | "remove";
+      participantId?: string;
+      userId?: string;
+      email?: string;
+    }
+  ) => {
+    return fetchApi<{ success: boolean; message: string }>(
+      `/api/courses/${courseId}/students`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  },
+
+  // ─── Course Roadmaps ──────────────────────────────────────────────────────
+  getCourseRoadmaps: async (courseId: string) => {
+    return fetchApi<{
+      roadmaps: import("@/lib/supabase/types").CourseRoadmapItem[];
+    }>(`/api/courses/${courseId}/roadmaps`);
+  },
+
+  createCourseRoadmap: async (
+    courseId: string,
+    data: {
+      title: string;
+      roadmap: any;
+      publish?: boolean;
+    }
+  ) => {
+    return fetchApi<{
+      success: boolean;
+      roadmapItem: import("@/lib/supabase/types").CourseRoadmapItem;
+    }>(`/api/courses/${courseId}/roadmaps`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateCourseRoadmap: async (
+    courseId: string,
+    roadmapId: string,
+    data: {
+      title?: string;
+      roadmap?: any;
+      publish?: boolean;
+      status?: "published" | "draft";
+    }
+  ) => {
+    return fetchApi<{
+      success: boolean;
+      roadmapItem: import("@/lib/supabase/types").CourseRoadmapItem;
+    }>(`/api/courses/${courseId}/roadmaps/${roadmapId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteCourseRoadmap: async (courseId: string, roadmapId: string) => {
+    return fetchApi<{ success: boolean }>(`/api/courses/${courseId}/roadmaps/${roadmapId}`, {
+      method: "DELETE",
+    });
+  },
+
+  generateCourseRoadmap: async (
+    courseId: string,
+    data: {
+      lectureTopic?: string;
+      targetDurationMinutes?: number;
+      sources?: Array<{ fileName: string; startPage?: number; endPage?: number }>;
+      customPrompt?: string;
+    }
+  ) => {
+    return fetchApi<{
+      success: boolean;
+      roadmap: import("@/features/classroom/types/roadmap").SessionRoadmap;
+    }>(`/api/courses/${courseId}/roadmaps/generate`, {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -301,6 +435,9 @@ export const api = {
       target_epoch_ms?: number;
       duration_ms?: number;
       current_topic_id?: string | null;
+      covered_topic_ids?: string[];
+      live_resumption_handle?: string | null;
+      live_session_stats?: any;
       roadmap?: any;
     }
   ) => {
@@ -408,6 +545,58 @@ export const api = {
     }>(`/api/classroom/${sessionId}/ask`, {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  // ─── Student Groups & Cohort Management ────────────────────────────────────
+  getStudentGroups: async () => {
+    return fetchApi<{
+      groups: import("@/lib/supabase/types").StudentGroup[];
+    }>("/api/students/groups");
+  },
+
+  createStudentGroup: async (data: { name: string; description?: string }) => {
+    return fetchApi<{
+      group: import("@/lib/supabase/types").StudentGroup;
+    }>("/api/students/groups", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateStudentGroup: async (
+    groupId: string,
+    data: { name?: string; description?: string }
+  ) => {
+    return fetchApi<{
+      group: import("@/lib/supabase/types").StudentGroup;
+    }>(`/api/students/groups/${groupId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteStudentGroup: async (groupId: string) => {
+    return fetchApi<{ success: boolean }>(`/api/students/groups/${groupId}`, {
+      method: "DELETE",
+    });
+  },
+
+  addStudentToGroup: async (groupId: string, studentEmail: string) => {
+    return fetchApi<{
+      member: import("@/lib/supabase/types").StudentGroupMember;
+    }>(`/api/students/groups/${groupId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ studentEmail }),
+    });
+  },
+
+  removeStudentFromGroup: async (groupId: string, memberIdOrEmail: { memberId?: string; email?: string }) => {
+    const qs = memberIdOrEmail.memberId
+      ? `memberId=${encodeURIComponent(memberIdOrEmail.memberId)}`
+      : `email=${encodeURIComponent(memberIdOrEmail.email || "")}`;
+    return fetchApi<{ success: boolean }>(`/api/students/groups/${groupId}/members?${qs}`, {
+      method: "DELETE",
     });
   },
 };

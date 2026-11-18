@@ -81,10 +81,12 @@ export {
   AVATAR_MODELS,
   DEFAULT_AVATAR_MODEL,
   getAvatarMetadata,
+  getVoiceGender,
+  enforcePersonaConsistency,
   resolveAvatarModel,
   validatePersonaPairing,
 } from "./services/avatarRegistry";
-export type { PersonaValidationResult } from "./services/avatarRegistry";
+export type { PersonaValidationResult, StrictPersona } from "./services/avatarRegistry";
 
 export type {
   BehaviorState,

@@ -13,6 +13,7 @@ import {
   Loader2,
   ChevronRight,
   Settings,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { api } from "@/lib/api";
@@ -96,23 +97,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       window.addEventListener("intelliclass:courses-changed", handleCoursesChanged);
     }
 
-    const channel = supabase
-      .channel("sidebar:courses")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "courses" },
-        () => {
-          loadCourses();
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+    if (supabase?.channel) {
+      try {
+        channel = supabase
+          .channel("sidebar:courses")
+          ?.on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "courses" },
+            () => {
+              loadCourses();
+            }
+          )
+          ?.subscribe();
+      } catch (err) {
+        console.warn("Failed to subscribe in AppSidebar:", err);
+      }
+    }
 
     return () => {
       active = false;
       if (typeof window !== "undefined") {
         window.removeEventListener("intelliclass:courses-changed", handleCoursesChanged);
       }
-      supabase.removeChannel(channel);
+      if (channel && supabase?.removeChannel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }, [user, isAuthLoading, refreshTrigger]);
 
@@ -175,6 +187,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {isLecturer && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip="Students & Groups Management"
+                    isActive={pathname === "/students"}
+                  >
+                    <Link href="/students" onClick={() => handleLinkClick("students", "/students")}>
+                      {isCollapsed && navigatingKey === "students" ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                      ) : (
+                        <Users className="h-4 w-4 shrink-0 text-emerald-500" />
+                      )}
+                      <span>Students &amp; Groups</span>
+                      {!isCollapsed && navigatingKey === "students" && (
+                        <Loader2 className="h-3.5 w-3.5 ml-auto animate-spin text-primary shrink-0" />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -292,21 +326,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </Link>
                       </SidebarMenuButton>
 
-                      {/* Sub-tree structure for Course: Sessions & Materials */}
+                      {/* Sub-tree structure for Course: 5 Areas */}
                       {!isCollapsed && isCourseActive && (
                         <SidebarMenuSub>
                           <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}` && !pathname.includes("tab=materials")}>
+                            <SidebarMenuSubButton asChild isActive={pathname === `/course/${course.id}` && !pathname.includes("tab=")}>
                               <Link
                                 href={`/course/${course.id}`}
-                                onClick={() => handleLinkClick(`sessions-${course.id}`, `/course/${course.id}`)}
+                                onClick={() => handleLinkClick(`overview-${course.id}`, `/course/${course.id}`)}
                                 className="flex items-center gap-2"
                               >
-                                <Presentation className="h-3.5 w-3.5 shrink-0" />
-                                <span>Sessions &amp; Broadcasts</span>
-                                {isSessionsNavigating && (
-                                  <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
-                                )}
+                                <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+                                <span>Overview</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={pathname.includes("tab=roadmaps")}>
+                              <Link
+                                href={`/course/${course.id}?tab=roadmaps`}
+                                onClick={() => handleLinkClick(`roadmaps-${course.id}`, `/course/${course.id}?tab=roadmaps`)}
+                                className="flex items-center gap-2"
+                              >
+                                <Sparkles className="h-3.5 w-3.5 shrink-0 text-chart-4" />
+                                <span>Roadmaps</span>
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -319,9 +362,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                               >
                                 <FileText className="h-3.5 w-3.5 shrink-0" />
                                 <span>Materials</span>
-                                {isMaterialsNavigating && (
-                                  <Loader2 className="h-3 w-3 ml-auto animate-spin text-primary shrink-0" />
-                                )}
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={pathname.includes("tab=classes") || pathname.includes("tab=sessions")}>
+                              <Link
+                                href={`/course/${course.id}?tab=classes`}
+                                onClick={() => handleLinkClick(`classes-${course.id}`, `/course/${course.id}?tab=classes`)}
+                                className="flex items-center gap-2"
+                              >
+                                <Presentation className="h-3.5 w-3.5 shrink-0" />
+                                <span>Classes &amp; History</span>
                               </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>

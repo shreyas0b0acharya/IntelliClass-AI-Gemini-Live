@@ -9,3 +9,4 @@ export { CopyCodeBadge } from "./CopyCodeBadge";
 export { ScriptBadge } from "./ScriptBadge";
 export { AnimationLoader } from "./AnimationLoader";
 export { AssetSyncModal } from "./AssetSyncModal";
+export { GlobalSearchDialog } from "./GlobalSearchDialog";

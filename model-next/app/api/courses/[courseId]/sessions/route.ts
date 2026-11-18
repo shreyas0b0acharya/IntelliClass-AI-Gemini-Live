@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import crypto from "crypto";
-import { resolveAvatarModel } from "@/features/avatar";
+import { resolveAvatarModel, enforcePersonaConsistency } from "@/features/avatar";
 import {
   DEFAULT_MALE_VOICE_ID,
   DEFAULT_SPEECH_SPEED,
@@ -49,16 +49,26 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Filter out any deleted sessions and ensure fallback defaults
+    // Filter out any deleted sessions or pure curriculum roadmap templates, and ensure fallback defaults
     const normalizedSessions = (sessions || [])
-      .filter((s) => s.status !== "deleted")
-      .map((s) => ({
-        ...s,
-        voice_id: s.voice_id || DEFAULT_MALE_VOICE_ID,
-        avatar_model: resolveAvatarModel(s.avatar_model, s.voice_id),
-        speech_speed: typeof s.speech_speed === "number" ? s.speech_speed : DEFAULT_SPEECH_SPEED,
-        meeting_code: s.meeting_code || s.id?.slice(0, 8),
-      }));
+      .filter((s) => {
+        if (s.status === "deleted") return false;
+        const stats = s.live_session_stats as Record<string, unknown> | null;
+        if (stats && (stats.is_roadmap_template === true || stats.is_roadmap_template === "true")) {
+          return false;
+        }
+        return true;
+      })
+      .map((s) => {
+        const persona = enforcePersonaConsistency(s.avatar_model, s.voice_id);
+        return {
+          ...s,
+          voice_id: persona.voiceId,
+          avatar_model: persona.avatarModel,
+          speech_speed: typeof s.speech_speed === "number" ? s.speech_speed : DEFAULT_SPEECH_SPEED,
+          meeting_code: s.meeting_code || s.id?.slice(0, 8),
+        };
+      });
 
     return NextResponse.json({ sessions: normalizedSessions });
   } catch (err: unknown) {
@@ -123,10 +133,9 @@ export async function POST(
 
     const body = (await request.json()) as Record<string, unknown>;
     const topic = typeof body.topic === "string" ? body.topic.trim() : "";
-    const voice_id = typeof body.voice_id === "string" ? body.voice_id : DEFAULT_MALE_VOICE_ID;
-    const avatar_model = resolveAvatarModel(
+    const persona = enforcePersonaConsistency(
       typeof body.avatar_model === "string" ? body.avatar_model : undefined,
-      voice_id
+      typeof body.voice_id === "string" ? body.voice_id : undefined
     );
     const speech_speed = typeof body.speech_speed === "number" ? body.speech_speed : DEFAULT_SPEECH_SPEED;
     const tts_provider = typeof body.tts_provider === "string" ? body.tts_provider : DEFAULT_TTS_PROVIDER;
@@ -138,18 +147,33 @@ export async function POST(
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
     }
 
+    const requestedStatus = typeof body.status === "string" ? body.status : DEFAULT_SESSION_STATUS;
+
     // Dynamic insert payload with resilient retry for un-migrated columns
     const insertPayload: Record<string, unknown> = {
       course_id: courseId,
       topic,
-      voice_id: voice_id || DEFAULT_MALE_VOICE_ID,
-      avatar_model,
+      voice_id: persona.voiceId,
+      avatar_model: persona.avatarModel,
       speech_speed,
       tts_provider,
-      status: DEFAULT_SESSION_STATUS,
+      status: requestedStatus,
       created_by: user.id,
       meeting_code,
     };
+
+    if (body.roadmap) {
+      insertPayload.roadmap = body.roadmap;
+    }
+    if (Array.isArray(body.assigned_group_ids)) {
+      insertPayload.assigned_group_ids = body.assigned_group_ids;
+    }
+    if (typeof body.target_epoch_ms === "number") {
+      insertPayload.target_epoch_ms = Math.round(body.target_epoch_ms);
+    }
+    if (body.live_session_stats) {
+      insertPayload.live_session_stats = body.live_session_stats;
+    }
 
     let session: Record<string, unknown> | null = null;
     let insertError: { message: string } | null = null;
@@ -191,12 +215,15 @@ export async function POST(
     }
 
     // Ensure client always receives non-null voice_id, avatar_model, speech_speed, and meeting_code
+    const sAvatar = typeof (session as any)?.avatar_model === "string" ? (session as any).avatar_model : persona.avatarModel;
+    const sVoice = typeof (session as any)?.voice_id === "string" ? (session as any).voice_id : persona.voiceId;
+    const responsePersona = enforcePersonaConsistency(sAvatar, sVoice);
     const normalizedSession = {
       ...session,
-      voice_id: session.voice_id || voice_id || DEFAULT_MALE_VOICE_ID,
-      avatar_model: session.avatar_model || avatar_model,
-      speech_speed: typeof session.speech_speed === "number" ? session.speech_speed : speech_speed,
-      meeting_code: session.meeting_code || meeting_code,
+      voice_id: responsePersona.voiceId,
+      avatar_model: responsePersona.avatarModel,
+      speech_speed: typeof (session as any)?.speech_speed === "number" ? (session as any).speech_speed : speech_speed,
+      meeting_code: (session as any)?.meeting_code || meeting_code,
     };
 
     return NextResponse.json({ session: normalizedSession });
