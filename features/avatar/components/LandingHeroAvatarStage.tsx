@@ -141,10 +141,10 @@ export function LandingHeroAvatarStage() {
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const currentPersona = PERSONA_CONFIGS[selectedModel];
 
-  // Preload viseme JSON and audio buffers for both models on mount
+  // Preload viseme JSON and audio assets for both models on mount (HTTP cache, without triggering AudioContext autoplay policy)
   useEffect(() => {
     Object.values(PERSONA_CONFIGS).forEach(async (persona) => {
-      preloadAudioBuffer(persona.audioPath);
+      fetch(persona.audioPath).catch(() => {});
       try {
         const res = await fetch(persona.jsonPath);
         if (res.ok) {

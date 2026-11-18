@@ -15,16 +15,15 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hdfjiclsjuayuxopgbpf.supabase.co";
+    const cdnBase = "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
     return [
       {
         source: "/models/:path*",
-        destination: `${supabaseUrl}/storage/v1/object/public/3d-assets/models/:path*`,
+        destination: `${cdnBase}/models/:path*`,
       },
       {
         source: "/animations/:path*",
-        destination: `${supabaseUrl}/storage/v1/object/public/3d-assets/animations/:path*`,
+        destination: `${cdnBase}/animations/:path*`,
       },
     ];
   },

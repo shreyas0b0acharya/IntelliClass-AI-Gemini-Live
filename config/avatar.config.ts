@@ -41,10 +41,8 @@ export const DEFAULT_FEMALE_AVATAR_MODEL: AvatarModelId = "women-avatarsdk";
  * Supabase Storage CDN base for 3D assets
  * Hosted 100% remotely in Supabase Storage bucket 3d-assets
  */
-const SUPABASE_BASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hdfjiclsjuayuxopgbpf.supabase.co";
-
-export const SUPABASE_3D_ASSETS_CDN = `${SUPABASE_BASE_URL}/storage/v1/object/public/3d-assets`;
+export const SUPABASE_3D_ASSETS_CDN =
+  "https://hdfjiclsjuayuxopgbpf.supabase.co/storage/v1/object/public/3d-assets";
 
 /**
  * 3D Model file paths hosted directly on Supabase Storage CDN

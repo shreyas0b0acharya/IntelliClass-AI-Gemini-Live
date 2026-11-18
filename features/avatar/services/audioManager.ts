@@ -107,13 +107,6 @@ export async function getOrDecodeAudioBuffer(audioPath: string): Promise<AudioBu
 
   const ctx = getAudioContext();
 
-  // Always ensure context is running before decoding
-  if (ctx.state !== "running") {
-    try {
-      await ctx.resume();
-    } catch {}
-  }
-
   const cached = audioBufferCache.get(audioPath);
   if (cached) return cached;
 
